@@ -19,6 +19,20 @@ export class SandblocksExtensionInstance extends ExtensionInstance {
     view.node._views.push(replacement);
   }
 
+  installReplacement(view, replacement) {
+    view.node._views.remove(view);
+    view.node._views.push(replacement);
+    replacement.node = view.node;
+    view.replaceWith(replacement);
+  }
+
+  uninstallReplacement(replacement) {
+    const view = replacement.node.toHTMLExpanded();
+    prepareCb?.(view);
+    replacement.editor.changeDOM(() => replacement.replaceWith(view));
+    replacement.node._views.remove(replacement);
+  }
+
   ensureReplacement(node, tag, props) {
     console.assert(this.processingTrigger === "replacement");
 

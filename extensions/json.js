@@ -1,6 +1,9 @@
-import { Extension } from "../core/extension.js";
+import { Extension, cssClass } from "../core/extension.js";
 
 export const base = new Extension()
+  .viewUpdate(cssClass("string", [(x) => x.type === "string"]))
+  .viewUpdate(cssClass("number", [(x) => x.type === "number"]))
+
   .registerAlways((e) => [
     (x) => x.type === "string",
     (x) => e.applySyntaxHighlighting(x, "string"),

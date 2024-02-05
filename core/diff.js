@@ -400,14 +400,14 @@ export class DetachOp extends DiffOp {
   constructor(node) {
     super();
     this.node = node;
+    this.oldParent = node.parent;
   }
   get detachingFromRoot() {
-    return !this.node.parent;
+    return !this.oldParent;
   }
   apply(buffer, tx) {
     buffer.notePendingDetached(this.node);
-    if (!this.detachingFromRoot)
-      tx.removeNodeChild(this.node.parent, this.node);
+    if (!this.detachingFromRoot) tx.removeNodeChild(this.oldParent, this.node);
   }
   applyView(buffer, tx) {
     if (this.detachingFromRoot) {
