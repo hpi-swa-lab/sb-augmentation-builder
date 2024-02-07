@@ -364,20 +364,6 @@ export class TrueDiff {
 }
 
 class DiffOp {
-  updateViews(node, cb) {
-    node.viewsDo((view) => {
-      const shard = view.shard;
-      if (shard) cb(view, shard);
-      else cb(view, null);
-    });
-  }
-  updateViewsRecurse(node, cb) {
-    this.updateViews(node, cb);
-    node.children.forEach((child) => {
-      this.updateViewsRecurse(child, cb);
-    });
-  }
-
   debugString() {
     let nodeString = "";
     if (this.node) {
@@ -409,25 +395,6 @@ export class DetachOp extends DiffOp {
     buffer.notePendingDetached(this.node);
     if (!this.detachingFromRoot) tx.removeNodeChild(this.oldParent, this.node);
   }
-  applyView(buffer, tx) {
-    if (this.detachingFromRoot) {
-      this.node.viewsDo((view) => {
-        buffer.rememberDetached(view, view.shard);
-        buffer.rememberDetachedRootShard(view.shard);
-        view.remove();
-      });
-    } else {
-      this.updateViews(this.node, (view) => view.remove());
-      // recurse so that, if any parents are replaced but
-      // children are in shards, we still catch the children
-      this.updateViewsRecurse(this.node, (view, shard) => {
-        buffer.rememberDetached(view, shard);
-        // FIXME we used to recursively remove children from DOM
-        // but this breaks attaching re-attaching nodes. Do we
-        // break attaching to shards without?
-      });
-    }
-  }
 }
 
 export class AttachOp extends DiffOp {
@@ -444,24 +411,6 @@ export class AttachOp extends DiffOp {
     buffer.forgetPendingDetached(this.node);
     if (this.parent) tx.insertNodeChild(this.parent, this.node, this.index);
   }
-  applyView(buffer, tx) {
-    // FIXME do we still need detachedRootShards?
-    if (this.attachingToRoot && buffer.detachedRootShards.size > 0) {
-      buffer.detachedRootShards.forEach((shard) => {
-        tx.set(shard, "source", this.node);
-        shard.appendChild(buffer.getDetachedOrConstruct(this.node, shard));
-      });
-    } else {
-      this.updateViews(this.parent, (parentView, shard) => {
-        // insertNode is overridden as a no-op for replacements --> they
-        // will insert nodes as needed when their shards update
-        parentView.insertNode(
-          buffer.getDetachedOrConstruct(this.node, shard),
-          this.index
-        );
-      });
-    }
-  }
 }
 
 export class UpdateOp extends DiffOp {
@@ -473,11 +422,6 @@ export class UpdateOp extends DiffOp {
   }
   apply(_buffer, tx) {
     tx.updateNodeText(this.node, this.text);
-  }
-  applyView(_buffer, tx) {
-    this.updateViews(this.node, (view) => {
-      view.setAttribute("text", this.text);
-    });
   }
 }
 
@@ -544,6 +488,9 @@ class EditBuffer {
       node.id
     );
     this.posBuf.push(new AttachOp(node, parent, link));
+  }
+  get ops() {
+    return [...this.negBuf, ...this.posBuf];
   }
   detach(node) {
     this.log("detach", this.printLabel(node), node.id);

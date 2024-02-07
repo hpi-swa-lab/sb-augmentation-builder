@@ -1,5 +1,8 @@
-import { WeakArray, exec, last } from "../utils.js";
-import { TrueDiff } from "./diff.js";
+import { useContext, useEffect } from "../external/preact-hooks.mjs";
+import { createContext } from "../external/preact.mjs";
+import { WeakArray, exec, last, rangeContains } from "../utils.js";
+import { stickyShard } from "../view/widgets.js";
+import { AttachOp, DetachOp, LoadOp, RemoveOp, TrueDiff } from "./diff.js";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -26,13 +29,336 @@ const cyrb53 = (str, seed = 0) => {
 const hash = (str) => cyrb53(str);
 const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
 
-export class SBEditor {
-  replaceTextFromCommand(range, text) {
-    throw new Error("to be implemented");
+// # Lifecycle of a change
+// When a change occurs, the view calls SBEditor.applyChanges().
+// The editor then join this change with any pending changes (see below).
+// It then computes the diff between the last valid state and the state after
+// applying all changes. With that diff, we call the registered extensions
+// in the following way:
+// * beforeModelChange(modelDiff) --> may reject change (see below)
+// * modelChange(diff)
+// Now the editor will call the view implementation to apply the change.
+// We then proceed calling extensions:
+// * viewChange(viewDiff)
+// And finally ensure that the cursor is still in a valid position.
+//
+// ## Rejecting and Pending Changes
+// When a change is rejected by an extension, we collect the raw change
+// in a pendingChanges list. The editor offers functions to force apply
+// the pendingChanges, or to revert them.
+//
+// # View Implementation
+// The view implementation is responsible for:
+// * translating a modelDiff into a viewDiff by
+//   - creating/updating host editor instances (shards)
+//   - creating/updating replacements or widgets next to source code
+// * dispatching changes in shards to the editor
+// * interfacing with SBSelection to handle cursor movement across
+//   selectable elements
+//
+// On file load, the model diff will contain load and attach operations for
+// the entire AST. The view implementation always holds at its root a shard
+// that points to the AST root. Each shard may override or inherit a list of
+// extensions that are active within that shard. The root shard inherits its
+// list from the editor.
+//
+// ## Replacements
+// Replacements are user interface widgets that stand in the place of an AST
+// node. They may contain shards to nest host editor instances that, again,
+// may contain replacements.
+// Replacements are provided by extensions.
+
+// * push root shard to queue
+// * pop from queue
+//   * match replacements sorted by query depth
+//     - match: create replacement and push shards to queue
+//     - no match: create/update view nodes for children and push to queue
+
+// ### Query Depth Examples
+// (program) -> 1
+// (true) -> 1
+// (function (body (true))) -> 3
+// (function (name ="hello")) -> 2
+
+// how do changes stack across shards? how can we only create html where necessary? how do ranges play into it?
+// what is another replacement subsumes a sticky replacement? what if it nests it?
+// what about offscreen changes that are rejected?
+
+/*
+ * shards contain views/text and replacements
+ * when a new shard is created, we need to check if new replacements want to act on those views
+ * when a change occurs, we want to do the minimal number of checks, asking
+    (a) replacements whether they need to be created/removed/updated/moved
+    (b) replacements if their shards now match a different node
+    (c) replacements if values they pulled out of the tree need to be updated
+ * a change implies that we have to recheck up to [query depth] above and below the change's boundaries
+ * we know that a replacement can only match in a useful manner if its root node is *visible*
+    -> we need to go top-down to see if a replacement higher up in the tree consumes roots that other replacements would have needed
+    -> a shard needs to be able to let us iterate over nodes that are visible
+
+    on change:
+    * for each (new) shard
+      * iterate over visible nodes and nested replacement roots
+        * run replacement queries
+          * on existing: update()
+          * on new: createAndReplace()
+          * on node that was replacement root but no longer matches: uninstall() --> iterate over that part too
+    (we can use [shard, node] tuples to uniquely identify view nodes)
+ */
+
+export class SBShard {
+  stickyNodes = new Set();
+
+  markSticky(node, sticky) {
+    if (sticky) this.stickyNodes.add(node);
+    else this.stickyNodes.remove(node);
   }
 
-  insertTextFromCommand(position, text) {
-    this.replaceTextFromCommand([position, position], text);
+  // *iterateVisible() {
+  //   let queue = [this.node];
+  //   while (queue.length > 0) {
+  //     const node = queue.pop();
+  //     const replacement = this.replacementInstances[node];
+  //     yield [node, replacement];
+  //     if (!replacement) for (const child of node) queue.push(child);
+  //   }
+  // }
+
+  onTextChange(change) {
+    const change = this.extensions.filterChange(change);
+    this.editor.applyChanges([change]);
+  }
+
+  approveDiff(diff) {
+    for (const op of diff) {
+      if (op instanceof RemoveOp && this.stickyNodes.includes(op.node))
+        return false;
+    }
+    return true;
+  }
+
+  init(node) {
+    this.node = node;
+  }
+
+  applyDiff(editBuffer, changes) {
+    // for (const [node, instance] of this.iterateVisible) {
+    //   for (const replacement of this.extensions.replacements) {
+    //     const matches = replacement.query.matches(node);
+    //     const isReplaced =
+    //       replacement.name === instance.getAttribute("data-sb-replaced");
+    //     if (matches && isReplaced) {
+    //       this.updateReplacement(instance);
+    //     } else if (!matches && isReplaced) {
+    //       this.uninstallReplacement(instance, node);
+    //     } else if (matches && !isReplaced) {
+    //       this.installReplacement(replacement, node);
+    //     }
+    //   }
+    // }
+
+    for (const change of editBuffer.ops) {
+      if (!this.isShowing(change.node)) continue;
+
+      for (const dataModifier of this.extensions.dataModifiers.sort(
+        (a, b) => a.priority - b.priority
+      )) {
+        const hash = `${change.node}:${dataModifier.name}`;
+        if (change instanceof AttachOp && !this.attachedData[hash]) {
+          dataModifier.attach(this, change.node);
+          this.attachedData[hash] = true;
+        } else if (change instanceof DetachOp && this.attachedData[hash]) {
+          dataModifier.detach(this, change.node);
+          delete this.attachedData[hash];
+        }
+      }
+    }
+  }
+
+  cssClass(node, cls, add) {
+    throw "subclass responsibility";
+  }
+
+  _renderReplacement(instance, component) {
+    render(
+      instance,
+      h(ShardContext.Provider, { value: this }, h(component, { node }))
+    );
+  }
+  installReplacement(node, { component, sticky }) {
+    const instance = document.createElement("span");
+    if (sticky) this.markSticky(node, true);
+    this._renderReplacement(instance, component);
+    return instance;
+  }
+  uninstallReplacement(node) {
+    this.markSticky(node, false);
+  }
+}
+
+class CodeMirrorShard extends SBShard {
+  init(node) {
+    // TODO
+    this.cm = null;
+  }
+
+  isShowing(node) {
+    if (!rangeContains(this.node.range, node.range)) return false;
+    const marks = this.cm.findMarksAt(node.range[0] - this.node.range[0]);
+    return !marks.some((m) => !!m.replacedWith);
+  }
+
+  applyChanges(editBuffer, changes) {
+    // TODO update text and range according to the changes list
+
+    super.applyChanges(editBuffer, changes);
+  }
+
+  cssClass() {
+    // noop, we have our own syntax highlighting
+  }
+
+  installReplacement() {
+    const instance = super.installReplacement(node, args);
+    // TODO tag vs element
+    this.livelyCM.wrapWidgetSync(instance, ...pos);
+  }
+}
+
+class SandblocksShard extends SBShard {
+  views = {};
+
+  isShowing(node) {
+    return !!this.views[node];
+  }
+
+  cssClass(node, cls, add) {
+    this.views[node].classList.toggle(cls, add);
+  }
+
+  installReplacement(node, args) {
+    const instance = super.installReplacement(node, args);
+    this.views[node].replaceWith(instance);
+    this.views[node] = instance;
+  }
+
+  uninstallReplacement(node) {
+    super.uninstallReplacement(node);
+    this.views[node].replaceWith(node.toHTML());
+  }
+
+  applyDiff(editBuffer, changes) {
+    for (const change of editBuffer.ops) {
+      if (change instanceof DetachOp) {
+        change.node.allNodesDo((n) => {
+          const view = this.views[n];
+          if (view) {
+            editBuffer.rememberView(view);
+            view.remove();
+            delete this.views[change.node];
+          }
+        });
+      }
+    }
+
+    super.applyDiff(editBuffer, changes);
+
+    for (const change of editBuffer) {
+      if (change instanceof AttachOp) {
+        if (this.views[change.parent]) {
+          const view = editBuffer.recallView(change.node) ?? node.toHTML();
+          this.views[change.parent].insertNode(view, change.index);
+        } else if (!change.node.isRoot && this.node.isRoot) {
+          this.node = change.node;
+          this.appendChild(editBuffer.recallView(change.node) ?? node.toHTML());
+        }
+      }
+      if (change instanceof UpdateOp) {
+        this.views[change.node]?.setAttribute("text", this.text);
+      }
+    }
+  }
+}
+
+const ShardContext = createContext(null);
+
+function stickyShard(node) {
+  const owner = useContext(ShardContext);
+  useEffect(() => {
+    owner.markSticky(node, true);
+    return () => owner.markSticky(node, false);
+  });
+  return shard(node);
+}
+
+const PRIORITY_AUGMENT = 100;
+const PRIORITY_REPLACE = 200;
+
+const Highlight = {
+  query: [(x) => x.type === "number"],
+  name: "css:number",
+  attach: (shard, node) => shard.cssClass(node, "number", true),
+  detach: (shard, node) => shard.cssClass(node, "number", false),
+  priority: PRIORITY_AUGMENT,
+};
+
+const BrowserReplacementData = {
+  query: [(x) => x.type === "program"],
+  name: "replacement:number",
+  attach: (shard, node) => shard.installReplacement(node),
+  detach: (shard, node) => shard.uninstallReplacement(node),
+};
+
+const BrowserReplacement = {
+  query: [(x) => x.type === "program"],
+  component: ({ shard, node }) => {
+    const functions = node.childBlocks;
+    return functions.map((f) => stickyShard(f));
+  },
+  name: "sb-browser",
+  sticky: true,
+  priority: PRIORITY_REPLACE,
+};
+
+export class SBEditor {
+  pendingChanges = [];
+
+  revertPendingChanges() {
+    for (const change of this.pendingChanges.reverse()) {
+      change.undo();
+    }
+    this.pendingChanges = [];
+  }
+
+  forceApplyPendingChanges() {
+    this.applyChanges([], true);
+  }
+
+  // changes: {shard, from: number, to: number, insert: number, undo: () => {}}[]
+  // undo reverts any eager changes to the view
+  applyChanges(changes, force = false) {
+    this.pendingChanges.push(...changes);
+
+    let newSource = this.sourceString;
+    for (const change of this.pendingChanges)
+      newSource = applyChange(newSource, change);
+
+    const [diff, tx] = this.diff(this.sourceString, newSource);
+
+    for (const shard of this.shards) {
+      // do not short-circuit as approveDiff may prepare data
+      if (!shard.approveDiff(diff) || force) {
+        tx.rollback();
+        return;
+      }
+    }
+
+    tx.commit();
+    this.pendingChanges = [];
+
+    for (const shard of this.shards) {
+      shard.applyDiff(diff);
+    }
   }
 }
 
