@@ -114,16 +114,6 @@ export class SBShard {
     else this.stickyNodes.remove(node);
   }
 
-  // *iterateVisible() {
-  //   let queue = [this.node];
-  //   while (queue.length > 0) {
-  //     const node = queue.pop();
-  //     const replacement = this.replacementInstances[node];
-  //     yield [node, replacement];
-  //     if (!replacement) for (const child of node) queue.push(child);
-  //   }
-  // }
-
   onTextChange(change) {
     const change = this.extensions.filterChange(change);
     this.editor.applyChanges([change]);
@@ -139,24 +129,20 @@ export class SBShard {
 
   init(node) {
     this.node = node;
+    this.initView();
+    this.applyDiffToExtensions({ ops: [new AttachOp()] });
+  }
+
+  initView() {
+    throw "subclass responsibility";
   }
 
   applyDiff(editBuffer, changes) {
-    // for (const [node, instance] of this.iterateVisible) {
-    //   for (const replacement of this.extensions.replacements) {
-    //     const matches = replacement.query.matches(node);
-    //     const isReplaced =
-    //       replacement.name === instance.getAttribute("data-sb-replaced");
-    //     if (matches && isReplaced) {
-    //       this.updateReplacement(instance);
-    //     } else if (!matches && isReplaced) {
-    //       this.uninstallReplacement(instance, node);
-    //     } else if (matches && !isReplaced) {
-    //       this.installReplacement(replacement, node);
-    //     }
-    //   }
-    // }
+    // should call applyDiffToExtensions
+    throw "subclass responsibility";
+  }
 
+  applyDiffToExtensions(editBuffer, changes) {
     for (const change of editBuffer.ops) {
       if (!this.isShowing(change.node)) continue;
 
@@ -197,7 +183,7 @@ export class SBShard {
 }
 
 class CodeMirrorShard extends SBShard {
-  init(node) {
+  initView() {
     // TODO
     this.cm = null;
   }
@@ -211,7 +197,7 @@ class CodeMirrorShard extends SBShard {
   applyChanges(editBuffer, changes) {
     // TODO update text and range according to the changes list
 
-    super.applyChanges(editBuffer, changes);
+    this.applyDiffToExtensions(editBuffer, changes);
   }
 
   cssClass() {
@@ -227,6 +213,11 @@ class CodeMirrorShard extends SBShard {
 
 class SandblocksShard extends SBShard {
   views = {};
+
+  initView() {
+    // FIXME can we only create html if no replacement wants to display?
+    this.appendChild(this.node.toHTML());
+  }
 
   isShowing(node) {
     return !!this.views[node];
@@ -261,7 +252,7 @@ class SandblocksShard extends SBShard {
       }
     }
 
-    super.applyDiff(editBuffer, changes);
+    this.applyDiffToExtensions(editBuffer, changes);
 
     for (const change of editBuffer) {
       if (change instanceof AttachOp) {
