@@ -1,8 +1,7 @@
 import { useContext, useEffect } from "../external/preact-hooks.mjs";
 import { createContext } from "../external/preact.mjs";
 import { WeakArray, exec, last, rangeContains } from "../utils.js";
-import { stickyShard } from "../view/widgets.js";
-import { AttachOp, DetachOp, LoadOp, RemoveOp, TrueDiff } from "./diff.js";
+import { AttachOp, LoadOp, TrueDiff, UpdateOp } from "./diff.js";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -105,171 +104,6 @@ const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
           * on node that was replacement root but no longer matches: uninstall() --> iterate over that part too
     (we can use [shard, node] tuples to uniquely identify view nodes)
  */
-
-export class SBShard {
-  stickyNodes = new Set();
-
-  markSticky(node, sticky) {
-    if (sticky) this.stickyNodes.add(node);
-    else this.stickyNodes.remove(node);
-  }
-
-  onTextChange(change) {
-    const change = this.extensions.filterChange(change);
-    this.editor.applyChanges([change]);
-  }
-
-  approveDiff(diff) {
-    for (const op of diff) {
-      if (op instanceof RemoveOp && this.stickyNodes.includes(op.node))
-        return false;
-    }
-    return true;
-  }
-
-  init(node) {
-    this.node = node;
-    this.initView();
-    this.applyDiffToExtensions({ ops: [new AttachOp()] });
-  }
-
-  initView() {
-    throw "subclass responsibility";
-  }
-
-  applyDiff(editBuffer, changes) {
-    // should call applyDiffToExtensions
-    throw "subclass responsibility";
-  }
-
-  applyDiffToExtensions(editBuffer, changes) {
-    for (const change of editBuffer.ops) {
-      if (!this.isShowing(change.node)) continue;
-
-      for (const dataModifier of this.extensions.dataModifiers.sort(
-        (a, b) => a.priority - b.priority
-      )) {
-        const hash = `${change.node}:${dataModifier.name}`;
-        if (change instanceof AttachOp && !this.attachedData[hash]) {
-          dataModifier.attach(this, change.node);
-          this.attachedData[hash] = true;
-        } else if (change instanceof DetachOp && this.attachedData[hash]) {
-          dataModifier.detach(this, change.node);
-          delete this.attachedData[hash];
-        }
-      }
-    }
-  }
-
-  cssClass(node, cls, add) {
-    throw "subclass responsibility";
-  }
-
-  _renderReplacement(instance, component) {
-    render(
-      instance,
-      h(ShardContext.Provider, { value: this }, h(component, { node }))
-    );
-  }
-  installReplacement(node, { component, sticky }) {
-    const instance = document.createElement("span");
-    if (sticky) this.markSticky(node, true);
-    this._renderReplacement(instance, component);
-    return instance;
-  }
-  uninstallReplacement(node) {
-    this.markSticky(node, false);
-  }
-}
-
-class CodeMirrorShard extends SBShard {
-  initView() {
-    // TODO
-    this.cm = null;
-  }
-
-  isShowing(node) {
-    if (!rangeContains(this.node.range, node.range)) return false;
-    const marks = this.cm.findMarksAt(node.range[0] - this.node.range[0]);
-    return !marks.some((m) => !!m.replacedWith);
-  }
-
-  applyChanges(editBuffer, changes) {
-    // TODO update text and range according to the changes list
-
-    this.applyDiffToExtensions(editBuffer, changes);
-  }
-
-  cssClass() {
-    // noop, we have our own syntax highlighting
-  }
-
-  installReplacement() {
-    const instance = super.installReplacement(node, args);
-    // TODO tag vs element
-    this.livelyCM.wrapWidgetSync(instance, ...pos);
-  }
-}
-
-class SandblocksShard extends SBShard {
-  views = {};
-
-  initView() {
-    // FIXME can we only create html if no replacement wants to display?
-    this.appendChild(this.node.toHTML());
-  }
-
-  isShowing(node) {
-    return !!this.views[node];
-  }
-
-  cssClass(node, cls, add) {
-    this.views[node].classList.toggle(cls, add);
-  }
-
-  installReplacement(node, args) {
-    const instance = super.installReplacement(node, args);
-    this.views[node].replaceWith(instance);
-    this.views[node] = instance;
-  }
-
-  uninstallReplacement(node) {
-    super.uninstallReplacement(node);
-    this.views[node].replaceWith(node.toHTML());
-  }
-
-  applyDiff(editBuffer, changes) {
-    for (const change of editBuffer.ops) {
-      if (change instanceof DetachOp) {
-        change.node.allNodesDo((n) => {
-          const view = this.views[n];
-          if (view) {
-            editBuffer.rememberView(view);
-            view.remove();
-            delete this.views[change.node];
-          }
-        });
-      }
-    }
-
-    this.applyDiffToExtensions(editBuffer, changes);
-
-    for (const change of editBuffer) {
-      if (change instanceof AttachOp) {
-        if (this.views[change.parent]) {
-          const view = editBuffer.recallView(change.node) ?? node.toHTML();
-          this.views[change.parent].insertNode(view, change.index);
-        } else if (!change.node.isRoot && this.node.isRoot) {
-          this.node = change.node;
-          this.appendChild(editBuffer.recallView(change.node) ?? node.toHTML());
-        }
-      }
-      if (change instanceof UpdateOp) {
-        this.views[change.node]?.setAttribute("text", this.text);
-      }
-    }
-  }
-}
 
 const ShardContext = createContext(null);
 
@@ -502,9 +336,11 @@ class SBNode {
     return this.root.isRoot;
   }
 
-  toHTMLExpanded() {
-    // return this.toHTML(this.depth + 2);
-    return this.toHTML();
+  initOps() {
+    return [
+      new LoadOp(this),
+      new AttachOp(this, this.parent, this.siblingIndex),
+    ];
   }
 
   updateModelAndView(text) {
@@ -517,21 +353,6 @@ class SBNode {
 
   createShard() {
     return this.editor.createShardFor(this);
-  }
-
-  viewsDo(cb) {
-    if (this._views) this._views.forEach(cb);
-  }
-
-  get views() {
-    const out = [];
-    this._views.forEach((v) => out.push(v));
-    return out;
-  }
-
-  // quick way to obtain a view to the element, should only be used for debugging
-  get debugView() {
-    return last(this._views?._array).deref();
   }
 
   get editor() {
@@ -639,7 +460,7 @@ class SBNode {
   }
 
   get siblingIndex() {
-    return this.parent.children.indexOf(this);
+    return this.parent ? this.parent.children.indexOf(this) : 0;
   }
 
   get previousSiblingChild() {
@@ -792,6 +613,11 @@ class SBNode {
     if (this.parent) this.parent.nodeAndParentsDo(cb);
   }
 
+  *allNodes() {
+    yield this;
+    for (const child of this.children) yield* child.allNodes();
+  }
+
   allNodesDo(cb) {
     // FIXME still gotta do proper measurements on iterative vs recursive
     let stack = [this];
@@ -940,14 +766,6 @@ export class SBText extends SBNode {
   isWhitespace() {
     return this.text.trim() === "";
   }
-
-  toHTML() {
-    const text = document.createElement("sb-text");
-    text.setAttribute("text", this.text);
-    text.node = this;
-    (this._views ??= new WeakArray()).push(text);
-    return text;
-  }
 }
 
 export class SBBlock extends SBNode {
@@ -971,6 +789,13 @@ export class SBBlock extends SBNode {
 
   get named() {
     return this._named;
+  }
+
+  initOps() {
+    return [
+      ...super.initOps(),
+      ...this.children.flatMap((child) => child.initOps()),
+    ];
   }
 
   shallowClone() {
@@ -1020,25 +845,6 @@ export class SBBlock extends SBNode {
       this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0)
     ));
   }
-
-  toHTML(maxDepth = Infinity) {
-    let block;
-    if (
-      this.depth >= maxDepth &&
-      this.sourceString.length > 200 &&
-      this.children.length > 1
-    ) {
-      block = document.createElement("sb-collapse");
-    } else {
-      block = document.createElement("sb-block");
-      for (const child of this.children) {
-        block.appendChild(child.toHTML(maxDepth));
-      }
-    }
-    block.node = this;
-    (this._views ??= new WeakArray()).push(block);
-    return block;
-  }
 }
 
 // a fake root for a list of nodes, for use in e.g. a shard
@@ -1076,19 +882,5 @@ export class SBList extends SBNode {
       if (!this.list[i].equals(node.list[i])) return false;
     }
     return true;
-  }
-
-  toHTML() {
-    if (false) {
-      return this.list.map((ea) => ea.toHTML());
-    } else {
-      const list = document.createElement("sb-view-list");
-      for (const child of this.list) {
-        list.appendChild(child.toHTML());
-      }
-      list.node = this;
-      (this._views ??= new WeakArray()).push(list);
-      return list;
-    }
   }
 }

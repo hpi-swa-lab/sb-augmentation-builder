@@ -53,6 +53,17 @@ class _EditableElement extends HTMLElement {
     this.editor.selectRange(...this.range);
   }
 
+  *allViews() {
+    yield this;
+    for (const child of this.children) {
+      if (child.isNodeView) {
+        yield* child.allViews();
+      } else if (child instanceof Replacement) {
+        yield child;
+      }
+    }
+  }
+
   findTextForCursor(cursor) {
     for (const child of this.children) {
       if (["SB-TEXT", "SB-BLOCK"].includes(child.tagName)) {

@@ -330,7 +330,7 @@ export class TrueDiff {
     }
   }
   updateLiterals(a, b, editBuffer) {
-    if (a.text !== b.text) editBuffer.update(a, b.text);
+    if (a.isText && b.isText && a.text !== b.text) editBuffer.update(a, b.text);
     for (let i = 0; i < a.children.length; i++) {
       this.updateLiterals(a.children[i], b.children[i], editBuffer);
     }
@@ -447,12 +447,13 @@ export class LoadOp extends DiffOp {
   applyView() {}
 }
 
-class EditBuffer {
-  constructor() {
-    this.posBuf = [];
+export class EditBuffer {
+  constructor(posBuf = []) {
+    this.posBuf = posBuf;
     this.negBuf = [];
     this.shardBuffer = new Map();
     this.detachedRootShards = new Set();
+    this.rememberViews = new Map();
 
     this.pendingDetached = [];
     this.pendingLoaded = [];
@@ -471,6 +472,14 @@ class EditBuffer {
       if (index !== -1) this.pendingLoaded.splice(index, 1);
       // else console.log("forgetPendingDetached: node not detached", node);
     }
+  }
+  rememberView(view) {
+    this.rememberViews.set(view.node, view);
+  }
+  recallView(node) {
+    const view = this.rememberViews.get(node);
+    if (view) this.rememberViews.delete(node);
+    return view;
   }
   assertNoPendingDetached() {
     if (this.pendingDetached.length > 0) throw new Error("detached nodes left");
