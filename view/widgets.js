@@ -108,7 +108,10 @@ export function useComparableState(initialState, compare) {
 }
 
 export function useJSONComparedState(initialState) {
-  return useComparableState(initialState, (a, b) => JSON.stringify(a) === JSON.stringify(b));
+  return useComparableState(
+    initialState,
+    (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  );
 }
 
 export class Widget extends HTMLElement {
@@ -218,6 +221,10 @@ export class Replacement extends Widget {
         shard.update(node);
       }
     }
+  }
+
+  get isNodeReplacement() {
+    return true;
   }
 
   get range() {

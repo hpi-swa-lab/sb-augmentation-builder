@@ -118,7 +118,6 @@ export class TrueDiff {
 
     const tx = new Transaction();
     diff.apply(tx);
-    tx.onCommit = () => diff.applyView(tx);
     this.recurseParallel(b, root, (b, a) => {
       tx.set(a, "_range", b.range);
       if (a._field !== b._field) tx.set(a, "_field", b._field);
@@ -433,7 +432,6 @@ export class RemoveOp extends DiffOp {
   apply(buffer) {
     buffer.forgetPendingDetached(this.node);
   }
-  applyView() {}
 }
 
 export class LoadOp extends DiffOp {
@@ -444,7 +442,6 @@ export class LoadOp extends DiffOp {
   apply(buffer) {
     buffer.notePendingLoaded(this.node);
   }
-  applyView() {}
 }
 
 export class EditBuffer {
@@ -529,10 +526,6 @@ export class EditBuffer {
     this.posBuf.forEach((f) => f.apply(this, tx));
     this.assertNoPendingDetached();
   }
-  applyView(tx) {
-    this.negBuf.forEach((f) => f.applyView(this, tx));
-    this.posBuf.forEach((f) => f.applyView(this, tx));
-  }
   getDetachedOrConstruct(node, shard) {
     return (
       this.shardBuffer.get(shard)?.find((view) => view.node === node) ??
@@ -558,10 +551,8 @@ export class EditBuffer {
 
 class Transaction {
   undo = [];
-  onCommit = null;
 
   commit() {
-    this.onCommit();
     this.undo = null;
   }
   rollback() {

@@ -12,6 +12,11 @@ sb-editor > sb-shard {
   width: 100%;
 }
 
+sb-placeholder {
+  color: #e66700;
+  font-style: italic;
+  border-bottom: 1px dotted #e66700;
+}
 sb-block {
   display: inline;
   margin: 0;

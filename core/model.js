@@ -1,7 +1,5 @@
-import { useContext, useEffect } from "../external/preact-hooks.mjs";
-import { createContext } from "../external/preact.mjs";
-import { WeakArray, exec, last, rangeContains } from "../utils.js";
-import { AttachOp, LoadOp, TrueDiff, UpdateOp } from "./diff.js";
+import { exec, last } from "../utils.js";
+import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -28,165 +26,7 @@ const cyrb53 = (str, seed = 0) => {
 const hash = (str) => cyrb53(str);
 const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
 
-// # Lifecycle of a change
-// When a change occurs, the view calls SBEditor.applyChanges().
-// The editor then join this change with any pending changes (see below).
-// It then computes the diff between the last valid state and the state after
-// applying all changes. With that diff, we call the registered extensions
-// in the following way:
-// * beforeModelChange(modelDiff) --> may reject change (see below)
-// * modelChange(diff)
-// Now the editor will call the view implementation to apply the change.
-// We then proceed calling extensions:
-// * viewChange(viewDiff)
-// And finally ensure that the cursor is still in a valid position.
-//
-// ## Rejecting and Pending Changes
-// When a change is rejected by an extension, we collect the raw change
-// in a pendingChanges list. The editor offers functions to force apply
-// the pendingChanges, or to revert them.
-//
-// # View Implementation
-// The view implementation is responsible for:
-// * translating a modelDiff into a viewDiff by
-//   - creating/updating host editor instances (shards)
-//   - creating/updating replacements or widgets next to source code
-// * dispatching changes in shards to the editor
-// * interfacing with SBSelection to handle cursor movement across
-//   selectable elements
-//
-// On file load, the model diff will contain load and attach operations for
-// the entire AST. The view implementation always holds at its root a shard
-// that points to the AST root. Each shard may override or inherit a list of
-// extensions that are active within that shard. The root shard inherits its
-// list from the editor.
-//
-// ## Replacements
-// Replacements are user interface widgets that stand in the place of an AST
-// node. They may contain shards to nest host editor instances that, again,
-// may contain replacements.
-// Replacements are provided by extensions.
-
-// * push root shard to queue
-// * pop from queue
-//   * match replacements sorted by query depth
-//     - match: create replacement and push shards to queue
-//     - no match: create/update view nodes for children and push to queue
-
-// ### Query Depth Examples
-// (program) -> 1
-// (true) -> 1
-// (function (body (true))) -> 3
-// (function (name ="hello")) -> 2
-
-// how do changes stack across shards? how can we only create html where necessary? how do ranges play into it?
-// what is another replacement subsumes a sticky replacement? what if it nests it?
-// what about offscreen changes that are rejected?
-
-/*
- * shards contain views/text and replacements
- * when a new shard is created, we need to check if new replacements want to act on those views
- * when a change occurs, we want to do the minimal number of checks, asking
-    (a) replacements whether they need to be created/removed/updated/moved
-    (b) replacements if their shards now match a different node
-    (c) replacements if values they pulled out of the tree need to be updated
- * a change implies that we have to recheck up to [query depth] above and below the change's boundaries
- * we know that a replacement can only match in a useful manner if its root node is *visible*
-    -> we need to go top-down to see if a replacement higher up in the tree consumes roots that other replacements would have needed
-    -> a shard needs to be able to let us iterate over nodes that are visible
-
-    on change:
-    * for each (new) shard
-      * iterate over visible nodes and nested replacement roots
-        * run replacement queries
-          * on existing: update()
-          * on new: createAndReplace()
-          * on node that was replacement root but no longer matches: uninstall() --> iterate over that part too
-    (we can use [shard, node] tuples to uniquely identify view nodes)
- */
-
-const ShardContext = createContext(null);
-
-function stickyShard(node) {
-  const owner = useContext(ShardContext);
-  useEffect(() => {
-    owner.markSticky(node, true);
-    return () => owner.markSticky(node, false);
-  });
-  return shard(node);
-}
-
-const PRIORITY_AUGMENT = 100;
-const PRIORITY_REPLACE = 200;
-
-const Highlight = {
-  query: [(x) => x.type === "number"],
-  name: "css:number",
-  attach: (shard, node) => shard.cssClass(node, "number", true),
-  detach: (shard, node) => shard.cssClass(node, "number", false),
-  priority: PRIORITY_AUGMENT,
-};
-
-const BrowserReplacementData = {
-  query: [(x) => x.type === "program"],
-  name: "replacement:number",
-  attach: (shard, node) => shard.installReplacement(node),
-  detach: (shard, node) => shard.uninstallReplacement(node),
-};
-
-const BrowserReplacement = {
-  query: [(x) => x.type === "program"],
-  component: ({ shard, node }) => {
-    const functions = node.childBlocks;
-    return functions.map((f) => stickyShard(f));
-  },
-  name: "sb-browser",
-  sticky: true,
-  priority: PRIORITY_REPLACE,
-};
-
-export class SBEditor {
-  pendingChanges = [];
-
-  revertPendingChanges() {
-    for (const change of this.pendingChanges.reverse()) {
-      change.undo();
-    }
-    this.pendingChanges = [];
-  }
-
-  forceApplyPendingChanges() {
-    this.applyChanges([], true);
-  }
-
-  // changes: {shard, from: number, to: number, insert: number, undo: () => {}}[]
-  // undo reverts any eager changes to the view
-  applyChanges(changes, force = false) {
-    this.pendingChanges.push(...changes);
-
-    let newSource = this.sourceString;
-    for (const change of this.pendingChanges)
-      newSource = applyChange(newSource, change);
-
-    const [diff, tx] = this.diff(this.sourceString, newSource);
-
-    for (const shard of this.shards) {
-      // do not short-circuit as approveDiff may prepare data
-      if (!shard.approveDiff(diff) || force) {
-        tx.rollback();
-        return;
-      }
-    }
-
-    tx.commit();
-    this.pendingChanges = [];
-
-    for (const shard of this.shards) {
-      shard.applyDiff(diff);
-    }
-  }
-}
-
+class SBEditor {}
 class OffscreenEditor extends SBEditor {
   root = null;
 
@@ -244,7 +84,7 @@ export class SBLanguage {
 
     const { tx, root, diff } = new TrueDiff().applyEdits(
       oldRoot,
-      this.parse(text, oldRoot)
+      this.parse(text, oldRoot),
     );
     root._language = this;
     tx.set(root, "_sourceString", text);
@@ -524,7 +364,7 @@ class SBNode {
   insert(string, type, index) {
     const list = this.childBlocks.filter(
       (child) =>
-        child.compatibleWith(type) && this.language.separatorContextFor(child)
+        child.compatibleWith(type) && this.language.separatorContextFor(child),
     );
     // handle empty list by finding any slot that takes the type
     if (list.length === 0) {
@@ -591,7 +431,7 @@ class SBNode {
     const remove = this.removalNodes;
     this.editor.replaceTextFromCommand(
       [remove[0].range[0], last(remove).range[1]],
-      ""
+      "",
     );
   }
 
@@ -674,7 +514,7 @@ class SBNode {
   wrapWith(start, end) {
     this.editor.replaceTextFromCommand(
       this.range,
-      `${start}${this.sourceString}${end}`
+      `${start}${this.sourceString}${end}`,
     );
   }
 
@@ -804,7 +644,7 @@ export class SBBlock extends SBNode {
       this.field,
       this.range[0],
       this.range[1],
-      this.named
+      this.named,
     );
   }
 
@@ -837,12 +677,12 @@ export class SBBlock extends SBNode {
   get structureHash() {
     return (this._structureHash ??= hashCombine(
       hash(this.type),
-      this.children.reduce((a, node) => hashCombine(a, node.structureHash), 0)
+      this.children.reduce((a, node) => hashCombine(a, node.structureHash), 0),
     ));
   }
   get literalHash() {
     return (this._literalHash ??= hashCombine(
-      this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0)
+      this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0),
     ));
   }
 }

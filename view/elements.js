@@ -23,7 +23,7 @@ class _EditableElement extends HTMLElement {
   isReplacementAllowed(tag) {
     return (
       !this.disabledReplacements?.has(tag.toUpperCase()) &&
-      !(orParentThat(this, (x) => x instanceof Replacement)?.node === this.node)
+      !(orParentThat(this, (x) => x.isNodeReplacement)?.node === this.node)
     );
   }
 
@@ -58,7 +58,7 @@ class _EditableElement extends HTMLElement {
     for (const child of this.children) {
       if (child.isNodeView) {
         yield* child.allViews();
-      } else if (child instanceof Replacement) {
+      } else if (child.isNodeReplacement) {
         yield child;
       }
     }
@@ -159,11 +159,7 @@ export class Block extends _EditableElement {
         this.insertBefore(node, child);
         return;
       }
-      if (
-        child instanceof Replacement ||
-        child instanceof Block ||
-        child instanceof Text
-      ) {
+      if (child.isNodeReplacement || child.isNodeView) {
         index--;
       }
     }
@@ -194,5 +190,7 @@ export class Text extends _EditableElement {
     else return null;
   }
 }
+
+export class Placeholder extends _EditableElement {}
 
 export class ViewList extends _EditableElement {}

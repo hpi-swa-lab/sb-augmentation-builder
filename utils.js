@@ -36,6 +36,24 @@ export class WeakArray {
   }
 }
 
+export function undoableMutation(root, cb) {
+  const observer = new MutationObserver(() => {
+    console.assert(false, "should not reach");
+  });
+  observer.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    characterDataOldValue: true,
+  });
+  cb();
+  const changes = observer.takeRecords();
+  console.assert(changes.length > 0, "no operation recorded");
+  observer.disconnect();
+  return () => ToggleableMutationObserver.undoMutations(changes);
+}
+
 export class ToggleableMutationObserver {
   static observers = new WeakArray();
   static nestedDisable = 0;
@@ -100,7 +118,12 @@ export class ToggleableMutationObserver {
     this.destroyed = true;
   }
 
-  undoMutation(mutation) {
+  static undoMutations(mutations) {
+    for (const mutation of mutations.reverse()) {
+      this.undoMutation(mutation);
+    }
+  }
+  static undoMutation(mutation) {
     switch (mutation.type) {
       case "characterData":
         mutation.target.textContent = mutation.oldValue;
@@ -396,6 +419,12 @@ export function lastDeepChild(element) {
   else return element;
 }
 
+export function lastDeepChildNode(element) {
+  if (element.childNodes.length > 0)
+    return lastDeepChildNode(last(element.childNodes));
+  else return element;
+}
+
 export function firstDeepChild(element) {
   if (element.children.length > 0) return firstDeepChild(element.children[0]);
   else return element;
@@ -444,17 +473,23 @@ export function pluralString(string, number) {
 
 // CREDITS: https://stackoverflow.com/a/8809472/13994294
 export function makeUUID() {
-  var d = new Date().getTime();//Timestamp
-    var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;//Time in microseconds since page-load or 0 if unsupported
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16;//random number between 0 and 16
-        if(d > 0){//Use timestamp until depleted
-            r = (d + r)%16 | 0;
-            d = Math.floor(d/16);
-        } else {//Use microseconds since page-load if supported
-            r = (d2 + r)%16 | 0;
-            d2 = Math.floor(d2/16);
-        }
-        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-    });
+  var d = new Date().getTime(); //Timestamp
+  var d2 =
+    (typeof performance !== "undefined" &&
+      performance.now &&
+      performance.now() * 1000) ||
+    0; //Time in microseconds since page-load or 0 if unsupported
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    if (d > 0) {
+      //Use timestamp until depleted
+      r = (d + r) % 16 | 0;
+      d = Math.floor(d / 16);
+    } else {
+      //Use microseconds since page-load if supported
+      r = (d2 + r) % 16 | 0;
+      d2 = Math.floor(d2 / 16);
+    }
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }

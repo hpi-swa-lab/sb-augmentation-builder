@@ -38,7 +38,7 @@ export function nodeEditableForPart(node) {
 export function followingEditablePart(
   node,
   direction,
-  sameShardAllowed = false
+  sameShardAllowed = false,
 ) {
   const currentEditable = nodeEditableForPart(node);
   return followingElementThat(
@@ -48,13 +48,14 @@ export function followingEditablePart(
       nodeIsEditablePart(n) &&
       n !== currentEditable &&
       !hasParent(n, node) &&
-      (sameShardAllowed || nodeEditableForPart(n) !== currentEditable)
+      (sameShardAllowed || nodeEditableForPart(n) !== currentEditable),
   );
 }
 
 export function followingElementThat(node, direction, predicate) {
   do {
-    node = direction > 0 ? nextNodePreOrder(node) : previousNodePreOrder(node);
+    node =
+      direction > 0 ? nextElementPreOrder(node) : previousElementPreOrder(node);
     if (node && predicate(node)) return node;
   } while (node);
   return null;
@@ -77,7 +78,7 @@ function hasParent(node, p) {
   return false;
 }
 
-function nextNodePreOrder(node) {
+function nextElementPreOrder(node) {
   if (node.shadowRoot) return node.shadowRoot.firstElementChild;
   if (node.firstElementChild) return node.firstElementChild;
   if (node.nextElementSibling) return node.nextElementSibling;
@@ -89,13 +90,32 @@ function nextNodePreOrder(node) {
   return null;
 }
 
-function previousNodePreOrder(node) {
+function previousElementPreOrder(node) {
   if (node.previousElementSibling) {
     let current = node.previousElementSibling;
     while (lastChild(current)) current = lastChild(current);
     return current;
   }
   return parent(node);
+}
+
+export function nextNodePreOrderThat(node, predicate) {
+  do {
+    node = nextNodePreOrder(node);
+    if (node && predicate(node)) return node;
+  } while (node);
+  return null;
+}
+function nextNodePreOrder(node) {
+  if (node.shadowRoot) return node.shadowRoot.firstChild;
+  if (node.firstChild) return node.firstChild;
+  if (node.nextSibling) return node.nextSibling;
+
+  let current = node;
+  while ((current = parent(current))) {
+    if (current.nextSibling) return current.nextSibling;
+  }
+  return null;
 }
 
 // Manages selection and caret position for an editor.
@@ -219,9 +239,9 @@ export class SBSelection extends EventTarget {
     let node = followingEditablePart(
       this.viewForMove(
         editor,
-        this.range ? rangeShift(this.range, delta) : null
+        this.range ? rangeShift(this.range, delta) : null,
       ),
-      delta
+      delta,
     );
     if (!node) return;
 
@@ -254,7 +274,7 @@ export class SBSelection extends EventTarget {
       this.lastRect = view?.getBoundingClientRect();
 
       this.dispatchEvent(
-        new CustomEvent("viewChange", { detail: { view, node } })
+        new CustomEvent("viewChange", { detail: { view, node } }),
       );
       this.lastNode = node;
     }
@@ -282,7 +302,7 @@ export function markAsEditableElement(element) {
       element.addEventListener("keydown", handleKeyDown.bind(element));
       break;
     default:
-      if (element instanceof Replacement)
+      if (element.isNodeReplacement)
         element.addEventListener("keydown", handleKeyDown.bind(element));
       break;
   }
@@ -397,7 +417,7 @@ function _markInput(element) {
     return delta > 0 ? position === element.value.length : position === 0;
   };
   element.addEventListener("focus", () =>
-    getEditor(element).selection.informChange(element, getRange())
+    getEditor(element).selection.informChange(element, getRange()),
   );
   element.sbSelectedEditablePart = () => (element.isConnected ? element : null);
 }
