@@ -64,6 +64,14 @@ class _EditableElement extends HTMLElement {
     }
   }
 
+  *andAllParents() {
+    let current = this;
+    while (current?.isNodeView) {
+      yield current;
+      current = current.parentElement;
+    }
+  }
+
   findTextForCursor(cursor) {
     for (const child of this.children) {
       if (["SB-TEXT", "SB-BLOCK"].includes(child.tagName)) {

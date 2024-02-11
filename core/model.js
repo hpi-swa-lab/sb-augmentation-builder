@@ -453,6 +453,14 @@ class SBNode {
     if (this.parent) this.parent.nodeAndParentsDo(cb);
   }
 
+  *andAllParents() {
+    let current = this;
+    while (current) {
+      yield current;
+      current = current.parent;
+    }
+  }
+
   *allNodes() {
     yield this;
     for (const child of this.children) yield* child.allNodes();

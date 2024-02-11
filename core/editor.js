@@ -1,4 +1,10 @@
-import { basicSetup, EditorView } from "https://esm.sh/codemirror@6.0.1";
+import { EditorView, basicSetup } from "https://esm.sh/codemirror@6.0.1";
+import { RangeSet } from "https://esm.sh/@codemirror/state@6.3.1";
+import {
+  ViewPlugin,
+  Decoration,
+  WidgetType,
+} from "https://esm.sh/@codemirror/view@6.22.0";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import {
@@ -135,17 +141,9 @@ const IdentifierHighlight = {
   priority: PRIORITY_AUGMENT,
 };
 
-const BrowserReplacementData = {
-  query: [(x) => x.type === "number"],
-  name: "replacement:number",
-  attach: (shard, node) =>
-    shard.installReplacement(node, { component: () => "NUM", sticky: false }),
-  detach: (shard, node) => shard.uninstallReplacement(node),
-  priority: PRIORITY_REPLACE,
-};
-
 const BrowserReplacement = {
-  query: [(x) => x.type === "number"],
+  query: [(x) => x.type === "number", (x) => x.text === "1234"],
+  queryDepth: 1,
   component: ({ node }) => `[NUM-${node?.range[0]}]`,
   name: "sb-browser",
   sticky: true,
@@ -200,39 +198,115 @@ class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
-  applyDiffToExtensions(editBuffer, changes) {
-    // TODO
-    const modifiers = [];
-    this.extensionsDo((e) => modifiers.push(...e.dataModifiers));
-    modifiers.sort((a, b) => a.priority - b.priority);
+  cssClass(node, cls, add) {
+    throw "subclass responsibility";
+  }
 
-    for (const change of editBuffer.ops) {
-      if (!this.isShowing(change.node)) continue;
+  isShowing(node) {
+    throw "subclass responsibility";
+  }
 
-      for (const dataModifier of modifiers) {
-        const hash = `${change.node}:${dataModifier.name}`;
-        if (change instanceof AttachOp && !this.attachedData[hash]) {
-          dataModifier.attach(this, change.node);
-          this.attachedData[hash] = true;
-        } else if (change instanceof DetachOp && this.attachedData[hash]) {
-          dataModifier.detach(this, change.node);
-          delete this.attachedData[hash];
+  getReplacementFor(node) {
+    throw "subclass responsibility";
+  }
+
+  installReplacement(node, extension) {
+    throw "subclass responsibility";
+  }
+
+  uninstallReplacement(node) {
+    throw "subclass responsibility";
+  }
+
+  buildReplacementFor(node, extension) {
+    const view = document.createElement("sb-replacement");
+    view.query = extension.query;
+    view.component = extension.component;
+    view.node = node;
+    return view;
+  }
+
+  updateReplacements(editBuffer) {
+    // check for replacements that are now gone
+    for (const { node: root } of editBuffer.posBuf) {
+      for (const node of root.andAllParents()) {
+        const replacement = this.getReplacementFor(node);
+        if (replacement && !node.exec(...replacement.query))
+          this.uninstallReplacement(node, editBuffer);
+      }
+    }
+
+    // check for new replacements
+    for (const op of editBuffer.posBuf) {
+      let node = op.node;
+      for (const extension of this.extensionReplacements) {
+        for (let i = 0; i <= extension.queryDepth; i++) {
+          if (!node || !this.isShowing(node)) continue;
+          if (!this.getReplacementFor(node) && node?.exec(...extension.query))
+            this.installReplacement(node, extension);
+          node = node?.parent;
         }
       }
     }
   }
+}
 
-  cssClass(node, cls, add) {
-    throw "subclass responsibility";
+class CodeMirrorReplacementWidget extends WidgetType {
+  constructor(replacement) {
+    super();
+
+    this.replacement = replacement;
+  }
+
+  eq(other) {
+    return other.replacement === this.replacement;
+  }
+
+  toDOM() {
+    return this.replacement;
+  }
+
+  ignoreEvent() {
+    return true;
   }
 }
 
 class CodeMirrorShard extends BaseShard {
+  replacements = new Map();
+
   initView() {
+    const self = this;
+
     this.cm = new EditorView({
       doc: this.node.sourceString,
       extensions: [
         basicSetup,
+        ViewPlugin.fromClass(
+          class {
+            constructor(_view) {
+              this.replacements = RangeSet.of([]);
+            }
+            update(update) {
+              if (
+                update.transactions.some((t) => t.isUserEvent("replacements"))
+              )
+                this.replacements = RangeSet.of(
+                  [...self.replacements.values()].map((r) =>
+                    Decoration.replace({
+                      widget: new CodeMirrorReplacementWidget(r),
+                    }).range(...r.node.range),
+                  ),
+                );
+            }
+          },
+          {
+            decorations: (v) => v.replacements,
+            provide: (plugin) =>
+              EditorView.atomicRanges.of(
+                (view) => view.plugin(plugin).replacements || Decoration.none,
+              ),
+          },
+        ),
         EditorView.updateListener.of((v) => {
           if (v.docChanged) {
             const changes = [];
@@ -266,6 +340,8 @@ class CodeMirrorShard extends BaseShard {
 
   applyDiff(editBuffer, changes) {
     // TODO iterate over shards other than me and make the change visible
+    this.updateReplacements(editBuffer);
+    this.cm.dispatch({ userEvent: "replacements" });
   }
 
   applyRejectedDiff(editBuffer, changes) {
@@ -289,20 +365,20 @@ class CodeMirrorShard extends BaseShard {
     return true;
   }
 
-  applyChanges(editBuffer, changes) {
-    // TODO update text and range according to the changes list
-
-    this.applyDiffToExtensions(editBuffer, changes);
+  getReplacementFor(node) {
+    return this.replacements.get(node);
   }
 
   cssClass() {
     // noop, we have our own syntax highlighting
   }
 
-  installReplacement() {
-    const instance = super.installReplacement(node, args);
-    // TODO tag vs element
-    this.livelyCM.wrapWidgetSync(instance, ...pos);
+  installReplacement(node, extension) {
+    this.replacements.set(node, this.buildReplacementFor(node, extension));
+  }
+
+  uninstallReplacement(node) {
+    this.replacements.delete(node);
   }
 }
 
@@ -318,26 +394,21 @@ class SandblocksShard extends BaseShard {
     return !!this.views.get(node);
   }
 
+  getReplacementFor(node) {
+    const view = this.views.get(node);
+    return view?.isNodeReplacement ? view : null;
+  }
+
   cssClass(node, cls, add) {
     this.views.get(node).classList.toggle(cls, add);
   }
 
-  installReplacement(node, args) {
-    const instance = super.installReplacement(node, args);
-    this.views.get(node).replaceWith(instance);
-    this.views.set(node, instance);
-  }
-
-  uninstallReplacement(node) {
-    super.uninstallReplacement(node);
-
-    const replacement = this.views.get(node);
-    this.views.delete(node);
-    replacement.replaceWith(this.buildOrRecall(node));
-  }
-
   applyRejectedDiff(_editBuffer, changes) {
     return changes.map((change) => this.applyRejectedChange(change));
+  }
+
+  onPendingChangesReverted() {
+    this.actualSourceString = this.node.sourceString;
   }
 
   applyDiff(editBuffer, changes) {
@@ -354,15 +425,13 @@ class SandblocksShard extends BaseShard {
       }
     }
 
-    this.applyDiffToExtensions(editBuffer, changes);
-
     const sorted = [...editBuffer.posBuf].sort((a, b) => {
       // we want LoadOp first, then AttachOp, then UpdateOp
       // for AttachOp, we want a topological sort
       if (a instanceof LoadOp) return -1;
       if (b instanceof LoadOp) return 1;
       if (a instanceof AttachOp && b instanceof AttachOp)
-        // FIXME technically we want a proper topological sort
+        // FIXME do we need a proper topological sort?
         return a.node.depth - b.node.depth;
 
       if (a instanceof AttachOp && b instanceof UpdateOp) return -1;
@@ -388,21 +457,31 @@ class SandblocksShard extends BaseShard {
       }
     }
 
+    this.updateReplacements(editBuffer);
     this.actualSourceString = this.node.sourceString;
   }
 
-  onPendingChangesReverted() {
-    this.actualSourceString = this.node.sourceString;
+  uninstallReplacement(node, editBuffer) {
+    const replacement = this.views.get(node);
+    const view = this.buildOrRecall(node, editBuffer, true);
+    replacement.replaceWith(view);
+    this.views.set(node, view);
   }
 
-  buildOrRecall(node, editBuffer) {
+  installReplacement(node, extension) {
+    const view = this.views.get(node);
+    const replacement = this.buildReplacementFor(node, extension);
+    for (const v of view.allViews()) this.views.delete(v.node);
+    view.replaceWith(replacement);
+    this.views.set(node, replacement);
+  }
+
+  buildOrRecall(node, editBuffer, recursive = false) {
     let view;
 
     for (const extension of this.extensionReplacements) {
       if (node.exec(...extension.query)) {
-        view = document.createElement("sb-replacement");
-        view.component = extension.component;
-        view.node = node;
+        view = this.buildReplacementFor(node, extension);
       }
     }
 
@@ -423,6 +502,12 @@ class SandblocksShard extends BaseShard {
         throw new Error("unknown model node type");
       }
       view.node = node;
+    }
+
+    if (recursive) {
+      for (const child of node.children) {
+        view.appendChild(this.buildOrRecall(child, editBuffer, true));
+      }
     }
 
     this.views.set(node, view);
@@ -623,6 +708,11 @@ class BaseEditor extends HTMLElement {
   // subclassResponsibility
   static shardClass = null;
 
+  shards = new Set();
+  stickyNodes = new Set();
+  pendingChanges = signal([]);
+  revertChanges = [];
+
   get selectionRange() {
     return [0, 0];
   }
@@ -664,16 +754,10 @@ class BaseEditor extends HTMLElement {
     });
   }
 
-  shards = new Set();
-  stickyNodes = new Set();
-
   markSticky(node, sticky) {
     if (sticky) this.stickyNodes.add(node);
     else this.stickyNodes.remove(node);
   }
-
-  pendingChanges = signal([]);
-  revertChanges = [];
 
   // hook that may be implemented by editors for cleaning up
   onSuccessfulChange() {}
@@ -733,6 +817,9 @@ class SandblocksEditor extends BaseEditor {
   static shardClass = SandblocksShard;
 
   onSuccessfulChange() {
+    // unlike in the text editor, pending changes are inserted as
+    // placeholders and are turned into blocks once valid, so we
+    // revert here and the shard will apply the view changes
     this.revertPendingChanges();
   }
 }
