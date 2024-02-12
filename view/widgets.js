@@ -25,7 +25,11 @@ export const tr = (...children) => h("tr", {}, ...children);
 export const td = (...children) => h("td", {}, ...children);
 export const shard = (node, props = {}) => {
   if (!node.editor) throw new Error("node has become disconnected");
-  return h(node.editor.shardTag, { initNode: [node], key: node.id, ...props });
+  return h(node.editor.constructor.shardTag, {
+    node,
+    key: node.id,
+    ...props,
+  });
 };
 function StickyShard({ node, ...props }) {
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { exec, last } from "../utils.js";
+import { WeakArray, exec, last } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 
 /*
@@ -109,6 +109,7 @@ function _nextNodeId() {
 
 class SBNode {
   _parent = null;
+  shards = new WeakArray();
 
   constructor() {
     this._id = _nextNodeId().toString();
@@ -197,9 +198,7 @@ class SBNode {
 
   get editor() {
     if (this.root._editor) return this.root._editor;
-    let editor = null;
-    this.root.viewsDo((view) => !editor && (editor = view.editor));
-    return editor;
+    return this.orParentThat((p) => p.shards.any?.editor)?.shards.any.editor;
   }
 
   get context() {

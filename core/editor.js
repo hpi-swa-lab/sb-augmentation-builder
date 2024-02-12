@@ -1,5 +1,13 @@
-import { EditorView, basicSetup } from "https://esm.sh/codemirror@6.0.1";
-import { RangeSet } from "https://esm.sh/@codemirror/state@6.3.1";
+import {
+  EditorView,
+  basicSetup,
+  minimalSetup,
+} from "https://esm.sh/codemirror@6.0.1";
+import {
+  RangeSet,
+  StateField,
+  Facet,
+} from "https://esm.sh/@codemirror/state@6.3.1";
 import {
   ViewPlugin,
   Decoration,
@@ -22,11 +30,12 @@ import {
   lastDeepChildNode,
   orParentThat,
   rangeContains,
+  rangeShift,
   ToggleableMutationObserver,
   undoableMutation,
 } from "../utils.js";
 import { Text, Block, Placeholder } from "../view/elements.js";
-import { h, render } from "../view/widgets.js";
+import { h, render, shard } from "../view/widgets.js";
 import { SBBlock, SBList, SBText } from "./model.js";
 import { nextNodePreOrderThat } from "./focus.js";
 import { useEffect } from "../external/preact-hooks.mjs";
@@ -142,9 +151,17 @@ const IdentifierHighlight = {
 };
 
 const BrowserReplacement = {
-  query: [(x) => x.type === "number", (x) => x.text === "1234"],
-  queryDepth: 1,
-  component: ({ node }) => `[NUM-${node?.range[0]}]`,
+  query: [
+    (x) => x.type === "array",
+    (x) => x.childBlock(0).type === "number",
+    (x) => x.childBlock(0).text === "1234" || x.childBlock(0).text === "12345",
+  ],
+  queryDepth: 2,
+  component: ({ node }) => [
+    `[NUM-${node?.range[0]}]`,
+    shard(node.childBlock(0)),
+    "[]",
+  ],
   name: "sb-browser",
   sticky: true,
   priority: PRIORITY_REPLACE,
@@ -156,7 +173,8 @@ class BaseShard extends HTMLElement {
     this.editor.shards.add(this);
   }
   disconnectedCallback() {
-    this.editor.shards.remove(this);
+    this.editor.shards.delete(this);
+    this.node = null;
   }
 
   get extensionReplacements() {
@@ -180,10 +198,27 @@ class BaseShard extends HTMLElement {
 
   onPendingChangesReverted() {}
 
-  init(node) {
-    this.node = node;
-    this.initView();
-    this.applyDiff(new EditBuffer(node.initOps()));
+  set node(n) {
+    const init = !this._node;
+
+    this._node?.shards.remove(this);
+    this._node = n;
+    n?.shards.push(this);
+
+    if (init) {
+      this.initView();
+      this.applyDiff(new EditBuffer(this.node.initOps()), [
+        {
+          from: this.node.range[0],
+          to: this.node.range[0],
+          insert: this.node.sourceString,
+        },
+      ]);
+    }
+  }
+
+  get node() {
+    return this._node;
   }
 
   initView() {
@@ -277,70 +312,107 @@ class CodeMirrorShard extends BaseShard {
   initView() {
     const self = this;
 
+    const replacementsField = StateField.define({
+      create() {
+        return Decoration.none;
+      },
+      update() {
+        return self._collectReplacements();
+      },
+      provide: (f) => EditorView.decorations.from(f),
+    });
+
     this.cm = new EditorView({
-      doc: this.node.sourceString,
+      doc: "",
       extensions: [
-        basicSetup,
-        ViewPlugin.fromClass(
-          class {
-            constructor(_view) {
-              this.replacements = RangeSet.of([]);
-            }
-            update(update) {
-              if (
-                update.transactions.some((t) => t.isUserEvent("replacements"))
-              )
-                this.replacements = RangeSet.of(
-                  [...self.replacements.values()].map((r) =>
-                    Decoration.replace({
-                      widget: new CodeMirrorReplacementWidget(r),
-                    }).range(...r.node.range),
-                  ),
-                );
-            }
-          },
-          {
-            decorations: (v) => v.replacements,
-            provide: (plugin) =>
-              EditorView.atomicRanges.of(
-                (view) => view.plugin(plugin).replacements || Decoration.none,
-              ),
-          },
-        ),
-        EditorView.updateListener.of((v) => {
-          if (v.docChanged) {
-            const changes = [];
-            v.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
-              changes.push({
-                from: fromA,
-                to: toA,
-                insert: inserted.toString(),
-                sourceShard: this,
-              });
-            });
-            const inverse = [];
-            v.changes
-              .invert(v.startState.doc)
-              .iterChanges((fromA, toA, fromB, toB, inserted) => {
-                inverse.push({
-                  from: fromA,
-                  to: toA,
-                  insert: inserted.toString(),
-                });
-              });
-            console.assert(inverse.length === changes.length);
-            changes.forEach((c, i) => (c.inverse = inverse[i]));
-            this.onTextChanges(changes);
-          }
-        }),
+        this.node.isRoot ? basicSetup : minimalSetup,
+        replacementsField,
+        // ViewPlugin.fromClass(
+        //   class {
+        //     constructor(_view) {
+        //       this.replacements = RangeSet.of([]);
+        //     }
+        //     update(update) {
+        //       self._collectReplacements(this, update);
+        //     }
+        //   },
+        //   {
+        //     decorations: (v) => v.replacements,
+        //     provide: (plugin) =>
+        //       EditorView.atomicRanges.of(
+        //         (view) => view.plugin(plugin).replacements,
+        //       ),
+        //   },
+        // ),
+        EditorView.updateListener.of((v) => this._onChange(v)),
       ],
       parent: this,
     });
+
+    if (!this.node.isRoot)
+      this.cm.dom.style.cssText = "display: inline-flex !important";
+  }
+
+  _onChange(v) {
+    if (v.docChanged && !v.transactions.some((t) => t.isUserEvent("sync"))) {
+      const changes = [];
+      v.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+        changes.push({
+          from: fromA + this.node.range[0],
+          to: toA + this.node.range[0],
+          insert: inserted.toString(),
+          sourceShard: this,
+        });
+      });
+      const inverse = [];
+      v.changes
+        .invert(v.startState.doc)
+        .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+          inverse.push({
+            from: fromA + this.node.range[0],
+            to: toA + this.node.range[0],
+            insert: inserted.toString(),
+          });
+        });
+      console.assert(inverse.length === changes.length);
+      changes.forEach((c, i) => (c.inverse = inverse[i]));
+      this.onTextChanges(changes);
+    }
+  }
+
+  _collectReplacements(plugin, cmUpdate) {
+    // if (cmUpdate.transactions.some((t) => t.isUserEvent("replacements"))) {
+    return RangeSet.of(
+      [...this.replacements.values()].map((r) =>
+        Decoration.replace({
+          widget: new CodeMirrorReplacementWidget(r),
+        }).range(...rangeShift(r.node.range, -this.node.range[0])),
+      ),
+    );
   }
 
   applyDiff(editBuffer, changes) {
-    // TODO iterate over shards other than me and make the change visible
+    for (const change of changes.filter(
+      (c) =>
+        c.sourceShard !== this &&
+        rangeContains(this.node.range, [c.from, c.from]),
+    )) {
+      this.cm.dispatch({
+        userEvent: "sync",
+        changes: [
+          {
+            from: change.from - this.node.range[0],
+            to: change.to - this.node.range[0],
+            insert: change.insert,
+          },
+        ],
+      });
+    }
     this.updateReplacements(editBuffer);
+  }
+
+  updateReplacements(editBuffer) {
+    super.updateReplacements(editBuffer);
     this.cm.dispatch({ userEvent: "replacements" });
   }
 
@@ -349,11 +421,17 @@ class CodeMirrorShard extends BaseShard {
     return [
       () =>
         this.cm.dispatch({
-          changes: [...changes].reverse().map(({ inverse: c }) => ({
-            from: c.from,
-            to: c.to,
-            insert: c.insert,
-          })),
+          userEvent: "sync",
+          changes: [...changes]
+            .reverse()
+            .filter(({ inverse: c }) =>
+              rangeContains(this.node.range, [c.from, c.from]),
+            )
+            .map(({ inverse: c }) => ({
+              from: c.from - this.node.range[0],
+              to: c.to - this.node.range[0],
+              insert: c.insert,
+            })),
         }),
     ];
   }
@@ -362,6 +440,7 @@ class CodeMirrorShard extends BaseShard {
     if (!rangeContains(this.node.range, node.range)) return false;
     // const marks = this.cm.findMarksAt(node.range[0] - this.node.range[0]);
     // return !marks.some((m) => !!m.replacedWith);
+    // TODO
     return true;
   }
 
@@ -404,7 +483,9 @@ class SandblocksShard extends BaseShard {
   }
 
   applyRejectedDiff(_editBuffer, changes) {
-    return changes.map((change) => this.applyRejectedChange(change));
+    return changes
+      .map((change) => this.applyRejectedChange(change))
+      .filter((n) => n);
   }
 
   onPendingChangesReverted() {
@@ -445,8 +526,7 @@ class SandblocksShard extends BaseShard {
         if (parentView) {
           const view = this.buildOrRecall(change.node, editBuffer);
           parentView.insertNode(view, change.index);
-        } else if (change.node.isRoot && this.node.isRoot) {
-          this.node = change.node;
+        } else if (this.node === change.node) {
           this.appendChild(this.buildOrRecall(change.node, editBuffer));
         } else {
           // not within our shard
@@ -577,6 +657,8 @@ class SandblocksShard extends BaseShard {
   }
 
   applyRejectedChange({ from, to, insert }) {
+    if (!rangeContains(this.node.range, [from, from])) return null;
+
     let start = null;
     let offset = 0;
     const nestedElements = this._getNestedContentElements();
@@ -706,7 +788,7 @@ class SandblocksShard extends BaseShard {
 
 class BaseEditor extends HTMLElement {
   // subclassResponsibility
-  static shardClass = null;
+  static shardTag = null;
 
   shards = new Set();
   stickyNodes = new Set();
@@ -723,8 +805,8 @@ class BaseEditor extends HTMLElement {
       this.node = await languageFor(
         this.getAttribute("language"),
       ).initModelAndView(newValue);
-      this.rootShard = new this.constructor.shardClass();
-      this.rootShard.init(this.node);
+      this.rootShard = document.createElement(this.constructor.shardTag);
+      this.rootShard.node = this.node;
       this.appendChild(this.rootShard);
     }
   }
@@ -756,7 +838,7 @@ class BaseEditor extends HTMLElement {
 
   markSticky(node, sticky) {
     if (sticky) this.stickyNodes.add(node);
-    else this.stickyNodes.remove(node);
+    else this.stickyNodes.delete(node);
   }
 
   // hook that may be implemented by editors for cleaning up
@@ -788,7 +870,13 @@ class BaseEditor extends HTMLElement {
 
     this.onSuccessfulChange();
     tx.commit();
-    for (const shard of this.shards) shard.applyDiff(diff, changes);
+
+    // may create or delete shards while iterating, so iterate over a copy
+    for (const shard of [...this.shards]) {
+      // if we are deleted while iterating, don't process diff
+      if (shard.node) shard.applyDiff(diff, changes);
+    }
+
     this.pendingChanges.value = [];
     this.revertChanges = [];
   }
@@ -810,11 +898,11 @@ class BaseEditor extends HTMLElement {
 }
 
 class SCMEditor extends BaseEditor {
-  static shardClass = CodeMirrorShard;
+  static shardTag = "scm-shard";
 }
 
 class SandblocksEditor extends BaseEditor {
-  static shardClass = SandblocksShard;
+  static shardTag = "sb-shard";
 
   onSuccessfulChange() {
     // unlike in the text editor, pending changes are inserted as

@@ -8,6 +8,13 @@ export class WeakArray {
   get length() {
     return this._array.length;
   }
+  get any() {
+    for (const ref of this._array) {
+      const item = ref.deref();
+      if (item) return item;
+    }
+    return null;
+  }
   remove(item) {
     this._array = this._array.filter((ref) => ref.deref() !== item);
   }
