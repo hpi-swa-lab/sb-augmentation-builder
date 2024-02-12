@@ -329,7 +329,7 @@ class CodeMirrorReplacementWidget extends WidgetType {
     return this.replacement;
   }
   ignoreEvent() {
-    return true;
+    return false;
   }
 }
 
@@ -344,7 +344,12 @@ class CodeMirrorShard extends BaseShard {
         StateField.define({
           create: () => Decoration.none,
           update: () => this._collectReplacements(),
-          provide: (f) => EditorView.decorations.from(f),
+          provide: (f) => [
+            EditorView.decorations.from(f),
+            EditorView.atomicRanges.of(
+              (view) => view.state.field(f) ?? Decoration.none,
+            ),
+          ],
         }),
         EditorView.updateListener.of((v) => this._onChange(v)),
       ],
