@@ -138,6 +138,7 @@ const PRIORITY_REPLACE = 200;
 const NumberHighlight = {
   query: [(x) => x.type === "number"],
   name: "css:number",
+  queryDepth: 1,
   attach: (shard, node) => shard.cssClass(node, "number", true),
   detach: (shard, node) => shard.cssClass(node, "number", false),
   priority: PRIORITY_AUGMENT,
@@ -177,10 +178,13 @@ class BaseShard extends HTMLElement {
     this.node = null;
   }
 
+  get extensionMarkers() {
+    if (true) return [NumberHighlight];
+  }
+
   get extensionReplacements() {
-    if (true) {
-      return [BrowserReplacement];
-    }
+    if (true) return [BrowserReplacement];
+
     const replacements = [];
     for (const extension of this.extensions) {
       replacements.push(...extension.replacements);
@@ -245,6 +249,10 @@ class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
+  getMarkersFor(node) {
+    throw "subclass responsibility";
+  }
+
   installReplacement(node, extension) {
     throw "subclass responsibility";
   }
@@ -284,23 +292,42 @@ class BaseShard extends HTMLElement {
       }
     }
   }
+
+  updateMarkers(editBuffer) {
+    for (const op of editBuffer.posBuf) {
+      let node = op.node;
+      for (const extension of this.extensionMarkers) {
+        for (let i = 0; i <= extension.queryDepth; i++) {
+          const markers = this.getMarkersFor(node);
+          if (!markers) continue;
+
+          const marker = markers.get(extension.name);
+          const match = node?.exec(...extension.query);
+          if (!marker && match) {
+            markers.set(extension.name, extension);
+            extension.attach(this, node);
+          } else if (marker && !match) {
+            markers.delete(extension.name);
+            extension.detach(this, node);
+          }
+          node = node?.parent;
+        }
+      }
+    }
+  }
 }
 
 class CodeMirrorReplacementWidget extends WidgetType {
   constructor(replacement) {
     super();
-
     this.replacement = replacement;
   }
-
   eq(other) {
     return other.replacement === this.replacement;
   }
-
   toDOM() {
     return this.replacement;
   }
-
   ignoreEvent() {
     return true;
   }
@@ -310,40 +337,15 @@ class CodeMirrorShard extends BaseShard {
   replacements = new Map();
 
   initView() {
-    const self = this;
-
-    const replacementsField = StateField.define({
-      create() {
-        return Decoration.none;
-      },
-      update() {
-        return self._collectReplacements();
-      },
-      provide: (f) => EditorView.decorations.from(f),
-    });
-
     this.cm = new EditorView({
       doc: "",
       extensions: [
         this.node.isRoot ? basicSetup : minimalSetup,
-        replacementsField,
-        // ViewPlugin.fromClass(
-        //   class {
-        //     constructor(_view) {
-        //       this.replacements = RangeSet.of([]);
-        //     }
-        //     update(update) {
-        //       self._collectReplacements(this, update);
-        //     }
-        //   },
-        //   {
-        //     decorations: (v) => v.replacements,
-        //     provide: (plugin) =>
-        //       EditorView.atomicRanges.of(
-        //         (view) => view.plugin(plugin).replacements,
-        //       ),
-        //   },
-        // ),
+        StateField.define({
+          create: () => Decoration.none,
+          update: () => this._collectReplacements(),
+          provide: (f) => EditorView.decorations.from(f),
+        }),
         EditorView.updateListener.of((v) => this._onChange(v)),
       ],
       parent: this,
@@ -380,8 +382,7 @@ class CodeMirrorShard extends BaseShard {
     }
   }
 
-  _collectReplacements(plugin, cmUpdate) {
-    // if (cmUpdate.transactions.some((t) => t.isUserEvent("replacements"))) {
+  _collectReplacements() {
     return RangeSet.of(
       [...this.replacements.values()].map((r) =>
         Decoration.replace({
@@ -409,6 +410,7 @@ class CodeMirrorShard extends BaseShard {
       });
     }
     this.updateReplacements(editBuffer);
+    this.updateMarkers(editBuffer);
   }
 
   updateReplacements(editBuffer) {
@@ -448,6 +450,11 @@ class CodeMirrorShard extends BaseShard {
     return this.replacements.get(node);
   }
 
+  getMarkersFor(node) {
+    // TODO
+    return new Map();
+  }
+
   cssClass() {
     // noop, we have our own syntax highlighting
   }
@@ -476,6 +483,11 @@ class SandblocksShard extends BaseShard {
   getReplacementFor(node) {
     const view = this.views.get(node);
     return view?.isNodeReplacement ? view : null;
+  }
+
+  getMarkersFor(node) {
+    const view = this.views.get(node);
+    return view?.markers;
   }
 
   cssClass(node, cls, add) {
@@ -538,6 +550,7 @@ class SandblocksShard extends BaseShard {
     }
 
     this.updateReplacements(editBuffer);
+    this.updateMarkers(editBuffer);
     this.actualSourceString = this.node.sourceString;
   }
 

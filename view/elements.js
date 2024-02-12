@@ -4,6 +4,8 @@ import { nextHash, orParentThat } from "../utils.js";
 // _EditableElement is the superclass for Text and Block elements, grouping
 // common functionality.
 class _EditableElement extends HTMLElement {
+  markers = new Map();
+
   get shard() {
     let current = this.parentElement;
     while (current) {
