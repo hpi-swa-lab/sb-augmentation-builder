@@ -3,16 +3,8 @@ import {
   basicSetup,
   minimalSetup,
 } from "https://esm.sh/codemirror@6.0.1";
-import {
-  RangeSet,
-  StateField,
-  Facet,
-} from "https://esm.sh/@codemirror/state@6.3.1";
-import {
-  ViewPlugin,
-  Decoration,
-  WidgetType,
-} from "https://esm.sh/@codemirror/view@6.22.0";
+import { RangeSet, StateField } from "https://esm.sh/@codemirror/state@6.3.1";
+import { Decoration, WidgetType } from "https://esm.sh/@codemirror/view@6.22.0";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import {
@@ -200,7 +192,9 @@ class BaseShard extends HTMLElement {
     this.editor.applyChanges(changes);
   }
 
-  onPendingChangesReverted() {}
+  onPendingChangesReverted() {
+    // may be implemented by subclasses
+  }
 
   set node(n) {
     const init = !this._node;
@@ -361,6 +355,8 @@ class CodeMirrorShard extends BaseShard {
   }
 
   _onChange(v) {
+    if (v.selectionSet) {
+    }
     if (v.docChanged && !v.transactions.some((t) => t.isUserEvent("sync"))) {
       const changes = [];
       v.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
