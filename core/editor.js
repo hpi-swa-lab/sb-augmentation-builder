@@ -3,8 +3,17 @@ import {
   basicSetup,
   minimalSetup,
 } from "https://esm.sh/codemirror@6.0.1";
-import { RangeSet, StateField } from "https://esm.sh/@codemirror/state@6.3.1";
-import { Decoration, WidgetType } from "https://esm.sh/@codemirror/view@6.22.0";
+import {
+  RangeSet,
+  StateField,
+  Prec,
+  EditorSelection,
+} from "https://esm.sh/@codemirror/state@6.3.1";
+import {
+  Decoration,
+  WidgetType,
+  keymap,
+} from "https://esm.sh/@codemirror/view@6.22.0";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import {
@@ -21,6 +30,7 @@ import {
   lastDeepChild,
   lastDeepChildNode,
   orParentThat,
+  parentWithTag,
   rangeContains,
   rangeShift,
   ToggleableMutationObserver,
@@ -29,7 +39,11 @@ import {
 import { Text, Block, Placeholder } from "../view/elements.js";
 import { h, render, shard } from "../view/widgets.js";
 import { SBBlock, SBList, SBText } from "./model.js";
-import { nextNodePreOrderThat } from "./focus.js";
+import {
+  followingEditablePart,
+  nextElementPreOrder,
+  nextNodePreOrderThat,
+} from "./focus.js";
 import { useEffect } from "../external/preact-hooks.mjs";
 import { createContext } from "../external/preact.mjs";
 
@@ -259,6 +273,7 @@ class BaseShard extends HTMLElement {
     const view = document.createElement("sb-replacement");
     view.query = extension.query;
     view.component = extension.component;
+    view.selectable = extension.selectable;
     view.node = node;
     return view;
   }
@@ -331,20 +346,67 @@ class CodeMirrorShard extends BaseShard {
   replacements = new Map();
 
   initView() {
+    const replacementsField = StateField.define({
+      create: () => Decoration.none,
+      update: () => this._collectReplacements(),
+      provide: (f) => [
+        EditorView.decorations.from(f),
+        // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),
+      ],
+    });
+
+    function updateSel(view, by) {
+      const replacedRanges = view.state.field(replacementsField);
+
+      const selection = EditorSelection.create(
+        view.state.selection.ranges.map(by),
+        view.state.selection.mainIndex,
+      );
+      if (selection.eq(view.state.selection, true)) return false;
+
+      // FIXME assuming a single range
+      const pos = selection.main.head;
+      let didLeave = false;
+      replacedRanges.between(pos, pos, (from, to, value) => {
+        console.log(pos, from, to);
+        if (pos === from || pos === to) return;
+        value.widget.replacement.takeCursor();
+        didLeave = true;
+        return false;
+      });
+      if (didLeave) return true;
+
+      view.dispatch(
+        view.state.update({
+          selection,
+          scrollIntoView: true,
+          userEvent: "select",
+        }),
+      );
+      return true;
+    }
+
     this.cm = new EditorView({
       doc: "",
       extensions: [
         this.node.isRoot ? basicSetup : minimalSetup,
-        StateField.define({
-          create: () => Decoration.none,
-          update: () => this._collectReplacements(),
-          provide: (f) => [
-            EditorView.decorations.from(f),
-            EditorView.atomicRanges.of(
-              (view) => view.state.field(f) ?? Decoration.none,
-            ),
-          ],
-        }),
+        Prec.highest(
+          keymap.of([
+            {
+              key: "ArrowLeft",
+              run: (v) => {
+                return updateSel(v, (r) => v.moveByChar(r, false));
+              },
+            },
+            {
+              key: "ArrowRight",
+              run: (v) => {
+                return updateSel(v, (r) => v.moveByChar(r, true));
+              },
+            },
+          ]),
+        ),
+        replacementsField,
         EditorView.updateListener.of((v) => this._onChange(v)),
       ],
       parent: this,
@@ -355,8 +417,6 @@ class CodeMirrorShard extends BaseShard {
   }
 
   _onChange(v) {
-    if (v.selectionSet) {
-    }
     if (v.docChanged && !v.transactions.some((t) => t.isUserEvent("sync"))) {
       const changes = [];
       v.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
@@ -466,6 +526,15 @@ class CodeMirrorShard extends BaseShard {
 
   uninstallReplacement(node) {
     this.replacements.delete(node);
+  }
+
+  takeCursor(atStart) {
+    this.cm.focus();
+    const pos = atStart ? 0 : this.cm.state.doc.length;
+    this.cm.dispatch({
+      selection: { anchor: pos, head: pos },
+      scrollIntoView: true,
+    });
   }
 }
 
@@ -927,8 +996,24 @@ class SandblocksEditor extends BaseEditor {
 }
 
 class SBReplacement extends HTMLElement {
+  _selectionAtStart = false;
+
+  set selectable(v) {
+    if (v) {
+      this.tabIndex = -1;
+      this.setAttribute("sb-editable", "");
+    } else {
+      this.removeAttribute("sb-editable");
+      this.tabIndex = undefined;
+    }
+  }
+
   get shard() {
     return orParentThat(this, (p) => p instanceof BaseShard);
+  }
+
+  get editor() {
+    return this.shard.editor;
   }
 
   get sourceString() {
@@ -939,6 +1024,11 @@ class SBReplacement extends HTMLElement {
     return true;
   }
 
+  takeCursor(atStart) {
+    this.focus();
+    this._selectionAtStart = atStart;
+  }
+
   insertNode() {
     // called when applying diffs to view -- we don't want to receive children
   }
@@ -947,8 +1037,26 @@ class SBReplacement extends HTMLElement {
     yield this;
   }
 
+  onKeyDown(e) {
+    if (e.key === "ArrowLeft" && this._selectionAtStart) {
+      e.preventDefault();
+      followingEditablePart(
+        nextElementPreOrder(lastDeepChild(this)),
+        -1,
+      ).takeCursor(false);
+    }
+    if (e.key === "ArrowRight" && !this._selectionAtStart) {
+      e.preventDefault();
+      this.editor.takeCursorFromReplacement(this, true);
+    }
+  }
+
   connectedCallback() {
     this.setAttribute("contenteditable", "false");
+    this.addEventListener(
+      "keydown",
+      (this._keyListener = this.onKeyDown.bind(this)),
+    );
     render(
       h(
         ShardContext.Provider,
@@ -957,6 +1065,10 @@ class SBReplacement extends HTMLElement {
       ),
       this,
     );
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._keyListener);
   }
 }
 

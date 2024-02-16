@@ -78,7 +78,7 @@ function hasParent(node, p) {
   return false;
 }
 
-function nextElementPreOrder(node) {
+export function nextElementPreOrder(node) {
   if (node.shadowRoot) return node.shadowRoot.firstElementChild;
   if (node.firstElementChild) return node.firstElementChild;
   if (node.nextElementSibling) return node.nextElementSibling;
