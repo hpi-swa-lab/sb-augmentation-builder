@@ -554,10 +554,10 @@ export class Shard extends HTMLElement {
   }
 }
 
-// singleton listening to selection change sand associating them
+// singleton listening to selection changes and associating them
 // with shards
 class _ShardSelection {
-  range = null;
+  selection = null;
   shard = null;
 
   _ignoreCounter = 0;
@@ -569,7 +569,7 @@ class _ShardSelection {
   }
 
   _deselect() {
-    this.range = null;
+    this.selection = null;
     this.shard = null;
   }
 
@@ -583,19 +583,28 @@ class _ShardSelection {
       return;
     }
 
-    const selection = getSelection();
-    if (selection.type === "None" || selection.rangeCount === 0)
-      return this._deselect();
+    const sel = getSelection();
+    if (sel.type === "None" || sel.rangeCount === 0) return this._deselect();
 
     if (document.activeElement?.tagName !== "SB-SHARD") return this._deselect();
 
-    const e = orParentThat(selection.anchorNode, (x) => nodeIsEditable(x));
+    const e = orParentThat(sel.anchorNode, (x) => nodeIsEditable(x));
     if (!e || e.tagName !== "SB-SHARD") return this._deselect();
 
     this.shard = e;
-    this.range = selection.getRangeAt(0);
-
-    this.shard.takeSelection(this.range);
+    this.selection = {
+      head: {
+        element: e,
+        elementOffset: [sel.focusNode, sel.focusOffset],
+        index: e.indexForRange(sel.focusNode, sel.focusOffset),
+      },
+      anchor: {
+        element: e,
+        elementOffset: [sel.anchorNode, sel.anchorOffset],
+        index: e.indexForRange(sel.anchorNode, sel.anchorOffset),
+      },
+    };
+    this.shard.editor.selection = this.selection;
   }
 
   change(newRange) {

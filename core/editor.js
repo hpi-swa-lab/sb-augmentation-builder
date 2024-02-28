@@ -10,6 +10,7 @@ import {
   keymap,
 } from "../external/codemirror/view.mjs";
 import { effect, signal } from "../external/preact-signals-core.mjs";
+import { ShardSelection } from "../view/shard.js";
 
 import {
   AttachOp,
@@ -21,12 +22,15 @@ import {
 } from "./diff.js";
 import { languageFor } from "./languages.js";
 import {
+  clamp,
   findChange,
+  last,
   lastDeepChild,
   lastDeepChildNode,
   orParentThat,
   parentWithTag,
   rangeContains,
+  rangeDistance,
   rangeShift,
   ToggleableMutationObserver,
   undoableMutation,
@@ -36,6 +40,7 @@ import { h, render, shard } from "../view/widgets.js";
 import { SBBlock, SBList, SBText } from "./model.js";
 import {
   followingEditablePart,
+  followingElementThat,
   nextElementPreOrder,
   nextNodePreOrderThat,
 } from "./focus.js";
@@ -160,9 +165,11 @@ const BrowserReplacement = {
   ],
   queryDepth: 2,
   component: ({ node }) => [
-    `[NUM-${node?.range[0]}]`,
+    "<",
     shard(node.childBlock(0)),
-    "[]",
+    shard(node.childBlock(0)),
+    h("input", { ref: markInputEditable }),
+    ">",
   ],
   name: "sb-browser",
   sticky: true,
@@ -170,14 +177,24 @@ const BrowserReplacement = {
 };
 
 class BaseShard extends HTMLElement {
+  // must be set before a node can be set or the shard is used
+  editor = null;
+
   connectedCallback() {
-    this.editor = orParentThat(this, (p) => p instanceof BaseEditor);
     this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
   }
   disconnectedCallback() {
     this.editor.shards.delete(this);
     this.node = null;
+  }
+
+  get range() {
+    // FIXME both node and editor are set by Preact as props,
+    // we can't guarantee the order in which they are set
+    return this.editor
+      ? this.editor.adjustRange(this.node.range, true)
+      : this.node.range;
   }
 
   get extensionMarkers() {
@@ -215,10 +232,10 @@ class BaseShard extends HTMLElement {
 
     if (init) {
       this.initView();
-      this.applyDiff(new EditBuffer(this.node.initOps()), [
+      this.applyChanges(new EditBuffer(this.node.initOps()), [
         {
-          from: this.node.range[0],
-          to: this.node.range[0],
+          from: this.range[0],
+          to: this.range[0],
           insert: this.node.sourceString,
         },
       ]);
@@ -233,7 +250,7 @@ class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
-  applyDiff(editBuffer, changes) {
+  applyChanges(editBuffer, changes) {
     throw "subclass responsibility";
   }
 
@@ -267,6 +284,7 @@ class BaseShard extends HTMLElement {
 
   buildReplacementFor(node, extension) {
     const view = document.createElement("sb-replacement");
+    view.editor = this.editor;
     view.query = extension.query;
     view.component = extension.component;
     view.selectable = extension.selectable;
@@ -320,6 +338,69 @@ class BaseShard extends HTMLElement {
       }
     }
   }
+
+  iterVisibleRanges() {
+    throw "subclass responsibility";
+  }
+
+  positionForIndex(index) {
+    throw "subclass responsibility";
+  }
+
+  candidatePositionForIndex(index) {
+    if (!this.node || !this.isConnected)
+      return { position: null, distance: Infinity };
+
+    if (index < this.range[0] || index > this.range[1])
+      return { position: null, distance: Infinity };
+
+    let bestDistance = Infinity;
+    let bestIndex = null;
+    for (const range of this.iterVisibleRanges()) {
+      const distance = rangeDistance(range, [index, index]);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = clamp(index, range[0], range[1]);
+        // no need to search further
+        if (distance === 0) break;
+      }
+    }
+
+    return bestIndex === null
+      ? { position: null, distance: Infinity }
+      : { position: this.positionForIndex(bestIndex), distance: bestDistance };
+  }
+
+  get replacements() {
+    throw "subclass responsibility";
+  }
+
+  *cursorPositions() {
+    let last = null;
+    const shard = this;
+    function* mine(index) {
+      for (let i = last; i !== null && i <= index; i++)
+        yield shard.positionForIndex(i);
+      last = index;
+    }
+    function* myReplacement(r) {
+      last = null;
+      yield* r.cursorPositions();
+    }
+
+    const replacements = this.replacements.sort(
+      (a, b) => a.range[0] - b.range[0],
+    );
+
+    yield* mine(this.range[0]);
+    for (const replacement of replacements) {
+      yield* mine(replacement.range[0]);
+      yield* myReplacement(replacement);
+      yield* mine(replacement.range[1]);
+    }
+    yield* mine(this.range[1]);
+  }
 }
 
 class CodeMirrorReplacementWidget extends WidgetType {
@@ -334,12 +415,53 @@ class CodeMirrorReplacementWidget extends WidgetType {
     return this.replacement;
   }
   ignoreEvent() {
-    return false;
+    return true;
   }
 }
 
+function nextEditor(element) {
+  return orParentThat(element, (p) => p instanceof BaseEditor);
+}
+
+function markInputEditable(input) {
+  // codemirror sets css that hides the caret
+  input.style.cssText = "caret-color: black !important";
+  function update() {
+    nextEditor(input).selection = {
+      head: { element: input, elementOffset: input.selectionStart },
+      anchor: { element: input, elementOffset: input.selectionEnd },
+    };
+  }
+  function move(forward, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    nextEditor(input).moveCursor(forward, e.shiftKey);
+  }
+  input.resync = update;
+  input.cursorPositions = function* () {
+    for (let i = 0; i <= input.value.length; i++)
+      yield { element: input, elementOffset: i };
+  };
+  input.select = function ({ head, anchor }) {
+    input.focus();
+    input.selectionStart = head.elementOffset;
+    input.selectionEnd = anchor.elementOffset;
+  };
+  input.setAttribute("sb-editable", "");
+  input.addEventListener("focus", update);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
+      move(true, e);
+    if (e.key === "ArrowLeft" && input.selectionStart === 0) move(false, e);
+  });
+}
+
 class CodeMirrorShard extends BaseShard {
-  replacements = new Map();
+  replacementsMap = new Map();
+
+  get replacements() {
+    return [...this.replacementsMap.values()];
+  }
 
   replacementsField = StateField.define({
     create: () => Decoration.none,
@@ -350,37 +472,11 @@ class CodeMirrorShard extends BaseShard {
     ],
   });
 
+  positionForIndex(index) {
+    return { element: this, elementOffset: index - this.range[0], index };
+  }
+
   initView() {
-    // function updateSel(view, by) {
-    //   const replacedRanges = view.state.field(replacementsField);
-
-    //   const selection = EditorSelection.create(
-    //     view.state.selection.ranges.map(by),
-    //     view.state.selection.mainIndex,
-    //   );
-    //   if (selection.eq(view.state.selection, true)) return false;
-
-    //   // FIXME assuming a single range
-    //   const pos = selection.main.head;
-    //   let didLeave = false;
-    //   replacedRanges.between(pos, pos, (from, to, value) => {
-    //     if (pos === from || pos === to) return;
-    //     value.widget.replacement.takeCursor();
-    //     didLeave = true;
-    //     return false;
-    //   });
-    //   if (didLeave) return true;
-
-    //   view.dispatch(
-    //     view.state.update({
-    //       selection,
-    //       scrollIntoView: true,
-    //       userEvent: "select",
-    //     }),
-    //   );
-    //   return true;
-    // }
-
     this.cm = new EditorView({
       doc: "",
       extensions: [
@@ -415,12 +511,12 @@ class CodeMirrorShard extends BaseShard {
         head: {
           element: this,
           elementOffset: v.state.selection.main.head,
-          index: v.state.selection.main.head + this.node.range[0],
+          index: v.state.selection.main.head + this.range[0],
         },
         anchor: {
           element: this,
           elementOffset: v.state.selection.main.anchor,
-          index: v.state.selection.main.anchor + this.node.range[0],
+          index: v.state.selection.main.anchor + this.range[0],
         },
       };
     }
@@ -428,8 +524,8 @@ class CodeMirrorShard extends BaseShard {
       const changes = [];
       v.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
         changes.push({
-          from: fromA + this.node.range[0],
-          to: toA + this.node.range[0],
+          from: fromA + this.range[0],
+          to: toA + this.range[0],
           insert: inserted.toString(),
           sourceShard: this,
         });
@@ -439,46 +535,64 @@ class CodeMirrorShard extends BaseShard {
         .invert(v.startState.doc)
         .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
           inverse.push({
-            from: fromA + this.node.range[0],
-            to: toA + this.node.range[0],
+            from: fromA + this.range[0],
+            to: toA + this.range[0],
             insert: inserted.toString(),
           });
         });
       console.assert(inverse.length === changes.length);
       changes.forEach((c, i) => (c.inverse = inverse[i]));
+      last(changes).selectionRange = rangeShift(
+        [v.state.selection.main.head, v.state.selection.main.anchor],
+        this.range[0],
+      );
       this.onTextChanges(changes);
     }
   }
 
   _collectReplacements() {
     return RangeSet.of(
-      [...this.replacements.values()].map((r) =>
+      this.replacements.map((r) =>
         Decoration.replace({
           widget: new CodeMirrorReplacementWidget(r),
-        }).range(...rangeShift(r.node.range, -this.node.range[0])),
+        }).range(...rangeShift(r.range, -this.range[0])),
       ),
     );
   }
 
-  applyDiff(editBuffer, changes) {
+  applyChanges(editBuffer, changes) {
+    let anyChange = false;
     for (const change of changes.filter(
       (c) =>
-        c.sourceShard !== this &&
-        rangeContains(this.node.range, [c.from, c.from]),
+        c.sourceShard !== this && rangeContains(this.range, [c.from, c.from]),
     )) {
+      anyChange = true;
       this.cm.dispatch({
         userEvent: "sync",
         changes: [
           {
-            from: change.from - this.node.range[0],
-            to: change.to - this.node.range[0],
+            from: change.from - this.range[0],
+            to: change.to - this.range[0],
             insert: change.insert,
           },
         ],
       });
     }
+
+    // make sure we update at least ranges for replacements
+    if (!anyChange)
+      this.cm.dispatch({
+        userEvent: "sync",
+      });
+
     this.updateReplacements(editBuffer);
     this.updateMarkers(editBuffer);
+  }
+
+  onPendingChangesReverted() {
+    this.cm.dispatch({
+      userEvent: "sync",
+    });
   }
 
   *iterReplacedRanges() {
@@ -490,13 +604,25 @@ class CodeMirrorShard extends BaseShard {
     }
   }
 
+  *iterVisibleRanges() {
+    const replacedRanges = this.cm.state.field(this.replacementsField);
+    let current = this.range[0];
+    const iter = replacedRanges.iter();
+    while (iter.value) {
+      yield [current, iter.from + this.range[0]];
+      current = iter.to;
+      iter.next();
+    }
+    yield [current, this.range[1]];
+  }
+
   updateReplacements(editBuffer) {
     super.updateReplacements(editBuffer);
     this.cm.dispatch({ userEvent: "replacements" });
   }
 
   applyRejectedDiff(editBuffer, changes) {
-    this.applyDiff(editBuffer, changes);
+    this.applyChanges(editBuffer, changes);
     return [
       () =>
         this.cm.dispatch({
@@ -504,11 +630,11 @@ class CodeMirrorShard extends BaseShard {
           changes: [...changes]
             .reverse()
             .filter(({ inverse: c }) =>
-              rangeContains(this.node.range, [c.from, c.from]),
+              rangeContains(this.range, [c.from, c.from]),
             )
             .map(({ inverse: c }) => ({
-              from: c.from - this.node.range[0],
-              to: c.to - this.node.range[0],
+              from: c.from - this.range[0],
+              to: c.to - this.range[0],
               insert: c.insert,
             })),
         }),
@@ -516,15 +642,15 @@ class CodeMirrorShard extends BaseShard {
   }
 
   isShowing(node) {
-    if (!rangeContains(this.node.range, node.range)) return false;
-    // const marks = this.cm.findMarksAt(node.range[0] - this.node.range[0]);
+    if (!rangeContains(this.range, node.range)) return false;
+    // const marks = this.cm.findMarksAt(node.range[0] - this.range[0]);
     // return !marks.some((m) => !!m.replacedWith);
     // TODO
     return true;
   }
 
   isShowingIndex(index) {
-    if (index < this.node.range[0] || index > this.node.range[1]) return false;
+    if (index < this.range[0] || index > this.range[1]) return false;
 
     let visible = true;
     for (const { from, to } of this.iterReplacedRanges()) {
@@ -537,7 +663,7 @@ class CodeMirrorShard extends BaseShard {
   }
 
   getReplacementFor(node) {
-    return this.replacements.get(node);
+    return this.replacementsMap.get(node);
   }
 
   getMarkersFor(node) {
@@ -550,20 +676,17 @@ class CodeMirrorShard extends BaseShard {
   }
 
   installReplacement(node, extension) {
-    this.replacements.set(node, this.buildReplacementFor(node, extension));
+    this.replacementsMap.set(node, this.buildReplacementFor(node, extension));
   }
 
   uninstallReplacement(node) {
-    this.replacements.delete(node);
+    this.replacementsMap.delete(node);
   }
 
   select({ head: { elementOffset: head }, anchor: { elementOffset: anchor } }) {
     this.cm.focus();
     this.cm.dispatch({
-      selection: {
-        anchor: anchor - this.node.range[0],
-        head: head - this.node.range[0],
-      },
+      selection: { anchor, head },
       scrollIntoView: true,
       userEvent: "select",
     });
@@ -588,95 +711,13 @@ class CodeMirrorShard extends BaseShard {
     return {
       element: this,
       elementOffset: forward ? 0 : this.cm.state.doc.length,
-      index: forward ? this.node.range[0] : this.node.range[1],
-    };
-  }
-
-  *cursorPositions() {
-    const mine = (index) => ({
-      element: this,
-      elementOffset: index - this.node.range[0],
-      index,
-    });
-    yield mine(this.node.range[0]);
-    for (const replacement of this.replacements) {
-      yield mine(replacement.node.range[0]);
-      yield* replacement.cursorPositions();
-      yield mine(replacement.node.range[1]);
-    }
-    yield mine(this.node.range[1]);
-  }
-
-  nextPosition(position, forward) {
-    const replacedRanges = this.cm.state.field(this.replacementsField);
-
-    const pos = position.elementOffset + (forward ? 1 : -1);
-    // check if we are moving outside our bounds
-    if (pos < 0 || pos > this.cm.state.doc.length + 1) {
-      lastDeepChild(this).followingEditablePosition(forward);
-      const next = forward
-        ? orNextEditableWithin(this)
-        : orPreviousEditableWithin(this);
-      return next.positionAtBoundary(position, forward);
-    }
-
-    // check if we would move into a nested replacement
-    let left = null;
-    replacedRanges.between(pos, pos, (from, to, value) => {
-      if (pos === from || pos === to) return;
-      const next = forward
-        ? orNextEditableWithin(value.widget.replacement)
-        : orPreviousEditableWithin(value.widget.replacement);
-      left = next.positionAtBoundary(position, forward);
-      return false;
-    });
-    if (left) return left;
-
-    // check if we would move into a nested widget
-    // TODO
-
-    return {
-      element: this,
-      elementOffset: pos,
-      index: pos + this.node.range[0],
-    };
-  }
-
-  followingEditablePosition(forward) {
-    return {
-      element: this,
-      elementOffset: forward ? 0 : this.cm.state.doc.length,
-      index: forward ? this.node.range[0] : this.node.range[1],
+      index: forward ? this.range[0] : this.range[1],
     };
   }
 
   elementOffsetForIndex(index) {
-    if (this.isShowingIndex(index)) return index - this.node.range[0];
+    if (this.isShowingIndex(index)) return index - this.range[0];
     else return null;
-  }
-
-  candidatePositionForIndex(index) {
-    if (index < this.node.range[0] || index > this.node.range[1]) return null;
-    index -= this.node.range[0];
-
-    let bestDistance = Infinity;
-    let bestIndex = null;
-    for (const { from, to } of this.iterReplacedRanges()) {
-      const distance = Math.min(Math.abs(from - index), Math.abs(to - index));
-      bestDistance = Math.min(bestDistance, distance);
-
-      if (distance === 0) {
-        bestIndex = index;
-        break;
-      }
-
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIndex = Math.abs(from - index) < Math.abs(to - index) ? from : to;
-      }
-    }
-
-    return bestIndex;
   }
 
   coordsForPosition(elementOffset) {
@@ -764,6 +805,10 @@ class SandblocksShard extends BaseShard {
     return view?.isNodeReplacement ? view : null;
   }
 
+  get replacements() {
+    return [...this.views.values()].filter((v) => v instanceof SBReplacement);
+  }
+
   getMarkersFor(node) {
     const view = this.views.get(node);
     return view?.markers;
@@ -783,7 +828,7 @@ class SandblocksShard extends BaseShard {
     this.actualSourceString = this.node.sourceString;
   }
 
-  applyDiff(editBuffer, changes) {
+  applyChanges(editBuffer, changes) {
     for (const change of editBuffer.negBuf) {
       if (change instanceof DetachOp) {
         const view = this.views.get(change.node);
@@ -904,8 +949,10 @@ class SandblocksShard extends BaseShard {
     }))
       this.setAttribute(key, value);
 
-    // TODO
-    // markAsEditableElement(this);
+    this.addEventListener(
+      "keydown",
+      (this._keyDownListener = this.onKeyDown.bind(this)),
+    );
 
     this.observer = new ToggleableMutationObserver(this, (mutations) => {
       mutations = [...mutations, ...this.observer.takeRecords()];
@@ -920,18 +967,35 @@ class SandblocksShard extends BaseShard {
         const change = findChange(
           this.actualSourceString,
           sourceString,
-          this.editor.selectionRange[1] - this.node.range[0],
+          this.editor.selectionRange[1] - this.range[0],
         );
         if (!change) return;
 
-        change.from += this.node.range[0];
-        change.to += this.node.range[0];
+        change.from += this.range[0];
+        change.to += this.range[0];
         change.selectionRange = selectionRange;
 
         this.actualSourceString = sourceString;
         this.editor.applyChanges([change]);
       });
     });
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._keyDownListener);
+  }
+
+  onKeyDown(e) {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      e.stopPropagation();
+      this.editor.moveCursor(false, e.shiftKey);
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      e.stopPropagation();
+      this.editor.moveCursor(true, e.shiftKey);
+    }
   }
 
   isMyMutation(mutation) {
@@ -949,7 +1013,7 @@ class SandblocksShard extends BaseShard {
   }
 
   applyRejectedChange({ from, to, insert }) {
-    if (!rangeContains(this.node.range, [from, from])) return null;
+    if (!rangeContains(this.range, [from, from])) return null;
 
     let start = null;
     let offset = 0;
@@ -1046,8 +1110,8 @@ class SandblocksShard extends BaseShard {
     return {
       sourceString: string,
       selectionRange: [
-        this.node.range[0] + focusOffset,
-        this.node.range[0] + anchorOffset,
+        this.range[0] + focusOffset,
+        this.range[0] + anchorOffset,
       ].sort((a, b) => a - b),
     };
   }
@@ -1076,6 +1140,57 @@ class SandblocksShard extends BaseShard {
     }
     return list;
   }
+
+  indexForRange(node, offset) {
+    const ref =
+      node instanceof window.Text
+        ? node
+        : node.childNodes[Math.min(offset, node.childNodes.length - 1)];
+
+    const parent = ref.range
+      ? ref
+      : followingElementThat(ref, -1, (n) => !!n.range);
+    if (node.parentElement === parent && node instanceof window.Text)
+      return parent.range[0] + offset;
+    else return parent.range[offset >= node.childNodes.length ? 1 : 0];
+  }
+
+  *iterVisibleRanges() {
+    const replacedRanges = this.replacements.map((v) => v.range);
+
+    let current = this.range[0];
+    for (const range of replacedRanges) {
+      yield [current, range[0]];
+      current = range[1];
+    }
+    yield [current, this.range[1]];
+  }
+
+  select({
+    head: {
+      elementOffset: [focusNode, focusOffset],
+    },
+    anchor: {
+      elementOffset: [anchorNode, anchorOffset],
+    },
+  }) {
+    const r = document.createRange();
+    r.setStart(focusNode, focusOffset);
+    r.setEnd(anchorNode, anchorOffset);
+    ShardSelection.change(r);
+  }
+
+  positionForIndex(index) {
+    const elementOffset =
+      index === this.range[0]
+        ? [this, 0]
+        : this.views.get(this.node).findTextForCursor(index).rangeParams(index);
+    return {
+      element: this,
+      elementOffset,
+      index,
+    };
+  }
 }
 
 class BaseEditor extends HTMLElement {
@@ -1095,12 +1210,7 @@ class BaseEditor extends HTMLElement {
   static observedAttributes = ["text", "language", "extensions"];
   async attributeChangedCallback(name, oldValue, newValue) {
     if (name === "text") {
-      this.node = await languageFor(
-        this.getAttribute("language"),
-      ).initModelAndView(newValue);
-      this.rootShard = document.createElement(this.constructor.shardTag);
-      this.rootShard.node = this.node;
-      this.appendChild(this.rootShard);
+      await this.setText(newValue, this.getAttribute("language"));
     }
   }
 
@@ -1129,6 +1239,19 @@ class BaseEditor extends HTMLElement {
     });
   }
 
+  async setText(text, language) {
+    this.node = await languageFor(language).initModelAndView(text);
+    this.firstElementChild?.remove();
+    this.rootShard = document.createElement(this.constructor.shardTag);
+    this.rootShard.editor = this;
+    this.rootShard.node = this.node;
+    this.appendChild(this.rootShard);
+    this.selection = {
+      head: this.rootShard.positionForIndex(0),
+      anchor: this.rootShard.positionForIndex(0),
+    };
+  }
+
   markSticky(node, sticky) {
     if (sticky) this.stickyNodes.add(node);
     else this.stickyNodes.delete(node);
@@ -1136,6 +1259,11 @@ class BaseEditor extends HTMLElement {
 
   // hook that may be implemented by editors for cleaning up
   onSuccessfulChange() {}
+
+  rejectChange(op) {
+    return true;
+    return op instanceof RemoveOp && (this.stickyNodes.has(op.node) || true);
+  }
 
   applyChanges(changes, forceApply = false) {
     let newSource = this.node.sourceString;
@@ -1147,15 +1275,15 @@ class BaseEditor extends HTMLElement {
 
     const { diff, tx } = this.node.updateModelAndView(newSource);
     if (!forceApply) {
-      for (const op of diff.negBuf) {
-        if (op instanceof RemoveOp && (this.stickyNodes.has(op.node) || true)) {
+      for (const op of [...diff.negBuf, ...diff.posBuf]) {
+        if (this.rejectChange(op)) {
           tx.rollback();
-          for (const shard of this.shards)
-            this.revertChanges.push(...shard.applyRejectedDiff(diff, changes));
           this.pendingChanges.value = [
             ...this.pendingChanges.value,
             ...changes,
           ];
+          for (const shard of this.shards)
+            this.revertChanges.push(...shard.applyRejectedDiff(diff, changes));
           return false;
         }
       }
@@ -1167,25 +1295,56 @@ class BaseEditor extends HTMLElement {
     // may create or delete shards while iterating, so iterate over a copy
     for (const shard of [...this.shards]) {
       // if we are deleted while iterating, don't process diff
-      if (shard.node) shard.applyDiff(diff, changes);
+      if (shard.node) shard.applyChanges(diff, changes);
     }
 
     this.pendingChanges.value = [];
     this.revertChanges = [];
+
+    // update selection: if the index is no longer visible, find a new element
+    const newIndex =
+      last(allChanges).selectionRange?.[0] ?? this.selectionRange;
+    let bestCandidate =
+      this.selection.head.element.candidatePositionForIndex(newIndex);
+    if (bestCandidate.distance > 0) {
+      for (const shard of this.shards) {
+        const candidate = shard.candidatePositionForIndex(newIndex);
+        if (candidate.distance < bestCandidate.distance)
+          bestCandidate = candidate;
+      }
+    }
+    if (bestCandidate.position) {
+      this.selection = {
+        head: bestCandidate.position,
+        anchor: bestCandidate.position,
+      };
+      bestCandidate.position.element.select(this.selection);
+    }
   }
 
   revertPendingChanges() {
-    ToggleableMutationObserver.ignoreMutation(() => {
-      for (const change of this.revertChanges.reverse()) change();
-      this.revertChanges = [];
-      this.pendingChanges.value = [];
-      for (const shard of this.shards) shard.onPendingChangesReverted();
-    });
+    for (const change of this.revertChanges.reverse()) change();
+    this.revertChanges = [];
+    this.pendingChanges.value = [];
+    for (const shard of this.shards) shard.onPendingChangesReverted();
   }
 
   applyPendingChanges() {
-    ToggleableMutationObserver.ignoreMutation(() => {
-      this.applyChanges([], true);
+    this.applyChanges([], true);
+  }
+
+  adjustRange(range, preferGrow) {
+    return range.map((index) => {
+      for (const change of this.pendingChanges.value) {
+        if (
+          (!preferGrow && index >= change.from) ||
+          (preferGrow && index > change.from)
+        )
+          index +=
+            change.insert.length -
+            (clamp(index, change.from, change.to) - change.from);
+      }
+      return index;
     });
   }
 
@@ -1196,39 +1355,46 @@ class BaseEditor extends HTMLElement {
   }
 
   moveCursor(forward, selecting) {
+    this.selection.head.element.resync?.();
     const { head } = this.selection;
-    const next = head.element.nextPosition(head, forward);
-    this.selection.head = next;
-    if (!selecting) this.selection.anchor = next;
-    // FIXME what if head and anchor are in different elements?
-    this.selection.head.element.select(this.selection);
+    const next = forward
+      ? this.nextPosition(head)
+      : this.previousPosition(head);
+    if (next) {
+      this.selection.head = next;
+      if (!selecting) this.selection.anchor = next;
+      // FIXME what if head and anchor are in different elements?
+      this.selection.head.element.select(this.selection);
+    }
     return true;
   }
 
   nextPosition(a) {
     let next = false;
-    for (const b of this.cursorPositions) {
-      if (this.positionEqual(a, b)) {
-        next = true;
-      }
+    for (const b of this.cursorPositions()) {
       if (next) return b;
+      if (this.positionEqual(a, b)) next = true;
     }
     return null;
   }
 
   previousPosition(a) {
     let last = null;
-    for (const b of this.cursorPositions) {
-      if (this.positionEqual(a, b)) {
-        return last;
-      }
+    for (const b of this.cursorPositions()) {
+      if (this.positionEqual(a, b)) return last;
       last = b;
     }
     return last;
   }
 
   positionEqual(a, b) {
-    return a.element === b.element && a.elementOffset === b.elementOffset;
+    // allow tuples by unpacking
+    return (
+      a.element === b.element &&
+      (Array.isArray(a.elementOffset) && Array.isArray(b.elementOffset)
+        ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
+        : a.elementOffset === b.elementOffset)
+    );
   }
 }
 
@@ -1245,9 +1411,22 @@ class SandblocksEditor extends BaseEditor {
     // revert here and the shard will apply the view changes
     this.revertPendingChanges();
   }
+
+  revertPendingChanges() {
+    ToggleableMutationObserver.ignoreMutation(() =>
+      super.revertPendingChanges(),
+    );
+  }
+  applyPendingChanges() {
+    ToggleableMutationObserver.ignoreMutation(() =>
+      super.applyPendingChanges(),
+    );
+  }
 }
 
 class SBReplacement extends HTMLElement {
+  editor = null;
+
   _selectionAtStart = false;
 
   set selectable(v) {
@@ -1260,12 +1439,12 @@ class SBReplacement extends HTMLElement {
     }
   }
 
-  get shard() {
-    return orParentThat(this, (p) => p instanceof BaseShard);
+  get range() {
+    return this.editor.adjustRange(this.node.range, false);
   }
 
-  get editor() {
-    return this.shard.editor;
+  get shard() {
+    return orParentThat(this, (p) => p instanceof BaseShard);
   }
 
   get sourceString() {
@@ -1294,14 +1473,11 @@ class SBReplacement extends HTMLElement {
 
     if (e.key === "ArrowLeft" && this._selectionAtStart) {
       e.preventDefault();
-      followingEditablePart(
-        nextElementPreOrder(lastDeepChild(this)),
-        -1,
-      ).takeCursor(false);
+      this.editor.moveCursor(false, e.shiftKey);
     }
     if (e.key === "ArrowRight" && !this._selectionAtStart) {
       e.preventDefault();
-      this.editor.takeCursorFromReplacement(this, true);
+      this.editor.moveCursor(true, e.shiftKey);
     }
   }
 
@@ -1347,3 +1523,82 @@ customElements.define("sb-editor", SandblocksEditor);
 customElements.define("scm-shard", CodeMirrorShard);
 customElements.define("sb-shard", SandblocksShard);
 customElements.define("sb-replacement", SBReplacement);
+
+const tests = [];
+function test(name, cb) {
+  tests.push(cb);
+}
+function assertEq(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) throw new Error(`expected ${a} to equal ${b}`);
+    for (let i = 0; i < a.length; i++) assertEq(a[i], b[i]);
+    return;
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    for (const k in a) assertEq(a[k], b[k]);
+    for (const k in b) assertEq(a[k], b[k]);
+    return;
+  }
+  if (a !== b) throw new Error(`expected ${a} to equal ${b}`);
+}
+
+test("range shift complex", () => {
+  const editor = new SCMEditor();
+  editor.pendingChanges.value = [
+    { from: 5, to: 5, insert: "3" },
+    { from: 6, to: 6, insert: "2" },
+    { from: 7, to: 7, insert: "1" },
+    { from: 8, to: 8, insert: "3" },
+    { from: 1, to: 7, insert: "" },
+  ];
+  assertEq(editor.adjustRange([1, 6], false), [1, 4]);
+});
+
+test("range shift simple", () => {
+  const editor = new SCMEditor();
+  editor.pendingChanges.value = [
+    { from: 3, to: 3, insert: "a" },
+    { from: 7, to: 10, insert: "" },
+  ];
+  assertEq(editor.adjustRange([0, 1], false), [0, 1]);
+  assertEq(editor.adjustRange([3, 4], false), [4, 5]);
+  assertEq(editor.adjustRange([7, 10], false), [7, 8]);
+});
+
+test("range shift root", () => {
+  const editor = new SCMEditor();
+  editor.pendingChanges.value = [{ from: 0, to: 0, insert: "a" }];
+  assertEq(editor.adjustRange([0, 10], true), [0, 11]);
+});
+
+test("edit with pending changes", async () => {
+  const editor = new SCMEditor();
+  await editor.setText("a + b", "javascript");
+
+  editor.rejectChange = () => true;
+
+  editor.applyChanges([
+    {
+      from: 0,
+      to: 0,
+      insert: "c",
+    },
+  ]);
+
+  assertEq(editor.pendingChanges.value, [{ from: 0, to: 0, insert: "c" }]);
+
+  editor.applyChanges([
+    {
+      from: 5,
+      to: 5,
+      insert: "d",
+    },
+  ]);
+
+  assertEq(editor.pendingChanges.value, [
+    { from: 0, to: 0, insert: "c" },
+    { from: 5, to: 5, insert: "d" },
+  ]);
+});
+
+tests.forEach((t) => t());

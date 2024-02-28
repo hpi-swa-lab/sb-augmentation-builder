@@ -28,6 +28,7 @@ export const shard = (node, props = {}) => {
   return h(node.editor.constructor.shardTag, {
     node,
     key: node.id,
+    editor: node.editor,
     ...props,
   });
 };

@@ -28,7 +28,7 @@ function nodeIsEditablePart(node) {
 }
 
 export function nodeIsEditable(node) {
-  return !!node.getAttribute("sb-editable");
+  return node.hasAttribute("sb-editable");
 }
 
 export function nodeEditableForPart(node) {
