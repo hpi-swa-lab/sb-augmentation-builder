@@ -1,8 +1,5 @@
 import { exec, sequenceMatch } from "../utils.js";
 import { config } from "./config.js";
-import { AttachOp, DetachOp, UpdateOp } from "./diff.js";
-
-export class StickyReplacementRemoved extends Error {}
 
 // An extension groups a set of functionality, such as syntax highlighting,
 // shortcuts, or key modifiers. Extensions are only instantiated once. They
@@ -43,11 +40,11 @@ export class Extension {
       if (!pkg || !extName) throw new Error(`Invalid extension name ${name}`);
       if (
         [...this.extensionRegistry.keys()].some(
-          (ext) => ext.split(":")[0] === pkg
+          (ext) => ext.split(":")[0] === pkg,
         )
       )
         throw new Error(
-          `Package ${pkg} does not include an extension named ${extName}`
+          `Package ${pkg} does not include an extension named ${extName}`,
         );
       const p = this._loadPackage(name);
       this.packageLoaders.set(pkg, p);
@@ -77,9 +74,12 @@ export class Extension {
 
     if (!this.extensionRegistry.has(name))
       throw new Error(
-        `Package ${pkg} does not include an extension named ${extName}`
+        `Package ${pkg} does not include an extension named ${extName}`,
       );
   }
+
+  replacements = [];
+  markers = [];
 
   constructor() {}
 
@@ -93,66 +93,25 @@ export class Extension {
     return new concreteClass(this);
   }
 
-  viewUpdate(func) {
-    this._viewUpdate ??= [];
-    this._viewUpdate.push(func);
+  registerReplacement(r) {
+    this.replacements.push(r);
+    return this;
   }
-}
 
-export function cssClass(className, query) {
-  return (e, changes) => {
-    for (const change of changes) {
-      if (change instanceof AttachOp && query(change.node)) {
-        change.view.classList.add(className);
-        e.markView(change.view, `cssClass:${className}`);
-      }
-      if (change instanceof DetachOp) {
-        if (e.isViewMarked(change.view, `cssClass:${className}`))
-          change.view.classList.remove(className);
-      }
-    }
-  };
-}
-
-export function replacement(name, query, props) {
-  name = name.toLowerCase();
-  return (e, changes) => {
-    for (const view of changeRoots(changes)) {
-      allViewsDos(view, (view) => {
-        const isReplacement = view.node.tagName.toLowerCase() === name;
-        if (query(view.node)) {
-          if (isReplacement) {
-            // TODO update
-          } else {
-            const replacement = document.createElement(name);
-            e.installReplacement(view, replacement);
-          }
-        } else {
-          if (isReplacement) e.uninstallReplacement(view);
-        }
-      });
-    }
-  };
-}
-
-function changeRoots(changes) {
-  let parents = [];
-  for (const change of changes) {
-    const affected =
-      change instanceof AttachOp
-        ? change.node
-        : change instanceof DetachOp
-          ? change.oldParent
-          : change instanceof UpdateOp
-            ? change.node
-            : null;
-
-    if (affected && !parents.some((p) => affected.hasParent(p))) {
-      parents.push(affected);
-      parents = parents.filter((p) => !affected.hasParent(p));
-    }
+  registerMarker(r) {
+    this.markers.push(r);
+    return this;
   }
-  return parents;
+
+  registerSyntax(cls, query, queryDepth = 1) {
+    return this.registerMarker({
+      query,
+      name: `syntax:${cls}`,
+      queryDepth,
+      attach: (shard, node) => shard.cssClass(node, cls, true),
+      detach: (shard, node) => shard.cssClass(node, cls, false),
+    });
+  }
 }
 
 export function needsSelection(x) {
@@ -201,7 +160,7 @@ export class ExtensionInstance {
       oldSource,
       newSource,
       root,
-      diff
+      diff,
     );
   }
 
@@ -224,16 +183,13 @@ export class ExtensionInstance {
       node,
       [...exactMatches, ...fuzzyMatches]
         .slice(0, 10)
-        .filter((w) => w.label.toLowerCase() !== query)
+        .filter((w) => w.label.toLowerCase() !== query),
     );
   }
-
-  processViewUpdate(changes, stringChanges, root, oldSource, newSource) {}
 
   // subclassResponsibility
   installReplacement(view, tag, props) {}
   ensureReplacement(node, tag, props) {}
   attachData(node, identifier, add, remove, update = null) {}
-  processStickyReplacements(node) {}
   addSuggestions(node, suggestions) {}
 }

@@ -284,7 +284,7 @@ export class TrueDiff {
         aList.reverse(),
         bList.reverse(),
         a,
-        editBuffer
+        editBuffer,
       );
       zipOrNullDo(aList.reverse(), bList.reverse(), (aChild, bChild) => {
         if (aChild?.assigned && aChild.assigned === bChild) {
@@ -491,7 +491,7 @@ export class EditBuffer {
       this.printLabel(node),
       parent?.type ?? "root",
       link,
-      node.id
+      node.id,
     );
     this.posBuf.push(new AttachOp(node, parent, link));
   }
@@ -514,7 +514,7 @@ export class EditBuffer {
     this.log(
       "update",
       this.printLabel(node),
-      `"${text.replace(/\n/g, "\\n")}"`
+      `"${text.replace(/\n/g, "\\n")}"`,
     );
     this.posBuf.push(new UpdateOp(node, text));
   }
@@ -573,7 +573,7 @@ class Transaction {
     this.undo.push(() =>
       oldParent
         ? oldParent.insertChild(child, oldIndex)
-        : parent.removeChild(child)
+        : parent.removeChild(child),
     );
     parent.insertChild(child, index);
   }

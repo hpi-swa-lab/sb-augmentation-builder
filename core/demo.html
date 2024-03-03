@@ -3,10 +3,47 @@
   <head>
     <title>Core Demo</title>
     <link rel="stylesheet" href="/view/editor-style.css" />
+    <link rel="stylesheet" href="/sandblocks/style.css" />
   </head>
   <body>
-    <scm-editor text="[12345]; 2" language="javascript"></scm-editor>
-    <sb-editor text="[1234]" language="javascript"></sb-editor>
-    <script type="module" src="editor.js"></script>
+    <scm-editor
+      text='
+function StickyShard({ node, ...props }) {
+  useEffect(() => {
+    const editor = node.editor;
+    editor.markSticky(node, true);
+    return () => editor.markSticky(node, false);
+  }, [node]);
+  return shard(node, props);
+}
+export const stickyShard = (node, props = {}) =>
+  h(StickyShard, { node, ...props });
+export const shardList = (list) => {
+  const node = new SBList(list);
+  return h(node.editor.shardTag, { initNode: [node], key: node.id });
+};
+export const icon = (name) =>
+  h(
+    "span",
+    {
+      class: "material-symbols-outlined",
+      style: { fontSize: "inherit", verticalAlign: "bottom" },
+    },
+    name
+  );
+'
+      extensions="browser:javascript"
+      language="javascript"
+    ></scm-editor>
+    <sb-editor
+      text="[
+]"
+      language="json"
+      extensions="json:base"
+    ></sb-editor>
+    <script type="module">
+      import {} from "/sandblocks/editor.js";
+      // import {} from "/codemirror6/editor.js";
+    </script>
   </body>
 </html>

@@ -1,11 +1,13 @@
 import { Extension } from "../core/extension.js";
+import { StickyShard } from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
-import { h, replacement, shard, stickyShard } from "../view/widgets.js";
+import { h } from "../view/widgets.js";
 
-export const javascript = new Extension().registerReplacement((e) => [
-  (x) => x.type === "program" && x.language.name === "javascript",
-  replacement(e, "sb-browser", ({ node, replacement }) => {
+export const javascript = new Extension().registerReplacement({
+  query: [(x) => x.type === "program"],
+  queryDepth: 1,
+  component: ({ node, replacement }) => {
     const symbols = node.childBlocks;
     const [selectedSymbol, setSelectedSymbol] = useState(symbols[0]);
 
@@ -66,7 +68,8 @@ export const javascript = new Extension().registerReplacement((e) => [
             }
             if (x.type === "import_statement") {
               label += "(imp) ";
-              label += x.atType("import_clause").sourceString;
+              label += (x.atType("import_clause") ?? x.childBlock(0))
+                .sourceString;
               return label;
             }
 
@@ -113,10 +116,13 @@ export const javascript = new Extension().registerReplacement((e) => [
           },
         },
         shownSymbol.editor &&
-          stickyShard(shownSymbol, {
+          h(StickyShard, {
+            node: shownSymbol,
             style: { display: "inline-block", width: "100%" },
           })
       )
     );
-  }),
-]);
+  },
+  name: "sb-browser",
+  sticky: true,
+});

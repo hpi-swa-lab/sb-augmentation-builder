@@ -1,30 +1,15 @@
-import { Extension, cssClass } from "../core/extension.js";
+import { Extension } from "../core/extension.js";
 
 export const base = new Extension()
-  .viewUpdate(cssClass("string", [(x) => x.type === "string"]))
-  .viewUpdate(cssClass("number", [(x) => x.type === "number"]))
-
-  .registerAlways((e) => [
-    (x) => x.type === "string",
-    (x) => e.applySyntaxHighlighting(x, "string"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "number",
-    (x) => e.applySyntaxHighlighting(x, "number"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.field === "key" && x.parent.type === "pair",
-    (x) => e.applySyntaxHighlighting(x, "string", "special", "key"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "escape_sequence",
-    (x) => e.applySyntaxHighlighting(x, "escape"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "comment",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
-  ])
-  .registerAlways((e) => [
+  .registerSyntax("string", [(x) => x.type === "string"])
+  .registerSyntax("number", [(x) => x.type === "number"])
+  .registerSyntax(
+    "string special key",
+    [(x) => x.field === "key", (x) => x.parent?.type === "pair"],
+    2
+  )
+  .registerSyntax("escape", [(x) => x.type === "escape_sequence"])
+  .registerSyntax("comment", [(x) => x.type === "comment"])
+  .registerSyntax("constant builtin", [
     (x) => ["true", "false", "null"].includes(x.type),
-    (x) => e.applySyntaxHighlighting(x, "constant", "builtin"),
   ]);

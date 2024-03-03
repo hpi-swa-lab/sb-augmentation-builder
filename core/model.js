@@ -509,7 +509,7 @@ class SBNode {
     for (const child of this.children) {
       height = Math.max(height, child.treeHeight);
     }
-    return height + 1;
+    return (this._treeHeight = height + 1);
   }
 
   // edit operations
@@ -536,6 +536,7 @@ class SBNode {
   cleanDiffData() {
     this._structureHash = null;
     this._literalHash = null;
+    this._treeHeight = null;
     this.share = null;
     this.assigned = null;
     this.literalMatch = null;

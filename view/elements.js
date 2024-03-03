@@ -1,5 +1,5 @@
 import { Replacement } from "./widgets.js";
-import { nextHash, orParentThat } from "../utils.js";
+import { last, nextHash, orParentThat } from "../utils.js";
 
 // _EditableElement is the superclass for Text and Block elements, grouping
 // common functionality.
@@ -195,7 +195,7 @@ export class Text extends _EditableElement {
     }
   }
   findTextForCursor(cursor) {
-    const [start, end] = this.range;
+    let [start, end] = this.range;
     if (start <= cursor && end >= cursor) return this;
     else return null;
   }

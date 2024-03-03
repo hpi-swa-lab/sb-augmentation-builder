@@ -1,7 +1,4 @@
-import {
-  ExtensionInstance,
-  StickyReplacementRemoved,
-} from "../core/extension.js";
+import { ExtensionInstance } from "../core/extension.js";
 
 export class SandblocksExtensionInstance extends ExtensionInstance {
   attachedDataPerTrigger = new Map();
@@ -111,30 +108,6 @@ export class SandblocksExtensionInstance extends ExtensionInstance {
   }
 
   _recordReplacementsOnly = false;
-
-  processStickyReplacements(node) {
-    try {
-      this.processingTrigger = "replacement";
-      this._recordReplacementsOnly = true;
-      node.root.allNodesDo((node) => this.runQueries("replacement", node));
-
-      for (const view of this.currentReplacements) {
-        if (!this.newReplacements.has(view) && view.sticky) {
-          throw new StickyReplacementRemoved();
-        }
-      }
-    } catch (e) {
-      if (e instanceof StickyReplacementRemoved) {
-        return false;
-      } else {
-        throw e;
-      }
-    } finally {
-      this._recordReplacementsOnly = false;
-      this.processingTrigger = null;
-    }
-    return true;
-  }
 
   addSuggestions(node, suggestions) {
     node.editor.addSuggestions(suggestions);
