@@ -36,10 +36,13 @@ export const icon = (name) =>
       language="javascript"
     ></scm-editor>
     <sb-editor
-      text="[
-]"
-      language="json"
-      extensions="json:base"
+      text="
+------------------------------ MODULE Simple ------------------------------
+VARIABLES x, y, pc
+=============================================================================
+"
+      language="tlaplus"
+      extensions="tlaplus:base"
     ></sb-editor>
     <script type="module">
       import {} from "/sandblocks/editor.js";

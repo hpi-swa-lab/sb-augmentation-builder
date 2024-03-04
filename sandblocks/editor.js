@@ -61,8 +61,8 @@ class SandblocksShard extends BaseShard {
   }
 
   cssClass(node, cls, add) {
-    for (const c of cls.split(" "))
-      this.views.get(node).classList.toggle(c, add);
+    const view = this.views.get(node);
+    for (const c of cls.split(" ")) view.classList.toggle(c, add);
   }
 
   applyRejectedDiff(_editBuffer, changes) {

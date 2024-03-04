@@ -25,6 +25,7 @@ import { config } from "./config.js";
 // - extensionConnected(root: Node)
 // - extensionDisconnected(root: Node)
 export class Extension {
+  static nextMarkerId = 0;
   static extensionRegistry = new Map();
   static packageLoaders = new Map();
 
@@ -99,6 +100,7 @@ export class Extension {
   }
 
   registerMarker(r) {
+    r.name = `${r.name}:${this.constructor.nextMarkerId++}`;
     this.markers.push(r);
     return this;
   }

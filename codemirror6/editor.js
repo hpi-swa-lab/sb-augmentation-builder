@@ -11,6 +11,7 @@ import {
   WidgetType,
   keymap,
 } from "../external/codemirror/view.mjs";
+import { indentWithTab } from "../external/commands.mjs";
 import { last, orParentThat, rangeContains, rangeShift } from "../utils.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
@@ -73,6 +74,8 @@ class CodeMirrorShard extends BaseShard {
             },
           ])
         ),
+        keymap.of([indentWithTab]),
+        javascript(),
         this.replacementsField,
         EditorView.updateListener.of((v) => this._onChange(v)),
       ],

@@ -1,5 +1,4 @@
-import { Replacement } from "./widgets.js";
-import { last, nextHash, orParentThat } from "../utils.js";
+import { nextHash, orParentThat } from "../utils.js";
 
 // _EditableElement is the superclass for Text and Block elements, grouping
 // common functionality.
