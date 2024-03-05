@@ -1,19 +1,37 @@
-import { clamp, rangeDistance } from "../utils.js";
-import { EditBuffer } from "./diff.js";
+import { clamp, orParentThat, rangeDistance } from "../utils.js";
+import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
 export class BaseShard extends HTMLElement {
   // must be set before a node can be set or the shard is used
   editor = null;
 
-  extensions = [];
+  get replacements() {
+    throw "subclass responsibility";
+  }
+
+  extensions = () => this.parentShard?.extensions() ?? [];
 
   connectedCallback() {
     this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
+
+    if (!this.childNodes.length) {
+      this.initView();
+      this.applyChanges(new EditBuffer(this.node.initOps()), [
+        {
+          from: this.range[0],
+          to: this.range[0],
+          insert: this.node.sourceString,
+        },
+      ]);
+    }
   }
   disconnectedCallback() {
     this.editor.shards.delete(this);
-    this.node = null;
+  }
+
+  get parentShard() {
+    return orParentThat(this.parentElement, (p) => p instanceof BaseShard);
   }
 
   get range() {
@@ -26,7 +44,7 @@ export class BaseShard extends HTMLElement {
 
   get extensionMarkers() {
     const markers = [];
-    for (const extension of this.extensions) {
+    for (const extension of this.extensions()) {
       markers.push(...extension.markers);
     }
     markers.sort((a, b) => a.priority - b.priority);
@@ -35,14 +53,12 @@ export class BaseShard extends HTMLElement {
 
   get extensionReplacements() {
     const replacements = [];
-    for (const extension of this.extensions) {
+    for (const extension of this.extensions()) {
       replacements.push(...extension.replacements);
     }
     replacements.sort((a, b) => a.priority - b.priority);
     return replacements;
   }
-
-  extensionsDo(fn) {}
 
   onTextChanges(changes) {
     // TODO this.extensionsDo((e) => e.filterChanges(changes));
@@ -59,17 +75,6 @@ export class BaseShard extends HTMLElement {
     this._node?.shards.remove(this);
     this._node = n;
     n?.shards.push(this);
-
-    if (init) {
-      this.initView();
-      this.applyChanges(new EditBuffer(this.node.initOps()), [
-        {
-          from: this.range[0],
-          to: this.range[0],
-          insert: this.node.sourceString,
-        },
-      ]);
-    }
   }
 
   get node() {
@@ -89,6 +94,10 @@ export class BaseShard extends HTMLElement {
   }
 
   cssClass(node, cls, add) {
+    throw "subclass responsibility";
+  }
+
+  withDom(node, f) {
     throw "subclass responsibility";
   }
 
@@ -123,8 +132,26 @@ export class BaseShard extends HTMLElement {
   }
 
   updateReplacements(editBuffer) {
-    // check for replacements that are now gone
-    for (const { node: root } of editBuffer.posBuf) {
+    // check for replacements that are now gone because their node was removed
+    for (const op of editBuffer.negBuf) {
+      if (op instanceof RemoveOp) {
+        const replacement = this.getReplacementFor(op.node);
+        if (replacement) this.uninstallReplacement(op.node, editBuffer);
+      }
+    }
+
+    // check for replacements that are now gone because a change made them invalid
+    const changedNodes = new Set();
+    for (const op of editBuffer.posBuf) {
+      if (op instanceof UpdateOp || op instanceof AttachOp)
+        changedNodes.add(op.node);
+    }
+    for (const op of editBuffer.negBuf) {
+      if (op instanceof DetachOp && op.oldParent?.connected)
+        changedNodes.add(op.oldParent);
+    }
+
+    for (const root of changedNodes) {
       for (const node of root.andAllParents()) {
         const replacement = this.getReplacementFor(node);
         if (replacement && !node.exec(...replacement.query))
@@ -134,6 +161,7 @@ export class BaseShard extends HTMLElement {
 
     // re-render remaining replacements (FIXME we're currently re-rendering all)
     for (const replacement of this.replacements) {
+      console.assert(replacement.node.connected);
       replacement.render();
     }
 
@@ -207,10 +235,6 @@ export class BaseShard extends HTMLElement {
     return bestIndex === null
       ? { position: null, distance: Infinity }
       : { position: this.positionForIndex(bestIndex), distance: bestDistance };
-  }
-
-  get replacements() {
-    throw "subclass responsibility";
   }
 
   *cursorPositions() {

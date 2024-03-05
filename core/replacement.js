@@ -13,6 +13,15 @@ export function StickyShard({ node, ...props }) {
   });
   return shard(node, props);
 }
+export const Shard = ({ node, ...props }) => {
+  if (!node.editor) throw new Error("node has become disconnected");
+  return h(node.editor.constructor.shardTag, {
+    node,
+    key: node.id,
+    editor: node.editor,
+    ...props,
+  });
+};
 
 export class SBReplacement extends HTMLElement {
   editor = null;
@@ -48,10 +57,6 @@ export class SBReplacement extends HTMLElement {
   takeCursor(atStart) {
     this.focus();
     this._selectionAtStart = atStart;
-  }
-
-  insertNode() {
-    // called when applying diffs to view -- we don't want to receive children
   }
 
   *allViews() {

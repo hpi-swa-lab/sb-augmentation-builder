@@ -65,6 +65,10 @@ class SandblocksShard extends BaseShard {
     for (const c of cls.split(" ")) view.classList.toggle(c, add);
   }
 
+  withDom(node, f) {
+    f(this.views.get(node));
+  }
+
   applyRejectedDiff(_editBuffer, changes) {
     return changes
       .map((change) => this.applyRejectedChange(change))
@@ -106,10 +110,13 @@ class SandblocksShard extends BaseShard {
     for (const change of sorted) {
       if (change instanceof AttachOp) {
         const parentView = this.views.get(change.parent);
-        if (parentView) {
+        if (parentView && !(parentView instanceof SBReplacement)) {
           const view = this.buildOrRecall(change.node, editBuffer);
           parentView.insertNode(view, change.index);
-        } else if (this.node.isRoot === change.node.isRoot) {
+        } else if (
+          (this.node.isRoot && change.node.isRoot) ||
+          this.node === change.node
+        ) {
           this.node = change.node;
           this.appendChild(this.buildOrRecall(change.node, editBuffer));
         } else {

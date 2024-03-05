@@ -102,12 +102,13 @@ export class BaseEditor extends HTMLElement {
     this.node = await languageFor(language).initModelAndView(text);
     this.firstElementChild?.remove();
     this.rootShard = document.createElement(this.constructor.shardTag);
-    this.rootShard.extensions = await Promise.all(
+    const extensions = await Promise.all(
       (this.getAttribute("extensions") ?? "")
         .split(" ")
         .filter((ext) => ext.length > 0)
         .map((ext) => Extension.get(ext)),
     );
+    this.rootShard.extensions = () => extensions;
     this.rootShard.editor = this;
     this.rootShard.node = this.node;
     this.appendChild(this.rootShard);
@@ -127,6 +128,17 @@ export class BaseEditor extends HTMLElement {
 
   rejectChange(op) {
     return op instanceof RemoveOp && this.stickyNodes.has(op.node);
+  }
+
+  replaceTextFromCommand(range, text) {
+    this.applyChanges([
+      {
+        from: range[0],
+        to: range[1],
+        insert: text,
+        selectionRange: [range[0] + text.length, range[0] + text.length],
+      },
+    ]);
   }
 
   applyChanges(changes, forceApply = false) {

@@ -1,18 +1,19 @@
+import { last, orParentThat, rangeContains, rangeShift } from "../utils.js";
 import { BaseEditor } from "../core/editor.js";
 import { BaseShard } from "../core/shard.js";
 import {
   EditorView,
   basicSetup,
   minimalSetup,
-} from "../external/codemirror/codemirror.mjs";
-import { RangeSet, StateField, Prec } from "../external/codemirror/state.mjs";
-import {
+  RangeSet,
+  StateField,
+  Prec,
   Decoration,
   WidgetType,
   keymap,
-} from "../external/codemirror/view.mjs";
-import { indentWithTab } from "../external/commands.mjs";
-import { last, orParentThat, rangeContains, rangeShift } from "../utils.js";
+  indentWithTab,
+  javascript,
+} from "./external/codemirror.bundle.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
   constructor(replacement) {
@@ -224,9 +225,10 @@ class CodeMirrorShard extends BaseShard {
 
   isShowing(node) {
     if (!rangeContains(this.range, node.range)) return false;
-    // const marks = this.cm.findMarksAt(node.range[0] - this.range[0]);
-    // return !marks.some((m) => !!m.replacedWith);
-    // TODO
+
+    for (const replacement of this.replacements) {
+      if (rangeContains(replacement.range, node.range)) return false;
+    }
     return true;
   }
 
@@ -254,6 +256,10 @@ class CodeMirrorShard extends BaseShard {
 
   cssClass() {
     // noop, we have our own syntax highlighting
+  }
+
+  withDom(node, f) {
+    // noop
   }
 
   installReplacement(node, extension) {

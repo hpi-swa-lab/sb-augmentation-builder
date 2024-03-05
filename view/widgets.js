@@ -7,7 +7,12 @@ import {
   parentWithTag,
   rangeEqual,
 } from "../utils.js";
-import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
+import {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "../external/preact-hooks.mjs";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { SBList } from "../core/model.js";
 import { SandblocksExtensionInstance } from "./extension-instance.js";

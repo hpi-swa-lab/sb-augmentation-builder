@@ -107,10 +107,6 @@ class _EditableElement extends HTMLElement {
   disconnectedCallback() {
     this.removeEventListener("dblclick", this.onDoubleClick);
   }
-  onDoubleClick(e) {
-    e.stopPropagation();
-    this.editor.extensionsDo((e) => e.process(["doubleClick"], this.node));
-  }
 }
 
 // Block the view for any non-terminal node.
