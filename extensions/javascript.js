@@ -35,6 +35,22 @@ export const table = new Extension().registerReplacement({
     ),
 });
 
+export const testValueShow = new Extension().registerReplacement({
+  query: [
+    (x) => x.compatibleWith("expression"),
+    (x) => x.sourceString.length < 10,
+  ],
+  queryDepth: 1,
+  component: ({ node }) =>
+    h(
+      "span",
+      { style: { display: "inline-flex", flexDirection: "column" } },
+      h(Shard, { node }),
+      h("span", { style: { fontSize: "0.8em" } }, node.type)
+    ),
+  name: "sb-js-test-value-show",
+});
+
 function toggle(e) {
   e.stopPropagation();
   const node = e.currentTarget.node;

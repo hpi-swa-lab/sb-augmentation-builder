@@ -172,12 +172,20 @@ export class BaseShard extends HTMLElement {
         let node = root;
         for (let i = 0; i <= extension.queryDepth; i++) {
           if (!node || !this.isShowing(node)) continue;
-          if (!this.getReplacementFor(node) && node?.exec(...extension.query))
+          if (this.mayReplace(node, extension))
             this.installReplacement(node, extension);
           node = node?.parent;
         }
       }
     }
+  }
+
+  mayReplace(node, extension) {
+    if (this.getReplacementFor(node)) return false;
+    if (!node?.exec(...extension.query)) return false;
+    if (this.parentShard?.replacements.some((r) => r.node === node))
+      return false;
+    return true;
   }
 
   updateMarkers(editBuffer) {

@@ -152,7 +152,7 @@ class SandblocksShard extends BaseShard {
     let view;
 
     for (const extension of this.extensionReplacements) {
-      if (node.exec(...extension.query)) {
+      if (this.mayReplace(node, extension)) {
         view = this.buildReplacementFor(node, extension);
       }
     }
