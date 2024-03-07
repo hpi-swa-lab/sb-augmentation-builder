@@ -220,6 +220,25 @@ export class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
+  handleDeleteAtBoundary(forward) {
+    const pos = this.editor.selection.head.index;
+    if (
+      pos === this.editor.selection.anchor.index &&
+      pos === this.range[forward ? 1 : 0]
+    ) {
+      this.editor.applyChanges([
+        {
+          from: pos - 1,
+          to: pos,
+          insert: "",
+          selectionRange: [pos - 1, pos - 1],
+        },
+      ]);
+      return true;
+    }
+    return false;
+  }
+
   candidatePositionForIndex(index) {
     if (!this.node || !this.isConnected)
       return { position: null, distance: Infinity };

@@ -1,4 +1,10 @@
-import { AttachOp, DetachOp, LoadOp, UpdateOp } from "../core/diff.js";
+import {
+  AttachOp,
+  DetachOp,
+  LoadOp,
+  RemoveOp,
+  UpdateOp,
+} from "../core/diff.js";
 import { BaseEditor } from "../core/editor.js";
 import { followingElementThat, nodeIsEditable } from "../core/focus.js";
 import { SBBlock, SBList, SBText } from "../core/model.js";
@@ -80,14 +86,21 @@ class SandblocksShard extends BaseShard {
   }
 
   applyChanges(editBuffer, changes) {
+    const removed = new Set(
+      editBuffer.negBuf
+        .filter((op) => op instanceof RemoveOp)
+        .map((op) => op.node)
+    );
     for (const change of editBuffer.negBuf) {
       if (change instanceof DetachOp) {
         const view = this.views.get(change.node);
         if (view) {
           view.remove();
           for (const v of view.allViews()) {
-            editBuffer.rememberView(v);
-            this.views.delete(v.node);
+            if (!removed.has(v.node)) {
+              if (!(v instanceof SBReplacement)) editBuffer.rememberView(v);
+              this.views.delete(v.node);
+            }
           }
         }
       }
@@ -107,24 +120,43 @@ class SandblocksShard extends BaseShard {
       return 0;
     });
 
+    const attached = [];
+
     for (const change of sorted) {
       if (change instanceof AttachOp) {
         const parentView = this.views.get(change.parent);
         if (parentView && !(parentView instanceof SBReplacement)) {
           const view = this.buildOrRecall(change.node, editBuffer);
           parentView.insertNode(view, change.index);
+          attached.push(view);
         } else if (
           (this.node.isRoot && change.node.isRoot) ||
           this.node === change.node
         ) {
           this.node = change.node;
-          this.appendChild(this.buildOrRecall(change.node, editBuffer));
+          const view = this.buildOrRecall(change.node, editBuffer);
+          this.appendChild(view);
+          attached.push(view);
         } else {
           // not within our shard
         }
       }
       if (change instanceof UpdateOp) {
         this.views.get(change.node)?.setAttribute("text", change.text);
+      }
+    }
+
+    for (const view of attached) {
+      if (
+        !(view instanceof SBReplacement) &&
+        view.children.length !== view.node.children.length
+      ) {
+        for (let i = 0; i < view.node.children.length; i++) {
+          const child = view.node.children[i];
+          if (![...view.children].some((c) => c.node === child)) {
+            view.insertNode(this.buildOrRecall(child, editBuffer, true), i);
+          }
+        }
       }
     }
 
@@ -159,7 +191,9 @@ class SandblocksShard extends BaseShard {
 
     if (!view) {
       view = editBuffer?.recallView(node);
-      if (view) for (const v of view.allViews()) this.views.set(v.node, v);
+      if (view) {
+        for (const v of view.allViews()) this.views.set(v.node, v);
+      }
     }
 
     if (!view) {
@@ -251,6 +285,22 @@ class SandblocksShard extends BaseShard {
       e.stopPropagation();
       this.editor.moveCursor(true, e.shiftKey);
     }
+    if (e.key === "Backspace" && this.handleDeleteAtBoundary(false)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (e.key === "Delete" && this.handleDeleteAtBoundary(true)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  handleDeleteAtBoundary(forward) {
+    let ret = false;
+    ToggleableMutationObserver.ignoreMutation(
+      () => (ret = super.handleDeleteAtBoundary(forward))
+    );
+    return ret;
   }
 
   isMyMutation(mutation) {

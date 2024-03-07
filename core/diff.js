@@ -340,10 +340,10 @@ export class TrueDiff {
       a.assigned = null;
     } else {
       editBuffer.remove(a);
-      // FIXME do we need this?
-      // for (const child of a.children) {
-      //   this.unloadUnassigned(child, editBuffer);
-      // }
+      // FIXME recently enabled -- double check semantics
+      for (const child of a.children) {
+        this.unloadUnassigned(child, editBuffer);
+      }
     }
   }
   loadUnassigned(b, editBuffer) {

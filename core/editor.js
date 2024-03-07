@@ -126,6 +126,10 @@ export class BaseEditor extends HTMLElement {
   // hook that may be implemented by editors for cleaning up
   onSuccessfulChange() {}
 
+  onSelectionChange(selection) {
+    this.selection = selection;
+  }
+
   rejectChange(op) {
     return op instanceof RemoveOp && this.stickyNodes.has(op.node);
   }
@@ -172,7 +176,7 @@ export class BaseEditor extends HTMLElement {
     // may create or delete shards while iterating, so iterate over a copy
     for (const shard of [...this.shards]) {
       // if we are deleted while iterating, don't process diff
-      if (shard.node) shard.applyChanges(diff, changes);
+      if (shard.node?.connected) shard.applyChanges(diff, changes);
     }
 
     this.pendingChanges.value = [];
@@ -200,6 +204,7 @@ export class BaseEditor extends HTMLElement {
   }
 
   revertPendingChanges() {
+    if (this.pendingChanges.value.length == 0) return;
     for (const change of this.revertChanges.reverse()) change();
     this.revertChanges = [];
     this.pendingChanges.value = [];
@@ -231,12 +236,15 @@ export class BaseEditor extends HTMLElement {
     );
   }
 
+  i = 0;
   moveCursor(forward, selecting) {
     this.selection.head.element.resync?.();
     const { head } = this.selection;
     const next = forward
       ? this.nextPosition(head)
       : this.previousPosition(head);
+    this.i++;
+    // if (this.i === 2) debugger;
     if (next) {
       this.selection.head = next;
       if (!selecting) this.selection.anchor = next;

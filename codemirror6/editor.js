@@ -73,6 +73,11 @@ class CodeMirrorShard extends BaseShard {
               run: (v) => this.editor.moveCursor(true),
               preventDefault: true,
             },
+            {
+              key: "Backspace",
+              run: (v) => this.handleDeleteAtBoundary(false),
+              preventDefault: true,
+            },
           ])
         ),
         keymap.of([indentWithTab]),
@@ -88,8 +93,8 @@ class CodeMirrorShard extends BaseShard {
   }
 
   _onChange(v) {
-    if (v.transactions.some((t) => t.isUserEvent("select.pointer"))) {
-      this.editor.selection = {
+    if (v.transactions.some((t) => t.isUserEvent("select"))) {
+      this.editor.onSelectionChange({
         head: {
           element: this,
           elementOffset: v.state.selection.main.head,
@@ -100,8 +105,9 @@ class CodeMirrorShard extends BaseShard {
           elementOffset: v.state.selection.main.anchor,
           index: v.state.selection.main.anchor + this.range[0],
         },
-      };
+      });
     }
+
     if (v.docChanged && !v.transactions.some((t) => t.isUserEvent("sync"))) {
       const changes = [];
       v.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
@@ -162,19 +168,14 @@ class CodeMirrorShard extends BaseShard {
     }
 
     // make sure we update at least ranges for replacements
-    if (!anyChange)
-      this.cm.dispatch({
-        userEvent: "sync",
-      });
+    if (!anyChange) this.cm.dispatch({ userEvent: "sync" });
 
     this.updateReplacements(editBuffer);
     this.updateMarkers(editBuffer);
   }
 
   onPendingChangesReverted() {
-    this.cm.dispatch({
-      userEvent: "sync",
-    });
+    this.cm.dispatch({ userEvent: "sync" });
   }
 
   *iterReplacedRanges() {
@@ -229,6 +230,7 @@ class CodeMirrorShard extends BaseShard {
     for (const replacement of this.replacements) {
       if (rangeContains(replacement.range, node.range)) return false;
     }
+
     return true;
   }
 
@@ -300,11 +302,6 @@ class CodeMirrorShard extends BaseShard {
       elementOffset: forward ? 0 : this.cm.state.doc.length,
       index: forward ? this.range[0] : this.range[1],
     };
-  }
-
-  elementOffsetForIndex(index) {
-    if (this.isShowingIndex(index)) return index - this.range[0];
-    else return null;
   }
 
   coordsForPosition(elementOffset) {
