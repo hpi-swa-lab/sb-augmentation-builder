@@ -482,6 +482,15 @@ export function pluralString(string, number) {
   return `${number} ${string}${number === 1 ? "" : "s"}`;
 }
 
+export function takeWhile(list, cb) {
+  const result = [];
+  for (const item of list) {
+    if (cb(item)) result.push(item);
+    else break;
+  }
+  return result;
+}
+
 // CREDITS: https://stackoverflow.com/a/8809472/13994294
 export function makeUUID() {
   var d = new Date().getTime(); //Timestamp

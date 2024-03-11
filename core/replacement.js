@@ -1,18 +1,50 @@
 import { useContext, useEffect } from "../external/preact-hooks.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
-import { orParentThat } from "../utils.js";
-import { shard } from "../view/widgets.js";
+import { orParentThat, takeWhile } from "../utils.js";
+import { shard, shardList } from "../view/widgets.js";
 import { BaseShard } from "./shard.js";
+
+export function useStickyNodeValidator(node) {
+  useValidator(() => node.connected, [node]);
+}
+export function useStickyReplacementValidator(replacement) {
+  useValidator(
+    () =>
+      replacement.node.connected && replacement.node.exec(...replacement.query),
+    [replacement.node, replacement.query],
+  );
+}
+export function useValidator(func, deps) {
+  const owner = useContext(ShardContext);
+  useEffect(() => {
+    owner.editor.registerValidator(func);
+    return () => owner.editor.unregisterValidator(func);
+  }, deps);
+}
 
 const ShardContext = createContext(null);
 export function StickyShard({ node, ...props }) {
-  const owner = useContext(ShardContext);
-  useEffect(() => {
-    owner.editor.markSticky(node, true);
-    return () => owner.editor.markSticky(node, false);
-  });
+  useStickyNodeValidator(node);
   return shard(node, props);
 }
+export function StickySlot({ node, ...props }) {
+  const owner = useContext(ShardContext);
+  const all = [
+    ...takeWhile(
+      node.parent.children.slice(0, node.siblingIndex).reverse(),
+      (c) => c.isWhitespace(),
+    ),
+    node,
+    ...takeWhile(node.parent.children.slice(node.siblingIndex + 1), (c) =>
+      c.isWhitespace(),
+    ),
+  ];
+
+  useValidator(() => all.every((n) => n.connected));
+
+  return shardList(all, props);
+}
+
 export const Shard = ({ node, ...props }) => {
   if (!node.editor) throw new Error("node has become disconnected");
   return h(node.editor.constructor.shardTag, {

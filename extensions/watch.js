@@ -1,4 +1,9 @@
 import { Extension } from "../core/extension.js";
+import {
+  StickySlot,
+  useStickyReplacementValidator,
+  useValidator,
+} from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { socket } from "../sandblocks/host.js";
 import { randomId } from "../utils.js";
@@ -58,6 +63,8 @@ function Watch({ replacement }) {
   const [count, setCount] = useState(0);
   const [lastValue, setLastValue] = useState("");
 
+  useStickyReplacementValidator(replacement);
+
   useEffect(() => {
     window.sbWatch.registry.set(watchId, replacement);
 
@@ -79,9 +86,14 @@ function Watch({ replacement }) {
       borderRadius: "4px",
     }}
   >
-    ${shard(expr, {
-      style: { padding: "0.1rem", background: "#fff", display: "inline-block" },
-    })}
+    <${StickySlot}
+      node=${expr}
+      style=${{
+        padding: "0.1rem",
+        background: "#fff",
+        display: "inline-block",
+      }}
+    />
     <div style=${{ color: "#fff", display: "flex", marginTop: "0.25rem" }}>
       <div
         style=${{

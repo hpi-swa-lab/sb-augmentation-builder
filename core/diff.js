@@ -545,7 +545,7 @@ export class EditBuffer {
     this.posBuf.forEach(cb);
   }
   log(...op) {
-    if (false) console.log(...op);
+    if (true) console.log(...op);
   }
 }
 

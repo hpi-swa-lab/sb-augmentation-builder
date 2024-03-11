@@ -3,7 +3,7 @@ import { effect, signal } from "../external/preact-signals-core.mjs";
 import { RemoveOp } from "./diff.js";
 import { languageFor } from "./languages.js";
 import { clamp, last, orParentThat } from "../utils.js";
-import { Text, Block, Placeholder } from "../view/elements.js";
+import { Text, Block, Placeholder, ViewList } from "../view/elements.js";
 import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
 import { preferences } from "../view/preferences.js";
@@ -47,6 +47,7 @@ preferences
 customElements.define("sb-text", Text);
 customElements.define("sb-block", Block);
 customElements.define("sb-placeholder", Placeholder);
+customElements.define("sb-view-list", ViewList);
 
 function nextEditor(element) {
   return orParentThat(element, (p) => p instanceof BaseEditor);
@@ -94,8 +95,8 @@ export class BaseEditor extends HTMLElement {
   static shardTag = null;
 
   shards = new Set();
-  stickyNodes = new Set();
   pendingChanges = signal([]);
+  validators = new Set();
   revertChanges = [];
 
   _selection = {
@@ -163,9 +164,12 @@ export class BaseEditor extends HTMLElement {
     });
   }
 
-  markSticky(node, sticky) {
-    if (sticky) this.stickyNodes.add(node);
-    else this.stickyNodes.delete(node);
+  registerValidator(cb) {
+    this.validators.add(cb);
+  }
+
+  unregisterValidator(cb) {
+    this.validators.delete(cb);
   }
 
   // hook that may be implemented by editors for cleaning up
@@ -173,10 +177,6 @@ export class BaseEditor extends HTMLElement {
 
   onSelectionChange(selection) {
     this._selection = selection;
-  }
-
-  rejectChange(op) {
-    return op instanceof RemoveOp && this.stickyNodes.has(op.node);
   }
 
   replaceTextFromCommand(range, text) {
@@ -199,11 +199,14 @@ export class BaseEditor extends HTMLElement {
     }
 
     const { diff, tx, root } = this.node.updateModelAndView(newSource);
+    const oldRoot = this.node;
     this.node = root;
+
     if (!forceApply) {
-      for (const op of [...diff.negBuf, ...diff.posBuf]) {
-        if (this.rejectChange(op)) {
+      for (const validator of this.validators) {
+        if (!validator(root, diff, allChanges)) {
           tx.rollback();
+          this.node = oldRoot;
           this.pendingChanges.value = [
             ...this.pendingChanges.value,
             ...changes,

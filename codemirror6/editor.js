@@ -156,7 +156,7 @@ class CodeMirrorShard extends BaseShard {
     );
   }
 
-  applyChanges(editBuffer, changes) {
+  _applyTextChanges(changes) {
     let anyChange = false;
     for (const change of changes.filter(
       (c) =>
@@ -175,11 +175,16 @@ class CodeMirrorShard extends BaseShard {
       });
     }
 
-    // make sure we update at least ranges for replacements
-    if (!anyChange) this.cm.dispatch({ userEvent: "sync" });
+    return anyChange;
+  }
+
+  applyChanges(editBuffer, changes) {
+    this._applyTextChanges(changes);
 
     this.updateReplacements(editBuffer);
     this.updateMarkers(editBuffer);
+
+    this.cm.dispatch({ userEvent: "sync" });
   }
 
   onPendingChangesReverted() {
@@ -213,7 +218,8 @@ class CodeMirrorShard extends BaseShard {
   }
 
   applyRejectedDiff(editBuffer, changes) {
-    this.applyChanges(editBuffer, changes);
+    this._applyTextChanges(changes);
+    this.cm.dispatch({ userEvent: "sync" });
     return [
       () =>
         this.cm.dispatch({
@@ -377,7 +383,7 @@ test("edit with pending changes", async () => {
   const editor = new CodeMirrorEditor();
   await editor.setText("a + b", "javascript");
 
-  editor.rejectChange = () => true;
+  editor.registerValidator(() => false);
 
   editor.applyChanges([
     {

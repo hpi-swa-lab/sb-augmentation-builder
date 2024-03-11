@@ -198,4 +198,17 @@ export class Text extends _EditableElement {
 
 export class Placeholder extends _EditableElement {}
 
-export class ViewList extends _EditableElement {}
+export class ViewList extends _EditableElement {
+  insertNode(node, index) {
+    for (const child of this.childNodes) {
+      if (index === 0) {
+        this.insertBefore(node, child);
+        return;
+      }
+      if (child.isNodeReplacement || child.isNodeView) {
+        index--;
+      }
+    }
+    this.appendChild(node);
+  }
+}

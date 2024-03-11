@@ -133,7 +133,7 @@ class SBNode {
   }
 
   get language() {
-    return this.isRoot ? this._language : this.root.language;
+    return this._language ?? this.root._language;
   }
 
   get id() {
@@ -708,11 +708,13 @@ export class SBList extends SBNode {
   }
 
   get type() {
-    throw new Error("FIXME: SBList has no type");
+    return "__SB_LIST";
   }
 
   get parent() {
-    return this.list[0].parent;
+    const p = this.list[0].parent;
+    console.assert(p !== this);
+    return p;
   }
 
   get id() {

@@ -7,7 +7,12 @@ import {
   parentWithTag,
   rangeEqual,
 } from "../utils.js";
-import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "../external/preact-hooks.mjs";
 import { SBList } from "../core/model.js";
 import { markAsEditableElement, nodeIsEditable } from "../core/focus.js";
 import htm from "../../external/htm.mjs";
@@ -42,9 +47,14 @@ function StickyShard({ node, ...props }) {
 }
 export const stickyShard = (node, props = {}) =>
   h(StickyShard, { node, ...props });
-export const shardList = (list) => {
-  const node = new SBList(list);
-  return h(node.editor.shardTag, { initNode: [node], key: node.id });
+export const shardList = (list, props = {}) => {
+  const node = useMemo(() => new SBList(list), list);
+  return h(node.editor.constructor.shardTag, {
+    node,
+    key: node.id,
+    editor: node.editor,
+    ...props,
+  });
 };
 export const icon = (name) =>
   h(
