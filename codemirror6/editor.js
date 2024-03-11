@@ -31,7 +31,7 @@ class CodeMirrorReplacementWidget extends WidgetType {
   }
 }
 
-class CodeMirrorEditor extends BaseEditor {
+export class CodeMirrorEditor extends BaseEditor {
   static shardTag = "scm-shard";
 }
 
@@ -331,82 +331,3 @@ class CodeMirrorShard extends BaseShard {
 
 customElements.define("scm-editor", CodeMirrorEditor);
 customElements.define("scm-shard", CodeMirrorShard);
-
-const tests = [];
-function test(name, cb) {
-  tests.push(cb);
-}
-function assertEq(a, b) {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) throw new Error(`expected ${a} to equal ${b}`);
-    for (let i = 0; i < a.length; i++) assertEq(a[i], b[i]);
-    return;
-  }
-  if (typeof a === "object" && typeof b === "object") {
-    for (const k in a) assertEq(a[k], b[k]);
-    for (const k in b) assertEq(a[k], b[k]);
-    return;
-  }
-  if (a !== b) throw new Error(`expected ${a} to equal ${b}`);
-}
-
-test("range shift complex", () => {
-  const editor = new CodeMirrorEditor();
-  editor.pendingChanges.value = [
-    { from: 5, to: 5, insert: "3" },
-    { from: 6, to: 6, insert: "2" },
-    { from: 7, to: 7, insert: "1" },
-    { from: 8, to: 8, insert: "3" },
-    { from: 1, to: 7, insert: "" },
-  ];
-  assertEq(editor.adjustRange([1, 6], false), [1, 4]);
-});
-
-test("range shift simple", () => {
-  const editor = new CodeMirrorEditor();
-  editor.pendingChanges.value = [
-    { from: 3, to: 3, insert: "a" },
-    { from: 7, to: 10, insert: "" },
-  ];
-  assertEq(editor.adjustRange([0, 1], false), [0, 1]);
-  assertEq(editor.adjustRange([3, 4], false), [4, 5]);
-  assertEq(editor.adjustRange([7, 10], false), [7, 8]);
-});
-
-test("range shift root", () => {
-  const editor = new CodeMirrorEditor();
-  editor.pendingChanges.value = [{ from: 0, to: 0, insert: "a" }];
-  assertEq(editor.adjustRange([0, 10], true), [0, 11]);
-});
-
-test("edit with pending changes", async () => {
-  const editor = new CodeMirrorEditor();
-  await editor.setText("a + b", "javascript");
-
-  editor.registerValidator(() => false);
-
-  editor.applyChanges([
-    {
-      from: 0,
-      to: 0,
-      insert: "c",
-    },
-  ]);
-
-  assertEq(editor.pendingChanges.value, [{ from: 0, to: 0, insert: "c" }]);
-
-  editor.applyChanges([
-    {
-      from: 5,
-      to: 5,
-      insert: "d",
-    },
-  ]);
-
-  assertEq(editor.pendingChanges.value, [
-    { from: 0, to: 0, insert: "c" },
-    { from: 5, to: 5, insert: "d" },
-  ]);
-});
-
-tests.forEach((t) => t());

@@ -55,6 +55,61 @@ class SandblocksShard extends BaseShard {
   views = new Map();
   actualSourceString = null;
 
+  constructor() {
+    super();
+
+    this.observer = new ToggleableMutationObserver(this, (mutations) => {
+      mutations = [...mutations, ...this.observer.takeRecords()];
+      if (mutations.some((m) => m.type === "attributes")) return;
+      if (!mutations.some((m) => this.isMyMutation(m))) return;
+
+      ToggleableMutationObserver.ignoreMutation(() => {
+        const { selectionRange, sourceString } =
+          this._extractSourceStringAndSelectionRangeAfterMutation();
+        ToggleableMutationObserver.undoMutations(mutations);
+
+        const change = findChange(
+          this.actualSourceString,
+          sourceString,
+          this.editor.selectionRange[1] - this.range[0]
+        );
+        if (!change) return;
+
+        change.from += this.range[0];
+        change.to += this.range[0];
+        change.selectionRange = selectionRange;
+
+        this.actualSourceString = sourceString;
+        this.editor.applyChanges([change]);
+      });
+    });
+
+    this.addEventListener(
+      "keydown",
+      (this._keyDownListener = this.onKeyDown.bind(this))
+    );
+
+    // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
+
+    this.addEventListener("paste", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      document.execCommand(
+        "inserttext",
+        false,
+        event.clipboardData.getData("text/plain")
+      );
+    });
+
+    this.addEventListener("copy", function (e) {
+      if (this.editor.selectedText) {
+        e.clipboardData.setData("text/plain", this.editor.selectedText);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+  }
+
   initView() {
     this.actualSourceString = this.node.sourceString;
   }
@@ -252,57 +307,6 @@ class SandblocksShard extends BaseShard {
       focusable: "true",
     }))
       this.setAttribute(key, value);
-
-    this.addEventListener(
-      "keydown",
-      (this._keyDownListener = this.onKeyDown.bind(this))
-    );
-
-    // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
-
-    this.addEventListener("paste", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      document.execCommand(
-        "inserttext",
-        false,
-        event.clipboardData.getData("text/plain")
-      );
-    });
-
-    this.addEventListener("copy", function (e) {
-      if (this.editor.selectedText) {
-        e.clipboardData.setData("text/plain", this.editor.selectedText);
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    });
-
-    this.observer = new ToggleableMutationObserver(this, (mutations) => {
-      // mutations = [...mutations, ...this.observer.takeRecords()];
-      if (mutations.some((m) => m.type === "attributes")) return;
-      if (!mutations.some((m) => this.isMyMutation(m))) return;
-
-      ToggleableMutationObserver.ignoreMutation(() => {
-        const { selectionRange, sourceString } =
-          this._extractSourceStringAndSelectionRangeAfterMutation();
-        ToggleableMutationObserver.undoMutations(mutations);
-
-        const change = findChange(
-          this.actualSourceString,
-          sourceString,
-          this.editor.selectionRange[1] - this.range[0]
-        );
-        if (!change) return;
-
-        change.from += this.range[0];
-        change.to += this.range[0];
-        change.selectionRange = selectionRange;
-
-        this.actualSourceString = sourceString;
-        this.editor.applyChanges([change]);
-      });
-    });
   }
 
   disconnectedCallback() {

@@ -209,7 +209,7 @@ export class BaseEditor extends HTMLElement {
 
     // update selection: if the index is no longer visible, find a new element
     const newIndex =
-      last(allChanges).selectionRange?.[0] ?? this.selectionRange;
+      last(allChanges).selectionRange?.[0] ?? this.selectionRange[0];
     let bestCandidate =
       this.selection.head.element.candidatePositionForIndex(newIndex);
     if (bestCandidate.distance > 0) {
