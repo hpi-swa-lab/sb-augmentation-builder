@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "../external/preact-hooks.mjs";
 import { focusWithoutScroll, matchesKey, orParentThat } from "../utils.js";
-import { preferences } from "../view/preferences.js";
+import { preferences } from "../core/preferences.js";
 import { h, button, registerPreactElement, render } from "../view/widgets.js";
 import { List } from "./list.js";
 import { getPreferenceOr } from "./preference-window.js";

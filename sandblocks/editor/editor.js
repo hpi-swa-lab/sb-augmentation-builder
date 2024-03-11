@@ -4,21 +4,32 @@ import {
   LoadOp,
   RemoveOp,
   UpdateOp,
-} from "../core/diff.js";
-import { BaseEditor } from "../core/editor.js";
-import { followingElementThat, nodeIsEditable } from "../core/focus.js";
-import { SBBlock, SBList, SBText } from "../core/model.js";
-import { SBReplacement } from "../core/replacement.js";
-import { BaseShard } from "../core/shard.js";
+} from "../../core/diff.js";
+import { BaseEditor } from "../../core/editor.js";
+import { SBBlock, SBList, SBText } from "../../core/model.js";
+import { SBReplacement } from "../../core/replacement.js";
+import { BaseShard } from "../../core/shard.js";
 import {
   ToggleableMutationObserver,
   findChange,
   lastDeepChild,
   orParentThat,
-} from "../utils.js";
-import { Block } from "../view/elements.js";
+} from "../../utils.js";
+import { Block } from "./elements.js";
 
-class SandblocksEditor extends BaseEditor {
+function followingElementThat(node, direction, predicate) {
+  do {
+    node = direction > 0 ? nextNodePreOrder(node) : previousNodePreOrder(node);
+    if (node && predicate(node)) return node;
+  } while (node);
+  return null;
+}
+
+function nodeIsEditable(node) {
+  return !!node.getAttribute("sb-editable");
+}
+
+export class SandblocksEditor extends BaseEditor {
   static shardTag = "sb-shard";
 
   onSuccessfulChange() {
@@ -247,8 +258,28 @@ class SandblocksShard extends BaseShard {
       (this._keyDownListener = this.onKeyDown.bind(this))
     );
 
+    // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
+
+    this.addEventListener("paste", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      document.execCommand(
+        "inserttext",
+        false,
+        event.clipboardData.getData("text/plain")
+      );
+    });
+
+    this.addEventListener("copy", function (e) {
+      if (this.editor.selectedText) {
+        e.clipboardData.setData("text/plain", this.editor.selectedText);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+
     this.observer = new ToggleableMutationObserver(this, (mutations) => {
-      mutations = [...mutations, ...this.observer.takeRecords()];
+      // mutations = [...mutations, ...this.observer.takeRecords()];
       if (mutations.some((m) => m.type === "attributes")) return;
       if (!mutations.some((m) => this.isMyMutation(m))) return;
 

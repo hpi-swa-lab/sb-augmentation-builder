@@ -6,21 +6,20 @@ import { references } from "./references.js";
 import { Extension } from "../../core/extension.js";
 import { confirmUnsavedChanges } from "../window.js";
 import { wait } from "../../utils.js";
-import { preferences } from "../../view/preferences.js";
+import { preferences } from "../../core/preferences.js";
 
-const search = new Extension()
-  .registerShortcut("search", (x) => {
-    x.editor.context.startSearch();
-  })
-  .registerAlways((e) => [
-    (_) => !!e.searchString,
-    (x) => x.isText,
-    (x) =>
-      e.searchIsExact
-        ? x.text === e.searchString
-        : x.text.toLowerCase().includes(e.searchString.toLowerCase()),
-    (x) => e.ensureClass(x, "search-result"),
-  ]);
+const search = new Extension().registerShortcut("search", (x) => {
+  x.editor.context.startSearch();
+});
+// .registerAlways((e) => [
+//   (_) => !!e.searchString,
+//   (x) => x.isText,
+//   (x) =>
+//     e.searchIsExact
+//       ? x.text === e.searchString
+//       : x.text.toLowerCase().includes(e.searchString.toLowerCase()),
+//   (x) => e.ensureClass(x, "search-result"),
+// ]);
 
 export function FileEditor({
   window,
@@ -80,9 +79,7 @@ export function FileEditor({
       path,
       onstartSearch: () => {
         setSearchVisible(true);
-        queueMicrotask(() => {
-          searchRef.current?.focus();
-        });
+        queueMicrotask(() => searchRef.current?.focus());
       },
     },
     h(

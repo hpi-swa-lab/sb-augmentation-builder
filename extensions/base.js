@@ -1,7 +1,7 @@
 import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
 import { Extension, needsSelection } from "../core/extension.js";
 import { rangeEqual, withDo } from "../utils.js";
-import { Replacement, Widget, h } from "../view/widgets.js";
+import { Widget, h } from "../view/widgets.js";
 
 class DetachedShard extends Widget {
   noteProcessed(trigger, node) {
@@ -183,29 +183,29 @@ export const base = new Extension()
     }
   })
 
-  .registerQuery("shortcut", (e) => [
-    needsSelection,
-    (x) => {
-      function callback(shift) {
-        return function (node, view) {
-          const selection = node.editor.selectionRange;
-          const src = node.root.sourceString;
-          const start = indexOfNextNewLine(src, selection[0]);
-          let index = indexOfIndentEnd(src, start - 1);
-          if (index === selection[0])
-            index = indexOfLastNewLine(src, start - 1) + 1;
-          node.editor.selectRange(
-            index,
-            shift ? selection[1] : index,
-            view.shard,
-            false
-          );
-        };
-      }
-      e.registerShortcut(x, "home", callback(false));
-      e.registerShortcut(x, "homeSelect", callback(true));
-    },
-  ])
+  // .registerQuery("shortcut", (e) => [
+  //   needsSelection,
+  //   (x) => {
+  //     function callback(shift) {
+  //       return function (node, view) {
+  //         const selection = node.editor.selectionRange;
+  //         const src = node.root.sourceString;
+  //         const start = indexOfNextNewLine(src, selection[0]);
+  //         let index = indexOfIndentEnd(src, start - 1);
+  //         if (index === selection[0])
+  //           index = indexOfLastNewLine(src, start - 1) + 1;
+  //         node.editor.selectRange(
+  //           index,
+  //           shift ? selection[1] : index,
+  //           view.shard,
+  //           false
+  //         );
+  //       };
+  //     }
+  //     e.registerShortcut(x, "home", callback(false));
+  //     e.registerShortcut(x, "homeSelect", callback(true));
+  //   },
+  // ])
 
   .registerSelection((e) => [
     (x) => false,
@@ -301,33 +301,31 @@ export const doubleClickToCollapse = new Extension().registerDoubleClick(
   ]
 );
 
-class SBCollapse extends Replacement {
-  update(node) {
-    const src = node.sourceString;
-    const max = Math.min(
-      20,
-      withDo(src.indexOf("\n"), (n) => (n === -1 ? Infinity : n))
-    );
-    this.render(
-      h(
-        "span",
-        {
-          onClick: () => this.uninstall(),
-          style: {
-            background: "#eee",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-            padding: "0 0.5rem",
-            fontStyle: "italic",
-            cursor: "pointer",
-          },
-        },
-        src.slice(0, max),
-        src.length > max && "…"
-      ),
-      this
-    );
-  }
-}
-
-customElements.define("sb-collapse", SBCollapse);
+// class SBCollapse extends Replacement {
+//   update(node) {
+//     const src = node.sourceString;
+//     const max = Math.min(
+//       20,
+//       withDo(src.indexOf("\n"), (n) => (n === -1 ? Infinity : n))
+//     );
+//     this.render(
+//       h(
+//         "span",
+//         {
+//           onClick: () => this.uninstall(),
+//           style: {
+//             background: "#eee",
+//             border: "1px solid #ccc",
+//             borderRadius: "6px",
+//             padding: "0 0.5rem",
+//             fontStyle: "italic",
+//             cursor: "pointer",
+//           },
+//         },
+//         src.slice(0, max),
+//         src.length > max && "…"
+//       ),
+//       this
+//     );
+//   }
+// }

@@ -1,93 +1,73 @@
 <!doctype html>
-
 <html>
   <head>
-    <title>Sandblocks Text</title>
+    <title>Core Demo</title>
+    <link rel="stylesheet" href="/view/editor-style.css" />
+    <link rel="stylesheet" href="/sandblocks/style.css" />
   </head>
   <body>
-    <h3>Squeak Demo</h3>
-    <squeak-browser></squeak-browser>
-
-    <h3>Smalltalk Demo</h3>
-    <div id="root">
-      <sb-editor
-        text="init
-
-  | destruct1 firstField secondField |
-  destruct1 := self call.
-  firstField := destruct1 first.
-  secondField := destruct1 second.
-  self yourself"
-        language="smalltalk"
-        extensions="smalltalk:base base:base smalltalk:destructuringAssignment"
-      ></sb-editor>
-    </div>
-
-    <h3>Javascript Demo</h3>
+    <scm-editor
+      text='
+function StickyShard({ node, ...props }) {
+  useEffect(() => {
+    const editor = node.editor;
+    editor.markSticky(node, true);
+    return () => editor.markSticky(node, false);
+  }, node);
+  [[1], [2]]
+  return shard(node, props);
+}
+export const stickyShard = (node, props = {}) =>
+  h(StickyShard, { node, ...props });
+export const shardList = (list) => {
+  const node = new SBList(list);
+  return h(node.editor.shardTag, { initNode: node, key: node.id });
+};
+export const icon = (name) =>
+  h(
+    "span",
+    {
+      class: "material-symbols-outlined",
+      style: { fontSize: "inherit", verticalAlign: "bottom" },
+    },
+    name
+  );
+'
+      extensions="browser:javascript javascript:table watch:javascript"
+      language="javascript"
+    ></scm-editor>
     <sb-editor
-      extensions=""
-      text='console.log(sbWatch(123, 12398482))
-
-function a() {
-  sqCompile("Behavior", "initialize ^ self new")
+      text='function StickyShard({ node, ...props }) {
+  useEffect(() => {
+    const editor = node.editor;
+    editor.markSticky(node, true);
+    return () => editor.markSticky(node, false);
+  }, node);
+  [[1], [2]]
+  return shard(node, props);
 }
-
-a(22312, 3456)
-
-class MyCls {
-  func(a, bdasdasdas, c) {}
-}
-
-let index = 0
-
-Editor.registerKeyMap({
-  undo: "Ctrl-z",
-  redo: "Ctrl-Z",
-  save: "Ctrl-s",
-  cut: "Ctrl-x",
-  copy: "Ctrl-c",
-  dismiss: "Escape",
-
-  selectNodeUp: "Ctrl-ArrowUp",
-  selectNodeDown: "Ctrl-ArrowDown",
-
-  insertFirstArg: "Alt-1",
-  insertSecondArg: "Alt-" + index++,
-  insertThirdArg: "Alt-3",
-  insertFourthArg: "Alt-4",
-  insertFifthArg: "Alt-5",
-
-  wrapWithWatch: "Ctrl-q",
-  printIt: "Ctrl-p",
-});
+export const stickyShard = (node, props = {}) =>
+  h(StickyShard, { node, ...props });
+export const shardList = (list) => {
+  const node = new SBList(list);
+  return h(node.editor.shardTag, { initNode: node, key: node.id });
+};
+export const icon = (name) =>
+  h(
+    "span",
+    {
+      class: "material-symbols-outlined",
+      style: { fontSize: "inherit", verticalAlign: "bottom" },
+    },
+    name
+  );
 '
       language="javascript"
+      extensions="javascript:base javascript:table watch:javascript"
     ></sb-editor>
-
-    <h3>Tla+ Demo</h3>
-    <sb-editor
-      text="---- MODULE Test ----
-op ==
-(* This is a comment
-   over multiple lines *)
-    CASE 1 -> 2
-    [] 3 -> 4
-(**************************************************************************)
-(* Commonly you would also see comments like this in specs                *)
-(* Also spanning over multiple lines                                      *)
-(**************************************************************************)
-    [] OTHER -> 5
-====
-"
-      language="tlaplus"
-      extensions="tlaplus:base base:base"
-    ></sb-editor>
-
-    <link rel="stylesheet" href="view/editor-style.css" />
     <script type="module">
-      import { Editor } from "./editor.js";
-
-      Editor.init();
+      import {} from "/sandblocks/editor.js";
+      import {} from "/codemirror6/editor.js";
     </script>
   </body>
 </html>

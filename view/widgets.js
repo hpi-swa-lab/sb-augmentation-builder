@@ -1,12 +1,6 @@
 import "../external/preact-debug.js";
 import { h, render } from "../external/preact.mjs";
-import {
-  focusWithoutScroll,
-  nextHash,
-  orParentThat,
-  parentWithTag,
-  rangeEqual,
-} from "../utils.js";
+import { orParentThat, parentWithTag } from "../utils.js";
 import {
   useEffect,
   useMemo,
@@ -14,7 +8,6 @@ import {
   useState,
 } from "../external/preact-hooks.mjs";
 import { SBList } from "../core/model.js";
-import { markAsEditableElement, nodeIsEditable } from "../core/focus.js";
 import htm from "../../external/htm.mjs";
 
 export const html = htm.bind(h);
@@ -67,7 +60,7 @@ export const icon = (name) =>
   );
 
 function _Editor({ editorRef, ...props }) {
-  return h("sb-editor", { ...props, i, ref: editorRef });
+  return h("sb-editor", { ...props, ref: editorRef });
 }
 export const editor = ({
   extensions,
@@ -122,6 +115,47 @@ export function useJSONComparedState(initialState) {
   );
 }
 
+function nextEditor(element) {
+  return orParentThat(element, (p) => p instanceof BaseEditor);
+}
+
+function markInputEditable(input) {
+  // codemirror sets css that hides the caret
+  input.style.cssText = "caret-color: black !important";
+  function update() {
+    nextEditor(input).onSelectionChange({
+      head: { element: input, elementOffset: input.selectionStart },
+      anchor: { element: input, elementOffset: input.selectionEnd },
+    });
+  }
+  function move(forward, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    nextEditor(input).moveCursor(forward, e.shiftKey);
+  }
+  input.resync = update;
+  input.cursorPositions = function* () {
+    for (let i = 0; i <= input.value.length; i++)
+      yield { element: input, elementOffset: i };
+  };
+  input.select = function ({ head, anchor }) {
+    input.focus();
+    input.selectionStart = head.elementOffset;
+    input.selectionEnd = anchor.elementOffset;
+  };
+  input.setAttribute("sb-editable", "");
+  input.addEventListener("focus", update);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
+      move(true, e);
+    if (e.key === "ArrowLeft" && input.selectionStart === 0) move(false, e);
+  });
+}
+
+Element.prototype.cursorPositions = function* () {
+  for (const child of this.children) yield* child.cursorPositions();
+};
+
 export class Widget extends HTMLElement {
   disconnectedCallback() {
     this.dispatchEvent(new Event("disconnect"));
@@ -170,176 +204,6 @@ export class Widget extends HTMLElement {
   }
 }
 
-export class Replacement extends Widget {
-  shards = [];
-
-  constructor() {
-    super();
-    this.hash = nextHash();
-  }
-
-  handleClick(e) {
-    if (e.button === 0 && e.altKey) {
-      this.uninstallAndMark();
-      e.preventDefault();
-      e.stopPropagation();
-    } else if (
-      e.button === 0 &&
-      this.selectable &&
-      orParentThat(e.target, (p) => nodeIsEditable(p)) === this
-    ) {
-      this.editor.selectRange(...this.range);
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
-  isReplacementAllowed(tagName) {
-    // only confirm that we may stay being this replacement but
-    // don't allow another replacement to take our place
-    return this.tagName === tagName.toUpperCase();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    this.addEventListener("click", this.handleClick);
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.removeEventListener("click", this.handleClick);
-  }
-
-  uninstallAndMark() {
-    this.uninstall((e) => e.setAllowReplacement(this.tagName, false));
-  }
-
-  uninstall(prepareCb = null) {
-    const source = this.source.toHTMLExpanded();
-    prepareCb?.(source);
-    this.editor.changeDOM(() => this.replaceWith(source));
-    return source;
-  }
-
-  update(source) {
-    for (const [locator, shard] of this.shards) {
-      const node = locator(source);
-      if (!node) throw new Error("shard locator returned null");
-      if (node !== shard.source) {
-        shard.update(node);
-      }
-    }
-  }
-
-  get isNodeReplacement() {
-    return true;
-  }
-
-  get range() {
-    return this.source.range;
-  }
-
-  get node() {
-    return this.source;
-  }
-
-  set node(n) {
-    this.source = n;
-    this.update(n);
-  }
-
-  init(source) {
-    // subclasses may perform initialization here, such as creating shards
-  }
-
-  destroy(e) {
-    // TODO reuse shards instead of re-creating the entire subtree by
-    // passing a map of node=>view to toHTML
-    e.destroyReplacement(this);
-  }
-
-  createShard(locator) {
-    const shard = document.createElement("sb-shard");
-    this.shards.push([locator, shard]);
-    return shard;
-  }
-
-  get sourceString() {
-    return this.node.sourceString;
-  }
-
-  set selectable(v) {
-    if (v) {
-      markAsEditableElement(this);
-      this.setAttribute("sb-editable-part", "true");
-      this.setAttribute("focusable", "true");
-      this.setAttribute("tabindex", -1);
-    }
-    this._selectable = v;
-  }
-  get selectable() {
-    return this._selectable;
-  }
-
-  // see AttachOp>>apply()
-  insertNode(node, index) {}
-
-  // selection protocol
-  sbSelectRange(range, testOnly) {
-    if (rangeEqual(this.range, range)) return this;
-    else return null;
-  }
-  sbSelectedEditablePart() {
-    return this.isConnected ? this : null;
-  }
-  sbNoteFocusChange(received) {
-    this.classList.toggle("sb-replacement-selected", received);
-  }
-  sbSelectAtBoundary(view, delta) {
-    this.focus();
-    return { view: this, range: this.range };
-  }
-  sbIsMoveAtBoundary(delta) {
-    return true;
-  }
-  focus() {
-    this.editor.selectRange(...this.range, false);
-    focusWithoutScroll(this, () => super.focus());
-  }
-  sbCandidateForRange(range) {
-    return rangeEqual(this.range, range)
-      ? {
-          view: this,
-          rect: this.getBoundingClientRect(),
-          range: this.range,
-        }
-      : null;
-  }
-  sbUpdateRange() {}
-}
-
-function ensureReplacementTagDefined(tag) {
-  if (!customElements.get(tag)) {
-    customElements.define(
-      tag,
-      class extends Replacement {
-        update(node) {
-          // needs to be a stable reference, otherwise we keep rebuilding the
-          // entire replacement
-          this._component ??= (...args) => this.component(...args);
-
-          if (["key", "id"].some((k) => k in (this.props ?? {})))
-            throw new Error("used a prop name reserved for preact components");
-
-          this.render(
-            h(this._component, { node, replacement: this, ...this.props })
-          );
-        }
-      }
-    );
-  }
-}
-
 // can be used in place of a shard. provide a callback that will be called
 // once the user starts typing in the field, in which the callback should
 // add the necessary code to the source.
@@ -351,56 +215,11 @@ export function ExpandToShard({ prefix, suffix, placeholder, expandCallback }) {
     h("input", {
       style: { border: "none" },
       placeholder,
-      ref: markAsEditableElement,
+      ref: markInputEditable,
       oninput: (e) => expandCallback(`${prefix}${e.target.value}${suffix}`),
     }),
     suffix
   );
-}
-
-// Define a replacement by providing a Preact component
-// instead of just the name of a custom element. Note that
-// this function will define a custom element for you.
-//
-// The component receives the node and the replacement as props.
-export function ensureReplacementPreact(
-  extension,
-  node,
-  tag,
-  component,
-  props,
-  options
-) {
-  ensureReplacementTagDefined(tag);
-  extension.ensureReplacement(node, tag, { props, component, ...options });
-}
-
-// convenience wrapper around ensureReplacementPreact, can be
-// placed directly in a script chain. Either takes a single node
-// or a node and props tuple.
-export function replacement(e, name, component, options) {
-  return (args) => {
-    let node, props;
-    if (Array.isArray(args)) {
-      node = args[0];
-      props = args[1];
-    } else {
-      node = args;
-      props = {};
-    }
-    return ensureReplacementPreact(e, node, name, component, props, options);
-  };
-}
-
-export function installReplacementPreact(
-  extension,
-  node,
-  tag,
-  component,
-  props
-) {
-  ensureReplacementTagDefined(tag);
-  extension.installReplacement(node, tag, { props, component });
 }
 
 // Define a widget by providing a Preact component.
@@ -462,6 +281,3 @@ export function registerPreactElement(name, preactComponent) {
     }
   );
 }
-
-// an empty replacement that can we use to hide elements
-customElements.define("sb-hidden", class extends Replacement {});

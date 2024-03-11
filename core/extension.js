@@ -82,6 +82,14 @@ export class Extension {
   replacements = [];
   markers = [];
   shortcuts = {};
+  selection = [];
+  caret = [];
+  type = [];
+  changesApplied = [];
+  connected = [];
+  disconnected = [];
+  changeFilter = [];
+  doubleClick = [];
 
   constructor() {}
 
@@ -118,6 +126,46 @@ export class Extension {
 
   registerShortcut(name, callback, filterQuery = []) {
     this.shortcuts[name] = [callback, filterQuery];
+    return this;
+  }
+
+  registerSelection(func) {
+    this.selection.push(func);
+    return this;
+  }
+
+  registerCaret(func) {
+    this.caret.push(func);
+    return this;
+  }
+
+  registerChangeFilter(func) {
+    this.changeFilter.push(func);
+    return this;
+  }
+
+  registerType(func) {
+    this.type.push(func);
+    return this;
+  }
+
+  registerChangesApplied(func) {
+    this.changesApplied.push(func);
+    return this;
+  }
+
+  registerExtensionConnected(func) {
+    this.connected.push(func);
+    return this;
+  }
+
+  registerExtensionDisconnected(func) {
+    this.disconnected.push(func);
+    return this;
+  }
+
+  registerDoubleClick(func) {
+    this.doubleClick.push(func);
     return this;
   }
 }

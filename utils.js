@@ -313,6 +313,14 @@ export function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+export function asyncEval(str) {
+  const s = document.createElement("script");
+  s.setAttribute("type", "module");
+  s.textContent = str;
+  document.head.appendChild(s);
+  queueMicrotask(() => s.remove());
+}
+
 export function exec(arg, ...script) {
   if (!arg) return null;
 

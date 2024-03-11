@@ -1,8 +1,7 @@
-import { Editor } from "../view/editor.js";
+import { SandblocksEditor } from "./editor/editor.js";
 import { button, useAsyncEffect } from "../view/widgets.js";
 import { render, h } from "../view/widgets.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
-import { Workspace } from "./workspace.js";
 import { matchesKey, withDo } from "../utils.js";
 import { choose, openComponentInWindow } from "./window.js";
 import {} from "./file-project/search.js";
@@ -69,7 +68,7 @@ function projectEqual(a, b) {
   return true;
 }
 
-Editor.init();
+SandblocksEditor.init();
 
 const rag = async () => (await import("./oRAGle/ragPrototype.js")).RAGApp;
 const tla = async () =>
@@ -139,7 +138,7 @@ function Sandblocks() {
   useEffect(() => {
     const handler = (e) => {
       if (matchesKey(e, "Ctrl-g")) {
-        openComponentInWindow(Workspace, {});
+        // openComponentInWindow(Workspace, {});
       } else if (matchesKey(e, "Ctrl-0")) {
         const search = document.createElement("sb-search");
         // FIXME

@@ -1,12 +1,17 @@
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
-import { RemoveOp } from "./diff.js";
 import { languageFor } from "./languages.js";
-import { clamp, last, orParentThat } from "../utils.js";
-import { Text, Block, Placeholder, ViewList } from "../view/elements.js";
+import { clamp, last } from "../utils.js";
+import {
+  Text,
+  Block,
+  Placeholder,
+  ViewList,
+} from "../sandblocks/editor/elements.js";
 import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
-import { preferences } from "../view/preferences.js";
+import { preferences } from "./preferences.js";
+import { setConfig } from "./config.js";
 
 preferences
   .registerDefaultShortcut("save", "Ctrl-s")
@@ -49,48 +54,13 @@ customElements.define("sb-block", Block);
 customElements.define("sb-placeholder", Placeholder);
 customElements.define("sb-view-list", ViewList);
 
-function nextEditor(element) {
-  return orParentThat(element, (p) => p instanceof BaseEditor);
-}
-
-function markInputEditable(input) {
-  // codemirror sets css that hides the caret
-  input.style.cssText = "caret-color: black !important";
-  function update() {
-    nextEditor(input).onSelectionChange({
-      head: { element: input, elementOffset: input.selectionStart },
-      anchor: { element: input, elementOffset: input.selectionEnd },
-    });
-  }
-  function move(forward, e) {
-    e.preventDefault();
-    e.stopPropagation();
-    nextEditor(input).moveCursor(forward, e.shiftKey);
-  }
-  input.resync = update;
-  input.cursorPositions = function* () {
-    for (let i = 0; i <= input.value.length; i++)
-      yield { element: input, elementOffset: i };
-  };
-  input.select = function ({ head, anchor }) {
-    input.focus();
-    input.selectionStart = head.elementOffset;
-    input.selectionEnd = anchor.elementOffset;
-  };
-  input.setAttribute("sb-editable", "");
-  input.addEventListener("focus", update);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
-      move(true, e);
-    if (e.key === "ArrowLeft" && input.selectionStart === 0) move(false, e);
-  });
-}
-
-Element.prototype.cursorPositions = function* () {
-  for (const child of this.children) yield* child.cursorPositions();
-};
-
 export class BaseEditor extends HTMLElement {
+  static init(baseUrl = null) {
+    baseUrl ??= new URL(".", location.href).toString();
+    setConfig({ baseUrl });
+    Extension.clearRegistry();
+  }
+
   // subclassResponsibility
   static shardTag = null;
 
@@ -105,10 +75,17 @@ export class BaseEditor extends HTMLElement {
   };
 
   static observedAttributes = ["text", "language", "extensions"];
-  async attributeChangedCallback(name, _oldValue, newValue) {
-    if (name === "text") {
-      await this.setText(newValue, this.getAttribute("language"));
-    }
+  async attributeChangedCallback() {
+    this._queueUpdate();
+  }
+
+  _queuedUpdate = false;
+  _queueUpdate() {
+    if (this._queuedUpdate) return;
+    queueMicrotask(() => {
+      this._queuedUpdate = false;
+      this.setText(this.getAttribute("text"), this.getAttribute("language"));
+    });
   }
 
   get selection() {
@@ -326,5 +303,45 @@ export class BaseEditor extends HTMLElement {
         ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
         : a.elementOffset === b.elementOffset)
     );
+  }
+}
+
+class EditHistory {
+  undoStack = [];
+  redoStack = [];
+
+  get lastView() {
+    return this.undoStack[this.undoStack.length - 1]?.view?.deref();
+  }
+
+  push(sourceString, cursorRange, view) {
+    this.redoStack = [];
+    this.undoStack.push({
+      sourceString,
+      cursorRange,
+      view: view ? new WeakRef(view) : null,
+    });
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return;
+    const item = this.undoStack.pop();
+    this.redoStack.push(item);
+    return item;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+    const item = this.redoStack.pop();
+    this.undoStack.push(item);
+    return item;
+  }
+
+  canUndo() {
+    return this.undoStack.length > 0;
+  }
+
+  canRedo() {
+    return this.redoStack.length > 0;
   }
 }
