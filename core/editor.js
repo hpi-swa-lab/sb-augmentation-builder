@@ -6,6 +6,43 @@ import { clamp, last, orParentThat } from "../utils.js";
 import { Text, Block, Placeholder } from "../view/elements.js";
 import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
+import { preferences } from "../view/preferences.js";
+
+preferences
+  .registerDefaultShortcut("save", "Ctrl-s")
+  .registerDefaultShortcut("undo", "Ctrl-z")
+  .registerDefaultShortcut("undo", "Ctrl-z")
+  .registerDefaultShortcut("redo", "Ctrl-Z")
+  .registerDefaultShortcut("save", "Ctrl-s")
+  .registerDefaultShortcut("cut", "Ctrl-x")
+  .registerDefaultShortcut("copy", "Ctrl-c")
+  .registerDefaultShortcut("dismiss", "Escape")
+  .registerDefaultShortcut("search", "Ctrl-f")
+  .registerDefaultShortcut("indentLess", "Shift-Tab")
+  .registerDefaultShortcut("indentMore", "Tab")
+  .registerDefaultShortcut("homeSelect", "Shift-Home")
+  .registerDefaultShortcut("home", "Home")
+
+  .registerDefaultShortcut("selectNodeUp", "Ctrl-ArrowUp")
+  .registerDefaultShortcut("selectNodeDown", "Ctrl-ArrowDown")
+  .registerDefaultShortcut("popNodeOut", "Ctrl-o")
+
+  .registerDefaultShortcut("insertFirstArg", "Alt-1")
+  .registerDefaultShortcut("insertSecondArg", "Alt-2")
+  .registerDefaultShortcut("insertThirdArg", "Alt-3")
+  .registerDefaultShortcut("insertFourthArg", "Alt-4")
+  .registerDefaultShortcut("insertFifthArg", "Alt-5")
+
+  .registerDefaultShortcut("highlightIt", "Ctrl-h")
+  .registerDefaultShortcut("wrapWithWatch", "Ctrl-e")
+  .registerDefaultShortcut("printIt", "Ctrl-p")
+  .registerDefaultShortcut("browseIt", "Ctrl-b")
+  .registerDefaultShortcut("browseSenders", "Alt-n")
+  .registerDefaultShortcut("browseImplementors", "Alt-m")
+  .registerDefaultShortcut("resetContents", "Ctrl-l")
+  .registerDefaultShortcut("addNewBlock", "Ctrl-Enter")
+
+  .addDefaultExtension("base:base", true, false);
 
 customElements.define("sb-text", Text);
 customElements.define("sb-block", Block);
@@ -19,10 +56,10 @@ function markInputEditable(input) {
   // codemirror sets css that hides the caret
   input.style.cssText = "caret-color: black !important";
   function update() {
-    nextEditor(input).selection = {
+    nextEditor(input).onSelectionChange({
       head: { element: input, elementOffset: input.selectionStart },
       anchor: { element: input, elementOffset: input.selectionEnd },
-    };
+    });
   }
   function move(forward, e) {
     e.preventDefault();
@@ -61,7 +98,7 @@ export class BaseEditor extends HTMLElement {
   pendingChanges = signal([]);
   revertChanges = [];
 
-  selection = {
+  _selection = {
     head: { element: null, elementOffset: null, index: 0 },
     anchor: { element: null, elementOffset: null, index: 0 },
   };
@@ -71,6 +108,14 @@ export class BaseEditor extends HTMLElement {
     if (name === "text") {
       await this.setText(newValue, this.getAttribute("language"));
     }
+  }
+
+  get selection() {
+    return this._selection;
+  }
+
+  get preferences() {
+    return preferences;
   }
 
   constructor() {
@@ -112,10 +157,10 @@ export class BaseEditor extends HTMLElement {
     this.rootShard.editor = this;
     this.rootShard.node = this.node;
     this.appendChild(this.rootShard);
-    this.selection = {
+    this.onSelectionChange({
       head: this.rootShard.positionForIndex(0),
       anchor: this.rootShard.positionForIndex(0),
-    };
+    });
   }
 
   markSticky(node, sticky) {
@@ -127,7 +172,7 @@ export class BaseEditor extends HTMLElement {
   onSuccessfulChange() {}
 
   onSelectionChange(selection) {
-    this.selection = selection;
+    this._selection = selection;
   }
 
   rejectChange(op) {
@@ -195,10 +240,10 @@ export class BaseEditor extends HTMLElement {
       }
     }
     if (bestCandidate.position) {
-      this.selection = {
+      this.onSelectionChange({
         head: bestCandidate.position,
         anchor: bestCandidate.position,
-      };
+      });
       bestCandidate.position.element.select(this.selection);
     }
   }
@@ -236,20 +281,18 @@ export class BaseEditor extends HTMLElement {
     );
   }
 
-  i = 0;
   moveCursor(forward, selecting) {
     this.selection.head.element.resync?.();
     const { head } = this.selection;
     const next = forward
       ? this.nextPosition(head)
       : this.previousPosition(head);
-    this.i++;
-    // if (this.i === 2) debugger;
     if (next) {
       this.selection.head = next;
       if (!selecting) this.selection.anchor = next;
       // FIXME what if head and anchor are in different elements?
       this.selection.head.element.select(this.selection);
+      this.onSelectionChange(this.selection);
     }
     return true;
   }

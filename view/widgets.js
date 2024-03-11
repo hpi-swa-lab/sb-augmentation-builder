@@ -7,17 +7,12 @@ import {
   parentWithTag,
   rangeEqual,
 } from "../utils.js";
-import {
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "../external/preact-hooks.mjs";
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
 import { SBList } from "../core/model.js";
-import { SandblocksExtensionInstance } from "./extension-instance.js";
 import { markAsEditableElement, nodeIsEditable } from "../core/focus.js";
+import htm from "../../external/htm.mjs";
 
+export const html = htm.bind(h);
 export { h, render, Component } from "../external/preact.mjs";
 export const li = (...children) => h("li", {}, ...children);
 export const ul = (...children) => h("ul", {}, ...children);
@@ -61,15 +56,8 @@ export const icon = (name) =>
     name
   );
 
-function _Editor({ inlineExtensions, editorRef, ...props }) {
-  const i = useMemo(
-    () =>
-      inlineExtensions?.map((e) => e.instance(SandblocksExtensionInstance)) ??
-      [],
-    // use array directly for content-compare
-    inlineExtensions ?? []
-  );
-  return h("sb-editor", { ...props, inlineExtensions: i, ref: editorRef });
+function _Editor({ editorRef, ...props }) {
+  return h("sb-editor", { ...props, i, ref: editorRef });
 }
 export const editor = ({
   extensions,

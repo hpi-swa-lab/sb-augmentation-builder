@@ -81,6 +81,7 @@ export class Extension {
 
   replacements = [];
   markers = [];
+  shortcuts = {};
 
   constructor() {}
 
@@ -114,46 +115,18 @@ export class Extension {
       detach: (shard, node) => shard.cssClass(node, cls, false),
     });
   }
+
+  registerShortcut(name, callback, filterQuery = []) {
+    this.shortcuts[name] = [callback, filterQuery];
+    return this;
+  }
 }
 
 export function needsSelection(x) {
   return !!x.editor?.selected;
 }
 
-export class ExtensionInstance {
-  attachedData = new Set();
-  markedViews = new Set();
-
-  attachData(node, identifier, viewAdd) {
-    node.viewsDo((view) => {
-      const hash = `${view.hash}:${identifier}`;
-      console.assert(!this.attachedData.has(hash));
-      this.attachedData.add(hash);
-      viewAdd(view);
-    });
-  }
-
-  detachData(node, identifier, viewRemove) {
-    node.viewsDo((view) => {
-      const hash = `${view.hash}:${identifier}`;
-      console.assert(this.attachedData.has(hash));
-      this.attachedData.delete(hash);
-      viewRemove(view);
-    });
-  }
-
-  markView(view, mark) {
-    this.markedViews.add(`${view.hash}:${mark}`);
-  }
-
-  isViewMarked(view, mark) {
-    return this.markedViews.has(`${view.hash}:${mark}`);
-  }
-
-  constructor(extension) {
-    this.extension = extension;
-  }
-
+class ExtensionInstance {
   // notification just before changes are applied to the text
   changesApplied(changes, oldSource, newSource, root, diff) {
     this.extension._processFilter(
@@ -188,10 +161,4 @@ export class ExtensionInstance {
         .filter((w) => w.label.toLowerCase() !== query),
     );
   }
-
-  // subclassResponsibility
-  installReplacement(view, tag, props) {}
-  ensureReplacement(node, tag, props) {}
-  attachData(node, identifier, add, remove, update = null) {}
-  addSuggestions(node, suggestions) {}
 }

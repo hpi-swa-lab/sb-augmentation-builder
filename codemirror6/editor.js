@@ -78,6 +78,12 @@ class CodeMirrorShard extends BaseShard {
               run: (v) => this.handleDeleteAtBoundary(false),
               preventDefault: true,
             },
+            {
+              key: "Mod-e",
+              ctrl: true,
+              preventDefault: true,
+              run: (v) => this.onShortcut(window.event),
+            },
           ])
         ),
         keymap.of([indentWithTab]),
@@ -140,11 +146,13 @@ class CodeMirrorShard extends BaseShard {
 
   _collectReplacements() {
     return RangeSet.of(
-      this.replacements.map((r) =>
-        Decoration.replace({
-          widget: new CodeMirrorReplacementWidget(r),
-        }).range(...rangeShift(r.range, -this.range[0]))
-      )
+      this.replacements
+        .map((r) =>
+          Decoration.replace({
+            widget: new CodeMirrorReplacementWidget(r),
+          }).range(...rangeShift(r.range, -this.range[0]))
+        )
+        .sort((a, b) => a.from - b.from)
     );
   }
 

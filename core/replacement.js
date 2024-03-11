@@ -82,6 +82,7 @@ export class SBReplacement extends HTMLElement {
       "keydown",
       (this._keyListener = this.onKeyDown.bind(this)),
     );
+    this.style.verticalAlign = "top";
     this.render();
   }
 

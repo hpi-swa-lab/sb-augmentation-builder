@@ -1,15 +1,17 @@
 import { Extension } from "../core/extension.js";
+import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { socket } from "../sandblocks/host.js";
 import { randomId } from "../utils.js";
-import { Replacement, h, shard } from "../view/widgets.js";
+import { h, html, shard } from "../view/widgets.js";
 
 function makeWatchExtension(config) {
   return new Extension()
-    .registerReplacement((e) => [
-      (x) => x.extract(config.query),
-      ([x, { identifier, expr }]) =>
-        e.ensureReplacement(x, "sb-watch", { config, identifier, expr }),
-    ])
+    .registerReplacement({
+      query: [(x) => x.query(config.query)],
+      queryDepth: config.queryDepth,
+      name: "sb-watch",
+      component: Watch,
+    })
     .registerShortcut("wrapWithWatch", (x) => {
       let current = x;
       for (let i = 0; i < config.exprNesting; i++) current = current?.parent;
@@ -27,6 +29,7 @@ function makeWatchExtension(config) {
 
 export const javascriptInline = makeWatchExtension({
   query: `sbWatch($expr, $identifier)`,
+  queryDepth: 3,
   exprNesting: 2,
   wrap: (x, id) => x.wrapWith("sbWatch(", `, ${id})`),
 });
@@ -39,8 +42,8 @@ export const javascript = makeWatchExtension({
         body: JSON.stringify({ id: $identifier, e }),
         headers: { "Content-Type": "application/json" },
       }), e))($expr),][1]`,
-
   exprNesting: 4,
+  queryDepth: 15,
   wrap: (x, id) => {
     const url = `${window.location.origin}/sb-watch`;
     const headers = `headers: {"Content-Type": "application/json"}`;
@@ -49,67 +52,51 @@ export const javascript = makeWatchExtension({
   },
 });
 
-customElements.define(
-  "sb-watch",
-  class extends Replacement {
-    static registry = new Map();
+function Watch({ replacement }) {
+  const { expr, identifier } = replacement.node.exec(...replacement.query);
+  const watchId = parseInt(identifier.text, 10);
+  const [count, setCount] = useState(0);
+  const [lastValue, setLastValue] = useState("");
 
-    sticky = true;
-    count = 0;
-    lastValue = "";
+  useEffect(() => {
+    window.sbWatch.registry.set(watchId, replacement);
 
-    init(source) {
-      super.init(source);
-      this.watchId = parseInt(this.identifier.text, 10);
-      window.sbWatch.registry.set(this.watchId, this);
-    }
+    replacement.reportValue = (value) => {
+      setCount((c) => c + 1);
+      setLastValue(value.toString());
+    };
 
-    disconnectedCallback() {
-      super.disconnectedCallback();
-      window.sbWatch.registry.delete(this.watchId);
-    }
+    return () => {
+      window.sbWatch.registry.delete(watchId);
+    };
+  }, [replacement, watchId]);
 
-    update() {
-      this.render(
-        h(
-          "div",
-          {
-            style: {
-              padding: "0.25rem",
-              background: "#333",
-              display: "inline-block",
-              borderRadius: "4px",
-            },
-          },
-          shard(this.expr, { style: { padding: "0.1rem" } }),
-          h(
-            "div",
-            { style: { color: "#fff", display: "flex", marginTop: "0.25rem" } },
-            h(
-              "div",
-              {
-                style: {
-                  padding: "0.1rem 0.4rem",
-                  marginRight: "0.25rem",
-                  background: "#999",
-                  borderRadius: "100px",
-                },
-              },
-              this.count
-            ),
-            this.lastValue
-          )
-        )
-      );
-    }
-
-    reportValue(value) {
-      this.count++;
-      this.lastValue = value.toString();
-      this.update(this.source);
-    }
-  }
-);
+  return html`<div
+    style=${{
+      padding: "0.25rem",
+      background: "#333",
+      display: "inline-block",
+      borderRadius: "4px",
+    }}
+  >
+    ${shard(expr, {
+      style: { padding: "0.1rem", background: "#fff", display: "inline-block" },
+    })}
+    <div style=${{ color: "#fff", display: "flex", marginTop: "0.25rem" }}>
+      <div
+        style=${{
+          padding: "0.1rem 0.4rem",
+          marginRight: "0.25rem",
+          background: "#999",
+          borderRadius: "100px",
+        }}
+      >
+        ${count}
+      </div>
+      ${lastValue}
+    </div>
+  </div>`;
+}
 
 socket?.on("sb-watch", ({ id, e }) => window.sbWatch(e, id));
 window.sbWatch = function (value, id) {

@@ -48,6 +48,10 @@ class SandblocksShard extends BaseShard {
     this.actualSourceString = this.node.sourceString;
   }
 
+  viewFor(node) {
+    return this.views.get(node);
+  }
+
   isShowing(node) {
     return !!this.views.get(node);
   }
@@ -275,24 +279,20 @@ class SandblocksShard extends BaseShard {
   }
 
   onKeyDown(e) {
-    if (e.key === "ArrowLeft") {
+    const handle = (cb) => {
       e.preventDefault();
       e.stopPropagation();
-      this.editor.moveCursor(false, e.shiftKey);
-    }
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      e.stopPropagation();
-      this.editor.moveCursor(true, e.shiftKey);
-    }
-    if (e.key === "Backspace" && this.handleDeleteAtBoundary(false)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    if (e.key === "Delete" && this.handleDeleteAtBoundary(true)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+      cb?.();
+    };
+    if (e.key === "ArrowLeft")
+      return handle(() => this.editor.moveCursor(false, e.shiftKey));
+    if (e.key === "ArrowRight")
+      return handle(() => this.editor.moveCursor(true, e.shiftKey));
+    if (e.key === "Backspace" && this.handleDeleteAtBoundary(false))
+      return handle();
+    if (e.key === "Delete" && this.handleDeleteAtBoundary(true))
+      return handle();
+    if (this.onShortcut(e)) return handle();
   }
 
   handleDeleteAtBoundary(forward) {
@@ -553,7 +553,7 @@ class _ShardSelection {
         index: e.indexForRange(sel.anchorNode, sel.anchorOffset),
       },
     };
-    this.shard.editor.selection = this.selection;
+    this.shard.editor.onSelectionChange(this.selection);
   }
 
   change(newRange) {

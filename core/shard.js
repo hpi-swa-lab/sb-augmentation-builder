@@ -1,4 +1,10 @@
-import { clamp, orParentThat, rangeDistance } from "../utils.js";
+import {
+  clamp,
+  orParentThat,
+  rangeContains,
+  rangeDistance,
+  rangeIntersects,
+} from "../utils.js";
 import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
 export class BaseShard extends HTMLElement {
@@ -69,9 +75,50 @@ export class BaseShard extends HTMLElement {
     // may be implemented by subclasses
   }
 
-  set node(n) {
-    const init = !this._node;
+  onShortcut(event) {
+    const selected = this.selectedFor([
+      this.editor.selection.head.index,
+      this.editor.selection.anchor.index,
+    ]);
+    for (const action of this.editor.preferences.getShortcutsFor(event)) {
+      for (const extension of this.extensions()) {
+        if (extension.shortcuts[action]) {
+          const [callback, query] = extension.shortcuts[action];
+          if (selected.exec(...query))
+            callback(selected, this.viewFor(selected), event);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
+  selectedFor(range) {
+    if (!rangeContains(this.range, range)) return null;
+
+    let candidate = null;
+    for (const child of this.node.allNodes()) {
+      if (!this.isShowing(child)) continue;
+      const [start, end] = child.range;
+      if (start <= range[0] && end >= range[1]) {
+        if (
+          !candidate ||
+          ((child.preferForSelection || !candidate.preferForSelection) &&
+            candidate.range[1] - candidate.range[0] >= end - start)
+        )
+          candidate = child;
+      }
+    }
+
+    return candidate;
+  }
+
+  viewFor(node) {
+    // subclasses may return specific html elements
+    return null;
+  }
+
+  set node(n) {
     this._node?.shards.remove(this);
     this._node = n;
     n?.shards.push(this);

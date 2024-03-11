@@ -349,6 +349,10 @@ export function rangeContains(a, b) {
   return a[0] <= b[0] && a[1] >= b[1];
 }
 
+export function rangeIntersects(a, b) {
+  return a[0] <= b[1] && a[1] >= b[0];
+}
+
 export function rangeDistance(a, b) {
   if (a[0] > b[1]) return a[0] - b[1];
   else if (b[0] > a[1]) return b[0] - a[1];
