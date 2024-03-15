@@ -12,7 +12,7 @@ export const table = new Extension().registerReplacement({
       x.childBlocks.every(
         (ea) =>
           ea.type == "array" &&
-          ea.childBlocks.length === x.childBlocks[0].childBlocks.length
+          ea.childBlocks.length === x.childBlocks[0].childBlocks.length,
       ),
   ],
   component: ({ node }) =>
@@ -28,10 +28,10 @@ export const table = new Extension().registerReplacement({
           "tr",
           { style: "border: 2px solid blue" },
           array.childBlocks.map((ea) =>
-            h("td", { style: "border: 1px solid red" }, h(Shard, { node: ea }))
-          )
-        )
-      )
+            h("td", { style: "border: 1px solid red" }, h(Shard, { node: ea })),
+          ),
+        ),
+      ),
     ),
 });
 
@@ -46,7 +46,7 @@ export const testValueShow = new Extension().registerReplacement({
       "span",
       { style: { display: "inline-flex", flexDirection: "column" } },
       h(Shard, { node }),
-      h("span", { style: { fontSize: "0.8em" } }, node.type)
+      h("span", { style: { fontSize: "0.8em" } }, node.type),
     ),
   name: "sb-js-test-value-show",
 });
@@ -56,7 +56,7 @@ export const testValueHover = new Extension().registerEventListener({
   query: [(x) => x.type === "number"],
   queryDepth: 1,
   event: "mouseenter",
-  callback: (shard, node) => {
+  callback: (e, shard, node) => {
     shard.withDom(node, (dom) => {
       dom.addEventListener("mouseenter", () => {
         const rect = dom.getBoundingClientRect();

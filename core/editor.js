@@ -74,6 +74,13 @@ export class BaseEditor extends HTMLElement {
     anchor: { element: null, elementOffset: null, index: 0 },
   };
 
+  get selectedText() {
+    return this.getAttribute("text").slice(
+      this.selectionRange[0],
+      this.selectionRange[1],
+    );
+  }
+
   static observedAttributes = ["text", "language", "extensions"];
   async attributeChangedCallback() {
     this._queueUpdate();
@@ -139,6 +146,7 @@ export class BaseEditor extends HTMLElement {
       head: this.rootShard.positionForIndex(0),
       anchor: this.rootShard.positionForIndex(0),
     });
+    this.dispatchEvent(new Event("ready"));
   }
 
   registerValidator(cb) {

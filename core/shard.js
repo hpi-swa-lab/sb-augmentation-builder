@@ -1,10 +1,4 @@
-import {
-  clamp,
-  orParentThat,
-  rangeContains,
-  rangeDistance,
-  rangeIntersects,
-} from "../utils.js";
+import { clamp, orParentThat, rangeContains, rangeDistance } from "../utils.js";
 import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
 export class BaseShard extends HTMLElement {
@@ -67,6 +61,7 @@ export class BaseShard extends HTMLElement {
   }
 
   onTextChanges(changes) {
+    if (this.editor.hasAttribute("readonly")) return;
     // TODO this.extensionsDo((e) => e.filterChanges(changes));
     this.editor.applyChanges(changes);
   }
@@ -174,6 +169,7 @@ export class BaseShard extends HTMLElement {
     view.query = extension.query;
     view.component = extension.component;
     view.selectable = extension.selectable;
+    view.setAttribute("name", extension.name);
     view.node = node;
     return view;
   }

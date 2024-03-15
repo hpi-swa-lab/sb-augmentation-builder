@@ -17,6 +17,36 @@ import {
 } from "../../utils.js";
 import { Block } from "./elements.js";
 
+function parent(node) {
+  return node.parentNode ?? node.getRootNode()?.host;
+}
+
+function lastChild(node) {
+  if (node.shadowRoot) return node.shadowRoot.lastElementChild;
+  else return node.lastElementChild;
+}
+
+function nextNodePreOrder(node) {
+  if (node.shadowRoot) return node.shadowRoot.firstElementChild;
+  if (node.firstElementChild) return node.firstElementChild;
+  if (node.nextElementSibling) return node.nextElementSibling;
+
+  let current = node;
+  while ((current = parent(current))) {
+    if (current.nextElementSibling) return current.nextElementSibling;
+  }
+  return null;
+}
+
+function previousNodePreOrder(node) {
+  if (node.previousElementSibling) {
+    let current = node.previousElementSibling;
+    while (lastChild(current)) current = lastChild(current);
+    return current;
+  }
+  return parent(node);
+}
+
 function followingElementThat(node, direction, predicate) {
   do {
     node = direction > 0 ? nextNodePreOrder(node) : previousNodePreOrder(node);
@@ -26,7 +56,7 @@ function followingElementThat(node, direction, predicate) {
 }
 
 function nodeIsEditable(node) {
-  return !!node.getAttribute("sb-editable");
+  return node.hasAttribute("sb-editable");
 }
 
 export class SandblocksEditor extends BaseEditor {
@@ -41,12 +71,12 @@ export class SandblocksEditor extends BaseEditor {
 
   revertPendingChanges() {
     ToggleableMutationObserver.ignoreMutation(() =>
-      super.revertPendingChanges()
+      super.revertPendingChanges(),
     );
   }
   applyPendingChanges() {
     ToggleableMutationObserver.ignoreMutation(() =>
-      super.applyPendingChanges()
+      super.applyPendingChanges(),
     );
   }
 }
@@ -71,7 +101,7 @@ class SandblocksShard extends BaseShard {
         const change = findChange(
           this.actualSourceString,
           sourceString,
-          this.editor.selectionRange[1] - this.range[0]
+          this.editor.selectionRange[1] - this.range[0],
         );
         if (!change) return;
 
@@ -80,13 +110,13 @@ class SandblocksShard extends BaseShard {
         change.selectionRange = selectionRange;
 
         this.actualSourceString = sourceString;
-        this.editor.applyChanges([change]);
+        this.onTextChanges([change]);
       });
     });
 
     this.addEventListener(
       "keydown",
-      (this._keyDownListener = this.onKeyDown.bind(this))
+      (this._keyDownListener = this.onKeyDown.bind(this)),
     );
 
     // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
@@ -97,11 +127,12 @@ class SandblocksShard extends BaseShard {
       document.execCommand(
         "inserttext",
         false,
-        event.clipboardData.getData("text/plain")
+        event.clipboardData.getData("text/plain"),
       );
     });
 
     this.addEventListener("copy", function (e) {
+      console.log(this.editor.selectedText);
       if (this.editor.selectedText) {
         e.clipboardData.setData("text/plain", this.editor.selectedText);
         e.preventDefault();
@@ -159,7 +190,7 @@ class SandblocksShard extends BaseShard {
     const removed = new Set(
       editBuffer.negBuf
         .filter((op) => op instanceof RemoveOp)
-        .map((op) => op.node)
+        .map((op) => op.node),
     );
     for (const change of editBuffer.negBuf) {
       if (change instanceof DetachOp) {
@@ -333,7 +364,7 @@ class SandblocksShard extends BaseShard {
   handleDeleteAtBoundary(forward) {
     let ret = false;
     ToggleableMutationObserver.ignoreMutation(
-      () => (ret = super.handleDeleteAtBoundary(forward))
+      () => (ret = super.handleDeleteAtBoundary(forward)),
     );
     return ret;
   }
@@ -471,7 +502,7 @@ class SandblocksShard extends BaseShard {
     cursorElements = [],
     parent = this,
     list = [],
-    insideBlocks = true
+    insideBlocks = true,
   ) {
     for (const child of parent.childNodes) {
       if (cursorElements.includes(child) || (insideBlocks && !child.isNodeView))
@@ -480,7 +511,7 @@ class SandblocksShard extends BaseShard {
         cursorElements,
         child,
         list,
-        insideBlocks && child instanceof Block
+        insideBlocks && child instanceof Block,
       );
     }
     return list;
@@ -548,7 +579,7 @@ class _ShardSelection {
 
   constructor() {
     document.addEventListener("selectionchange", () =>
-      this.onSelectionChange()
+      this.onSelectionChange(),
     );
   }
 

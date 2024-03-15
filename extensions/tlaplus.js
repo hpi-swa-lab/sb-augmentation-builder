@@ -1,4 +1,47 @@
 import { Extension } from "../core/extension.js";
+import { h } from "../external/preact.mjs";
+
+export const latex = new Extension().registerReplacement({
+  query: [(x) => x.type === "cup"],
+  queryDepth: 1,
+  component: ({ node }) => h("span", {}, "∪"),
+  name: "tla-latex-cup",
+});
+
+export const nextStateDisplay = new Extension().registerReplacement({
+  query: [
+    (x) => x.type === "operator_definition",
+    (x) =>
+      x.atField("name").text.startsWith("TP") ||
+      x.atField("name").text.startsWith("RM") ||
+      x.atField("name").text.startsWith("TM"),
+  ],
+  queryDepth: 2,
+  component: ({ node, renderContent }) => renderContent?.({ node }),
+  name: "tla-next-state-display",
+});
+
+export const syntaxExplain = new Extension().registerEventListener({
+  name: "tla-syntax-explain-theorem",
+  event: "mouseenter",
+  query: [(x) => x.type === "theorem"],
+  queryDepth: 1,
+  callback: (e, shard, node, dom) => {
+    console.log(dom);
+    const rect = dom.getBoundingClientRect();
+    const tooltip = document.createElement("div");
+    tooltip.style.position = "fixed";
+    tooltip.style.backgroundColor = "white";
+    tooltip.style.border = "1px solid black";
+    tooltip.style.padding = "1em";
+    tooltip.style.zIndex = 9999999999999;
+    tooltip.textContent = "A theorem explaining the thing.";
+    tooltip.style.top = rect.bottom + "px";
+    tooltip.style.left = rect.left + "px";
+    document.body.appendChild(tooltip);
+    dom.addEventListener("mouseleave", () => tooltip.remove());
+  },
+});
 
 export const base = new Extension()
   // tla+ keywords
@@ -108,22 +151,22 @@ export const base = new Extension()
         x.parent?.type === "operator_declaration" &&
         x.parent?.parent?.type === "constant_declaration",
     ],
-    3
+    3,
   )
   .registerSyntax(
     "attribute",
     [(x) => x.type === "identifier" && x.previousSiblingNode?.text === "."],
-    2
+    2,
   )
   .registerSyntax(
     "attribute",
     [(x) => x.type === "identifier" && x.parent?.type === "record_literal"],
-    2
+    2,
   )
   .registerSyntax(
     "attribute",
     [(x) => x.type === "identifier" && x.parent?.type === "set_of_records"],
-    2
+    2,
   )
   .registerSyntax(
     "variable builtin",
@@ -131,7 +174,7 @@ export const base = new Extension()
       (x) =>
         x.type === "identifier" && x.parent?.type === "variable_declaration",
     ],
-    2
+    2,
   )
 
   // parameters
@@ -156,7 +199,7 @@ export const base = new Extension()
         x.parent?.type === "operator_declaration" &&
         x.parent?.parent?.type === "module_definition",
     ],
-    2
+    2,
   )
   // (module_definition parameter: (identifier) @variable.parameter)
   .registerSyntax("variable parameter", [
@@ -234,7 +277,7 @@ export const base = new Extension()
         x.parent.type === "operator_declaration" &&
         x.parent?.parent?.type === "recursive_declaration",
     ],
-    2
+    2,
   )
 
   .registerSyntax("punctuation delimiter", [
@@ -243,14 +286,14 @@ export const base = new Extension()
   .registerSyntax("punctuation delimiter", [
     (x) =>
       ["langle_bracket", "rangle_bracket", "rangle_bracket_sub"].includes(
-        x.type
+        x.type,
       ),
   ])
 
   .registerSyntax("punctuation delimiter", [
     (x) =>
       ["bullet_conj", "bullet_disj", "prev_func_val", "placeholder"].includes(
-        x.type
+        x.type,
       ),
   ])
   .registerSyntax("punctuation delimiter", [
@@ -276,7 +319,7 @@ export const base = new Extension()
         x.parent?.parent?.type === "assume_prove" &&
         x.parent?.parent?.field === "new",
     ],
-    2
+    2,
   )
   // (assumption name: (identifier) @constant)
   .registerSyntax(
@@ -287,7 +330,7 @@ export const base = new Extension()
         x.parent.type === "assumption" &&
         x.parent?.field === "name",
     ],
-    2
+    2,
   )
   // (pick_proof_step (identifier) @variable.parameter)
   .registerSyntax(
@@ -298,7 +341,7 @@ export const base = new Extension()
         x.parent.type === "pick_proof_step" &&
         x.parent?.field === "parameter",
     ],
-    2
+    2,
   )
   // (proof_step_id "<" @punctuation.bracket)
   .registerSyntax("punctuation bracket", [(x) => x.type === "proof_step_id"])
@@ -363,7 +406,7 @@ export const base = new Extension()
   .registerSyntax(
     "tag",
     [(x) => x.field === "name" && x.parent.type === "label"],
-    2
+    2,
   );
 
 // TODO

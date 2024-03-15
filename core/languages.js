@@ -109,7 +109,7 @@ registerLanguage(
     repo: "tlaplus-community/tree-sitter-tlaplus",
     branch: "c5fae9e4ad9f483fb6232a8688a2c940be6b496b",
     extensions: ["tla"],
-    defaultExtensions: ["base:identifierSuggestions"],
+    defaultExtensions: ["tlaplus:base", "base:identifierSuggestions"],
   }),
 );
 

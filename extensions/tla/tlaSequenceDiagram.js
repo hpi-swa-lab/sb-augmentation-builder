@@ -1,4 +1,4 @@
-import { h } from "../../view/widgets.js";
+import { editor, h, shard, useLocalState } from "../../view/widgets.js";
 import {
   useCallback,
   useEffect,
@@ -9,6 +9,7 @@ import {
 import htm from "../../external/htm.mjs";
 import { Component, createContext, createRef } from "../../external/preact.mjs";
 import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+import { nextStateDisplay } from "../tlaplus.js";
 mermaid.initialize({ startOnLoad: false });
 const html = htm.bind(h);
 
@@ -1065,10 +1066,63 @@ const State = ({ graph, initNodes }) => {
             previewedState=${graph.nodes.get(previewEdge?.to)}
           />
         </div>
+        <div
+          style=${{
+            display: "flex",
+            flexDirection: "column",
+            flex: "1 0 0",
+            padding: "0 16px 0 0",
+          }}
+        >
+          <h3 style=${{ display: "inline-block" }}>Spec Source Code</h3>
+          <${SpecEditor} currNode=${currNode} />
+        </div>
       </div>
     </div>
   `;
 };
+
+function SpecEditor({ currNode }) {
+  const source = useContext(DiagramConfig).source;
+  const [refresh, setRefresh] = useState(0);
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    for (const r of editorRef.current.querySelectorAll(
+      "sb-replacement[name=tla-next-state-display]",
+    )) {
+      r.props.renderContent = ({ node }) => {
+        return false
+          ? shard(node)
+          : h(
+              "div",
+              { style: { border: "4px solid black" } },
+              h("h3", {}, "Next State Variables: ", node.atField("name").text),
+              shard(node, { style: { display: "block" } }),
+              h("pre", {}, JSON.stringify(currNode.vars.rmState, null, 2)),
+            );
+      };
+      // FIXME not sure why this has to be in a micro task, is there global state
+      // in preact that disallows nesting render calls?
+      queueMicrotask(() => r.render());
+    }
+  }, [refresh, currNode]);
+
+  return editor({
+    editorRef,
+    sourceString: source,
+    language: "tlaplus",
+    readonly: true,
+    style: { width: "660px" },
+    onready: () => setRefresh((r) => r + 1),
+    extensions: [
+      "tlaplus:base",
+      "tlaplus:latex",
+      "tlaplus:nextStateDisplay",
+      "tlaplus:syntaxExplain",
+    ],
+  });
+}
 
 const nodeToStateDescription = (selectors, node) => {
   const description = selectors
@@ -1169,6 +1223,7 @@ const GraphProvider = ({ spec }) => {
     ),
     stateSpaceByActor,
     stateSpaceSelectors: spec.transformation.stateSpaceSelectors,
+    source: spec.source,
   };
 
   return [

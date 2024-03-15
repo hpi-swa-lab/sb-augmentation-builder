@@ -57,6 +57,7 @@ export const Shard = ({ node, ...props }) => {
 
 export class SBReplacement extends HTMLElement {
   editor = null;
+  props = {};
 
   _selectionAtStart = false;
 
@@ -125,7 +126,7 @@ export class SBReplacement extends HTMLElement {
         ShardContext.Provider,
         { value: this.shard },
         h(this.component, {
-          ...(this.props ?? {}),
+          ...this.props,
           node: this.node,
           replacement: this,
         }),

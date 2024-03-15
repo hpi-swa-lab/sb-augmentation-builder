@@ -71,7 +71,7 @@ export const editor = ({
   ...props
 }) =>
   h(_Editor, {
-    extensions: extensions.join(" "),
+    extensions: extensions?.join(" ") ?? "",
     text: sourceString ?? "",
     onsave: (e) => onSave?.(e.detail),
     onchange: (e) => onChange?.(e.detail),
@@ -93,7 +93,7 @@ export const useAsyncEffect = (fn, deps) => {
 export const useLocalState = (key, initialValue) => {
   const [value, setValue] = useState(() => {
     const current = localStorage.getItem(key);
-    if (current) return JSON.parse(current);
+    if (current && current !== "undefined") return JSON.parse(current);
     return initialValue;
   });
   useEffect(() => {
@@ -111,6 +111,11 @@ export function useComparableState(initialState, compare) {
     if (!compare(stateRef.current, newState)) setState(newState);
   };
   return [state, setComparableState];
+}
+
+export function useReRender() {
+  const [_, setTick] = useState(0);
+  return () => setTick((t) => t + 1);
 }
 
 export function useJSONComparedState(initialState) {

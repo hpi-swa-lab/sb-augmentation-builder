@@ -217,6 +217,24 @@ class SBNode {
     return this.children.find((child) => child.type === type);
   }
 
+  blockThat(predicate) {
+    if (predicate(this)) return this;
+    for (const child of this.children) {
+      const match = child.blockThat(predicate);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  allBlocksThat(predicate) {
+    const ret = [];
+    if (predicate(this)) ret.push(this);
+    for (const child of this.children) {
+      ret.push(...child.allBlocksThat(predicate));
+    }
+    return ret;
+  }
+
   print(level = 0, namedOnly = false) {
     let out = "";
     for (let i = 0; i < level; i++) out += "  ";
