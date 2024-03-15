@@ -57,7 +57,7 @@ export const icon = (name) =>
       class: "material-symbols-outlined",
       style: { fontSize: "inherit", verticalAlign: "bottom" },
     },
-    name
+    name,
   );
 
 function _Editor({ editorRef, ...props }) {
@@ -91,9 +91,13 @@ export const useAsyncEffect = (fn, deps) => {
   }, deps);
 };
 export const useLocalState = (key, initialValue) => {
-  const [value, setValue] = useState(localStorage.getItem(key) ?? initialValue);
+  const [value, setValue] = useState(() => {
+    const current = localStorage.getItem(key);
+    if (current) return JSON.parse(current);
+    return initialValue;
+  });
   useEffect(() => {
-    localStorage.setItem(key, value);
+    localStorage.setItem(key, JSON.stringify(value));
   }, [value]);
   return [value, setValue];
 };
@@ -112,7 +116,7 @@ export function useComparableState(initialState, compare) {
 export function useJSONComparedState(initialState) {
   return useComparableState(
     initialState,
-    (a, b) => JSON.stringify(a) === JSON.stringify(b)
+    (a, b) => JSON.stringify(a) === JSON.stringify(b),
   );
 }
 
@@ -219,7 +223,7 @@ export function ExpandToShard({ prefix, suffix, placeholder, expandCallback }) {
       ref: markInputEditable,
       oninput: (e) => expandCallback(`${prefix}${e.target.value}${suffix}`),
     }),
-    suffix
+    suffix,
   );
 }
 
@@ -232,7 +236,7 @@ export function createWidgetPreact(
   extension,
   tag,
   component,
-  shouldReRender = null
+  shouldReRender = null,
 ) {
   if (!customElements.get(tag)) {
     customElements.define(
@@ -249,7 +253,7 @@ export function createWidgetPreact(
         updateView(props) {
           this.render(h(component, { ...props, widget: this }));
         }
-      }
+      },
     );
   }
   return extension.createWidget(tag);
@@ -272,13 +276,13 @@ export function registerPreactElement(name, preactComponent) {
       connectedCallback() {
         render(
           h(preactComponent, { ...this.props, root: this }),
-          this.shadowRoot
+          this.shadowRoot,
         );
       }
 
       disconnectedCallback() {
         render(null, this.shadowRoot);
       }
-    }
+    },
   );
 }
