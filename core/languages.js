@@ -29,6 +29,7 @@ registerLanguage(
     extensions: ["js"],
     defaultExtensions: [
       "javascript:base",
+      "javascript:testValueHover",
       // "typescript:lsp",
       // "lsp:browse",
       // "lsp:diagnostics",

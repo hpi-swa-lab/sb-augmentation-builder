@@ -51,6 +51,31 @@ export const testValueShow = new Extension().registerReplacement({
   name: "sb-js-test-value-show",
 });
 
+export const testValueHover = new Extension().registerEventListener({
+  name: "sb-js-test-value-hover",
+  query: [(x) => x.type === "number"],
+  queryDepth: 1,
+  event: "mouseenter",
+  callback: (shard, node) => {
+    shard.withDom(node, (dom) => {
+      dom.addEventListener("mouseenter", () => {
+        const rect = dom.getBoundingClientRect();
+        const tooltip = document.createElement("div");
+        tooltip.style.position = "absolute";
+        tooltip.style.backgroundColor = "white";
+        tooltip.style.border = "1px solid black";
+        tooltip.style.padding = "1em";
+        tooltip.style.zIndex = 9999999999999;
+        tooltip.textContent = node.text;
+        tooltip.style.top = rect.bottom + "px";
+        tooltip.style.left = rect.left + "px";
+        document.body.appendChild(tooltip);
+        dom.addEventListener("mouseleave", () => tooltip.remove());
+      });
+    });
+  },
+});
+
 function toggle(e) {
   e.stopPropagation();
   const node = e.currentTarget.node;

@@ -124,6 +124,18 @@ export class Extension {
     });
   }
 
+  registerEventListener({ name, query, queryDepth, event, callback }) {
+    this.registerMarker({
+      query,
+      name,
+      queryDepth,
+      attach: (shard, node) =>
+        shard.withDom(node, (dom) => dom.addEventListener(event, callback)),
+      detach: (shard, node) =>
+        shard.withDom(node, (dom) => dom.removeEventListener(event, callback)),
+    });
+  }
+
   registerShortcut(name, callback, filterQuery = []) {
     this.shortcuts[name] = [callback, filterQuery];
     return this;
