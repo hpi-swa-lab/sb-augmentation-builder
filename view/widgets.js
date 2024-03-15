@@ -12,6 +12,7 @@ import htm from "../../external/htm.mjs";
 
 export const html = htm.bind(h);
 export { h, render, Component } from "../external/preact.mjs";
+export { useState } from "../external/preact-hooks.mjs";
 export const li = (...children) => h("li", {}, ...children);
 export const ul = (...children) => h("ul", {}, ...children);
 export const div = (...children) => h("div", {}, ...children);

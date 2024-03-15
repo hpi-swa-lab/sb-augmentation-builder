@@ -18,11 +18,11 @@ OragleLeafModule >> accept: aVisitor [
 
 {
 	#category : #accessing,
-	#'squeak_changestamp' : 'lubo 1/19/2024 17:23'
+	#'squeak_changestamp' : 'ct 2/16/2024 18:25'
 }
 OragleLeafModule >> content [
 
-	^ content
+	^ content ifNil: ['']
 ]
 
 {

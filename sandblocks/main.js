@@ -34,7 +34,7 @@ const PROJECT_TYPES = {
           yaros: () => ({
             path: prompt("Path?", "external/squeak-minimal-yaros.image"),
             ports: withDo(prompt("Ports?", "8085/8084"), (p) =>
-              p.split("/").map((x) => parseInt(x))
+              p.split("/").map((x) => parseInt(x)),
             ),
           }),
         }[type](),
@@ -55,7 +55,7 @@ async function loadProjectType(desc) {
 
 async function loadSerializedProject(serialized) {
   return (await loadProjectType(PROJECT_TYPES[serialized.type])).deserialize(
-    serialized
+    serialized,
   );
 }
 
@@ -73,6 +73,8 @@ SandblocksEditor.init();
 const rag = async () => (await import("./oRAGle/ragPrototype.js")).RAGApp;
 const tla = async () =>
   (await import("../extensions/tla/tlaSequenceDiagram.js")).SequenceDiagram;
+const queryBuilder = async () =>
+  (await import("./query-builder/main.js")).QueryBuilder;
 
 const startUpOptions = {
   rag: async () => {
@@ -83,7 +85,7 @@ const startUpOptions = {
         doNotStartAttached: true,
         initialPosition: { x: 10, y: 10 },
         initialSize: { x: 1000, y: 1000 },
-      }
+      },
     );
   },
   tla: async () => {
@@ -94,7 +96,18 @@ const startUpOptions = {
         doNotStartAttached: true,
         initialPosition: { x: 10, y: 10 },
         initialSize: { x: 1000, y: 800 },
-      }
+      },
+    );
+  },
+  queryBuilder: async () => {
+    openComponentInWindow(
+      await queryBuilder(),
+      {},
+      {
+        doNotStartAttached: true,
+        initialPosition: { x: 10, y: 10 },
+        initialSize: { x: 500, y: 500 },
+      },
     );
   },
 };
@@ -156,12 +169,12 @@ function Sandblocks() {
 
   useEffect(() => {
     localStorage.lastProjects = JSON.stringify(
-      openProjects.map((p) => p.fullSerialize())
+      openProjects.map((p) => p.fullSerialize()),
     );
   }, [openProjects]);
   useEffect(() => {
     localStorage.recentProjects = JSON.stringify(
-      recentProjects.map((p) => p.fullSerialize())
+      recentProjects.map((p) => p.fullSerialize()),
     );
   }, [recentProjects]);
   useEffect(() => {
@@ -172,7 +185,7 @@ function Sandblocks() {
       }
 
       localStorage.lastProjects = JSON.stringify(
-        openProjects.map((p) => p.fullSerialize())
+        openProjects.map((p) => p.fullSerialize()),
       );
     };
     window.addEventListener("beforeunload", handler);
@@ -188,7 +201,7 @@ function Sandblocks() {
         const desc = await choose(Object.values(PROJECT_TYPES), (i) => i.label);
         if (!desc) return;
         const project = new (await loadProjectType(desc))(
-          await desc.createArgs()
+          await desc.createArgs(),
         );
         await project.open();
         setOpenProjects((p) => [...p, project]);
@@ -205,14 +218,17 @@ function Sandblocks() {
       }),
       button("RAG", async () => openComponentInWindow(await rag())),
       button("TLA Sequence Diagram", async () =>
-        openComponentInWindow(await tla())
+        openComponentInWindow(await tla()),
+      ),
+      button("Query Builder", async () =>
+        openComponentInWindow(await queryBuilder()),
       ),
       openProjects.map((project) =>
         project.renderItem({
           onClose: () => setOpenProjects((p) => p.filter((x) => x !== project)),
-        })
+        }),
       ),
-      button("Preferences", () => openPreferences())
+      button("Preferences", () => openPreferences()),
     ),
     openProjects.map((project) => project.renderBackground?.()),
   ];

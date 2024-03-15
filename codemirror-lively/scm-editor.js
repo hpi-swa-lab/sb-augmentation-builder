@@ -2,6 +2,9 @@ import { Extension, ExtensionInstance } from "../core/extension.js";
 import { languageFor } from "../core/languages.js";
 import { markAsEditableElement, SBSelection } from "../core/focus.js";
 
+
+import {debugPrint} from "src/client/debug.js"
+
 import {
   parentWithTag,
   rangeContains,
@@ -53,6 +56,7 @@ export class CodeMirrorExtensionInstance extends ExtensionInstance {
         replacement.init()
       }
       Object.assign(replacement, props ?? {});
+      
      replacement.update(node)
       this.newReplacements.add(replacement);
    })
@@ -61,6 +65,7 @@ export class CodeMirrorExtensionInstance extends ExtensionInstance {
   attachData(node, identifier, add, remove, update = null) {
     
   }
+  
   processStickyReplacements(node) {
    
   }
@@ -116,10 +121,50 @@ export class SCMShard extends HTMLElement {
         text: this.livelyCM.value,
       });
     });
+    
+    this.livelyCM.addEventListener("keydown", (e) => {
+      let innerShard = e.composedPath().find(ea => ea.localName == "scm-shard")
+      if (innerShard === this) {
+        // console.log("" + debugPrint(this)  + ">>keydown " + e.key)
+
+        let delta = null
+        if (e.key === "ArrowLeft") {
+          // console.log(debugPrint(this) + ">>sbIsMoveAtBoundary(-1) " + this.sbIsMoveAtBoundary(-1))
+          if (this.sbIsMoveAtBoundary(-1)) {
+            delta = -1
+          }
+
+        } else if (e.key === "ArrowRight") {
+          // console.log(debugPrint(this) + ">>sbIsMoveAtBoundary(1)" + this.sbIsMoveAtBoundary(1))
+          if (this.sbIsMoveAtBoundary(1)) {
+            delta = 1
+          }        
+        } 
+
+        if (delta !== null) {
+          // #TODO very complicated.... 
+
+          if (innerShard === this) {
+              e.preventDefault()
+              e.stopPropagation()          
+              
+              console.log("" + debugPrint(this)  + ">>keydown moveToNext delta: " + delta)
+              
+              this.editor.selection.moveToNext(this.editor, delta);            
+            } 
+          }  
+        } else {
+          // Me and my editor should not handle it... but the inner shard....
+          // so we do nothing...
+            
+        } 
+      
+    }, true);
 
     this.livelyCM.editor.on("beforeSelectionChange", (cm, e, sel) => {
       if (!this.editor || e.origin !== '+move') return;
       let delta = Math.sign(cm.indexFromPos(e.ranges[0].head) - cm.indexFromPos(cm.getCursor("from")));
+      console.log(debugPrint(this) +">>beforeSelectionChange delta: " + delta)
 
       // if we hit a boundary, codemirror reports this via hitSide but does not move the ranges
       if (delta === 0) {
@@ -157,13 +202,35 @@ export class SCMShard extends HTMLElement {
   }
   
   sbSelectAtBoundary(view, atStart){
+    
+    
     // #TODO needs to instead cancel event and dispatch immediately
-    setTimeout(() => this.livelyCM.editor.focus(), 300)
+    
+    // lively.showElement(view).innerHTML = ""
+    // debugger
+
+    this.livelyCM.editor.focus()
+
+    // setTimeout(() => {
+    //   this.livelyCM.editor.focus()
+    // }, 300) // 300
+
+    
+
     
     const rect = view.getBoundingClientRect();
+    
+    lively.showElement(view)
+    debugger
     const pos = this.livelyCM.editor.coordsChar({ left: atStart ? rect.left : rect.right, top: rect.top }, "window");
+    
+    
+    console.log(debugPrint(this) + ">> sbSelectAtBoundary pos: " + JSON.stringify(pos)  )
+    
     // this.livelyCM.editor.focus();
     this.livelyCM.editor.setCursor(pos);
+    
+    
     
     return {view, range: atStart ? [this.range[0], this.range[0]] : [this.range[1], this.range[1]]}
   }
@@ -172,6 +239,12 @@ export class SCMShard extends HTMLElement {
     const cm = this.livelyCM.editor
     let cursorPos = cm.indexFromPos(cm.getCursor("from"))
     // is the next (delta>0) or previous (delta<0) a marker widget?
+    
+    if (delta < 0 && cursorPos === 0) return true
+    if (delta > 0 && cursorPos === cm.getValue().length) return true
+    
+    console.log(debugPrint(this) +">>sbIsMoveAtBoundary  cursorPos " + cursorPos + " delta: " +  delta)
+    
     let isMoveAtBoundary = cm.findMarksAt(cm.posFromIndex(cursorPos + delta)).some(m => !!m.replacedWith)
     return !!isMoveAtBoundary
   }

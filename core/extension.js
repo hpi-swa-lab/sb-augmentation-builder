@@ -125,7 +125,7 @@ export class Extension {
   }
 
   registerEventListener({ name, query, queryDepth, event, callback }) {
-    this.registerMarker({
+    return this.registerMarker({
       query,
       name,
       queryDepth,

@@ -4,6 +4,7 @@ Class {
 	#instVars : [
 		'modules',
 		'input',
+		'defaultNumberOfOutputs',
 		'replies',
 		'approvedPrice'
 	],
@@ -61,12 +62,35 @@ OraglePrompt >> approvedPrice: cents [
 
 {
 	#category : #accessing,
-	#'squeak_changestamp' : 'ct 1/22/2024 16:36'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:44'
 }
 OraglePrompt >> assureOutputs [
 
-	self outputs ifNil: [self generateOutputs].
+	self assureReplies.
 	^ self outputs
+]
+
+{
+	#category : #private,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:45'
+}
+OraglePrompt >> assureReplies [
+
+	^ self assureReplies: self defaultNumberOfOutputs
+]
+
+{
+	#category : #private,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:57'
+}
+OraglePrompt >> assureReplies: number [
+
+	replies ifNil: [replies := self generateReplies: number].
+	replies size < number ifTrue:
+		[replies := replies , (self generateReplies: number - replies size)].
+	replies size > number ifTrue:
+		[replies := replies take: number].
+	^ replies
 ]
 
 {
@@ -90,27 +114,35 @@ OraglePrompt >> defaultMaxNumberOfTokens [
 ]
 
 {
-	#category : #defaults,
-	#'squeak_changestamp' : 'ct 1/22/2024 16:37'
+	#category : #accessing,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:12'
 }
 OraglePrompt >> defaultNumberOfOutputs [
 
-	^ 1
+	^ defaultNumberOfOutputs
+]
+
+{
+	#category : #accessing,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:13'
+}
+OraglePrompt >> defaultNumberOfOutputs: anInteger [
+
+	defaultNumberOfOutputs := anInteger.
 ]
 
 {
 	#category : #private,
-	#'squeak_changestamp' : 'ct 2/3/2024 21:25'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:47'
 }
-OraglePrompt >> generateOutputs [
+OraglePrompt >> generateReplies: number [
 
 	approvedPrice ifNotNil:
 		[| price |
-		(price := self priceToGenerateOutputs maxCents) > approvedPrice ifTrue:
+		(price := (self priceToGenerateOutputs: number) maxCents) > "approvedPrice"10 ifTrue:
 			[self notify: ('about to spend {1}' format: {price})].
 		approvedPrice := 0].
-	replies := self newConversation
-		getAssistantMessages: self defaultNumberOfOutputs.
+	^ self newConversation getAssistantMessages: number
 ]
 
 {
@@ -191,12 +223,21 @@ OraglePrompt >> postCopy [
 
 {
 	#category : #private,
-	#'squeak_changestamp' : 'ct 2/3/2024 21:25'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:47'
 }
 OraglePrompt >> priceToGenerateOutputs [
 
+	^ self priceToGenerateOutputs: self defaultNumberOfOutputs
+]
+
+{
+	#category : #private,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:41'
+}
+OraglePrompt >> priceToGenerateOutputs: number [
+
 	^ self newConversation
-		estimatePriceToGetAssistantMessages: self defaultNumberOfOutputs
+		estimatePriceToGetAssistantMessages: number
 ]
 
 {

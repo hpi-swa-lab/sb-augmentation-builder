@@ -5,6 +5,7 @@ Class {
 		'uuid',
 		'label',
 		'rootModule',
+		'defaultNumberOfOutputs',
 		'approvedPrice',
 		'cachedPrompts'
 	],
@@ -13,13 +14,14 @@ Class {
 
 {
 	#category : #copying,
-	#'squeak_changestamp' : 'ct 2/3/2024 18:23'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:30'
 }
 OragleProject >> adoptFrom: anotherProject [
 
 	self assert: self uuid = anotherProject uuid.
 	self label: anotherProject label.
 	self rootModule: anotherProject rootModule.
+	self defaultNumberOfOutputs: anotherProject defaultNumberOfOutputs.
 	self approvedPrice: anotherProject approvedPrice.
 ]
 
@@ -42,22 +44,43 @@ OragleProject >> approvedPrice: cents [
 ]
 
 {
+	#category : #accessing,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:13'
+}
+OragleProject >> defaultNumberOfOutputs [
+
+	^ defaultNumberOfOutputs
+]
+
+{
+	#category : #accessing,
+	#'squeak_changestamp' : 'ct 2/16/2024 19:13'
+}
+OragleProject >> defaultNumberOfOutputs: anInteger [
+
+	defaultNumberOfOutputs := anInteger.
+]
+
+{
 	#category : #visiting,
-	#'squeak_changestamp' : 'ct 1/25/2024 20:38'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:18'
 }
 OragleProject >> expand [
 
 	^ self rootModule expand
+		do: [:prompt | prompt defaultNumberOfOutputs: self defaultNumberOfOutputs];
+		yourself
 ]
 
 {
 	#category : #'initialize-release',
-	#'squeak_changestamp' : 'ct 2/3/2024 18:14'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:13'
 }
 OragleProject >> initialize [
 
 	super initialize.
 	
+	defaultNumberOfOutputs := 1.
 	cachedPrompts := Dictionary new.
 ]
 
@@ -81,7 +104,7 @@ OragleProject >> label: aString [
 
 {
 	#category : #accessing,
-	#'squeak_changestamp' : 'ct 2/4/2024 00:11'
+	#'squeak_changestamp' : 'ct 2/16/2024 18:42'
 }
 OragleProject >> metricsForModule: aModule [
 
@@ -91,8 +114,8 @@ OragleProject >> metricsForModule: aModule [
 	
 	^ JsonObject new
 		
-		minTokens: (allMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(allMetrics collect: #minTokens) min]);
-		maxTokens: (allMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(allMetrics collect: #maxTokens) max]);
+		minTokens: (allMetrics ifEmpty: [Float nan] ifNotEmpty: [(allMetrics collect: #minTokens) min]);
+		maxTokens: (allMetrics ifEmpty: [Float nan] ifNotEmpty: [(allMetrics collect: #maxTokens) max]);
 		
 		minPrice: (allMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(allMetrics collect: #minPrice) min]);
 		maxPrice: (allMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(allMetrics collect: #maxPrice) max]);
@@ -111,21 +134,23 @@ OragleProject >> moduleForId: id [
 
 {
 	#category : #visiting,
-	#'squeak_changestamp' : 'ct 2/3/2024 18:24'
+	#'squeak_changestamp' : 'ct 2/16/2024 19:52'
 }
 OragleProject >> promptsWithOutputs [
 
 	| prompts |
 	prompts := self expand.
 	^ prompts collect: [:prompt |
-		cachedPrompts
+		(cachedPrompts
 			at: prompt promptKey
 			ifAbsentPut:
 				[approvedPrice ifNotNil:
 					[prompt approvedPrice: approvedPrice.
 					approvedPrice := approvedPrice - prompt priceToGenerateOutputs maxCents].
-				prompt assureOutputs.
-				prompt]]
+				prompt])
+					defaultNumberOfOutputs: self defaultNumberOfOutputs;
+					assureOutputs;
+					yourself]
 ]
 
 {

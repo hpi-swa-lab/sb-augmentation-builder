@@ -1,4 +1,4 @@
 .vscode
-external/squeak_headless_with_plugins_bundle.js
 external/squeak-minimal*.image
 node_modules
+assets/tlaspecs/*

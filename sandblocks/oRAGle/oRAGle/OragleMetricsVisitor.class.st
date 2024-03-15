@@ -36,7 +36,7 @@ OragleMetricsVisitor >> value [
 
 {
 	#category : #visiting,
-	#'squeak_changestamp' : 'ct 2/4/2024 00:07'
+	#'squeak_changestamp' : 'ct 2/16/2024 18:41'
 }
 OragleMetricsVisitor >> visitAlternation: aModule [
 
@@ -44,8 +44,8 @@ OragleMetricsVisitor >> visitAlternation: aModule [
 	childMetrics := aModule children collect: [:child |
 		child accept: self].
 	^ JsonObject new
-		minTokens: (childMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(childMetrics collect: #minTokens) min]);
-		maxTokens: (childMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(childMetrics collect: #maxTokens) max]);
+		minTokens: (childMetrics ifEmpty: [Float nan] ifNotEmpty: [(childMetrics collect: #minTokens) min]);
+		maxTokens: (childMetrics ifEmpty: [Float nan] ifNotEmpty: [(childMetrics collect: #maxTokens) max]);
 		minPrice: (childMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(childMetrics collect: #minPrice) min]);
 		maxPrice: (childMetrics ifEmpty: [OpenAIAmount oragleNan] ifNotEmpty: [(childMetrics collect: #maxPrice) max]);
 		yourself
