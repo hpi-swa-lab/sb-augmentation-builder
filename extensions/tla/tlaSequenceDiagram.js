@@ -1,4 +1,4 @@
-import { h, useLocalState } from "../../view/widgets.js";
+import { h } from "../../view/widgets.js";
 import {
   useCallback,
   useEffect,
@@ -890,6 +890,8 @@ ${transitionsAsMermaid}`;
     return mermaidOutput;
   };
 
+  console.log(getMermaidOutput());
+
   useEffect(() => {
     if (mermaidContainerRef.current) {
       // mermaid adds a "data-processed" attribute to the diagram after processing it
@@ -909,10 +911,10 @@ ${transitionsAsMermaid}`;
 };
 
 const State = ({ graph, initNodes }) => {
+  const config = useContext(DiagramConfig);
   const [currNode, setCurrNode] = useState(graph.nodes.get(initNodes[0].id));
   const [previewEdge, setPreviewEdge] = useState(null);
   const [prevEdges, setPrevEdges] = useState([]);
-  const config = useContext(DiagramConfig);
   const [selectedActor, setSelectedActor] = useState(
     config.actors[0] === "$messages" ? config.actors[1] : config.actors[0],
   );
@@ -964,11 +966,15 @@ const State = ({ graph, initNodes }) => {
   };
 
   const ActorSelector = () => {
-    return html` <div style=${{ padding: "4px 4px 4px 16px" }}>
-      <label for="actor">Choose actor:</label>
+    return html` <div style=${{ paddingLeft: "4px", display: "inline-block" }}>
       <select
         id="actor"
         value=${selectedActor}
+        style=${{
+          display: "inline-block",
+          fontWeight: "bold",
+          fontSize: "1.17em",
+        }}
         onChange=${(e) => setSelectedActor(e.target.value)}
       >
         ${config.actors
@@ -995,7 +1001,39 @@ const State = ({ graph, initNodes }) => {
   // a grid layout where the right column shows the StateMachines component
   // and the remaining space shows the rest
   return html`
-    <div style=${containerStyle}>
+    <div>
+      <div>
+        <style>
+          .checkbox-btn {
+            margin-right: 8px;
+          }
+        </style>
+        <h2>Representations</h2>
+        <div style=${{ display: "flex", flexDirection: "row" }}>
+          <div class="checkbox-btn">
+            <input
+              type="checkbox"
+              name="sequence diagram"
+              value="sequence"
+              checked
+            />
+            <label for="sequence diagram">Sequence Diagram</label>
+          </div>
+          <div class="checkbox-btn">
+            <input type="checkbox" name="state machine" value="state" checked />
+            <label for="state machine">State Machine</label>
+          </div>
+          <div class="checkbox-btn">
+            <input type="checkbox" name="table" value="table" checked />
+            <label for="table">Table</label>
+          </div>
+          <div class="checkbox-btn">
+            <input type="checkbox" name="text" value="text" checked />
+            <label for="text">Text</label>
+          </div>
+        </div>
+      </div>
+      <${InitStateSelection} />
       <div
         style=${{
           display: "grid",
@@ -1004,7 +1042,7 @@ const State = ({ graph, initNodes }) => {
         }}
       >
         <div style=${containerStyle}>
-          <${InitStateSelection} />
+          <h3 style=${{ display: "inline-block" }}>Sequence Diagram</h3>
           <${ActionHeightSlider} />
           <${Topbar} ...${props} />
           <${Diagram} ...${props} />
@@ -1017,8 +1055,10 @@ const State = ({ graph, initNodes }) => {
             padding: "0 16px 0 0",
           }}
         >
-          <h4>${selectedActor}</h4>
-          <${ActorSelector} />
+          <div>
+            <h3 style=${{ display: "inline-block" }}>State Diagram of</h3>
+            <${ActorSelector} />
+          </div>
           <${StateDiagram}
             actor=${selectedActor}
             currentState=${currNode}
