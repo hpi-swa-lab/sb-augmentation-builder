@@ -77,10 +77,11 @@ export class BaseShard extends HTMLElement {
   }
 
   onShortcut(event) {
-    const selected = this.selectedFor([
-      this.editor.selection.head.index,
-      this.editor.selection.anchor.index,
-    ]);
+    const selected =
+      this.selectedFor([
+        this.editor.selection.head.index,
+        this.editor.selection.anchor.index,
+      ]) ?? this.editor.node;
     for (const action of this.editor.preferences.getShortcutsFor(event)) {
       for (const extension of this.extensions()) {
         if (extension.shortcuts[action]) {

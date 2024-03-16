@@ -100,6 +100,13 @@ export class Extension {
     }
   }
 
+  copyFrom(other) {
+    for (const prop of Object.getOwnPropertyNames(other)) {
+      this[prop] = other[prop];
+    }
+    return this;
+  }
+
   instance(concreteClass) {
     return new concreteClass(this);
   }

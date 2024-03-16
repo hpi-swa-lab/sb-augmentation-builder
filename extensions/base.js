@@ -2,6 +2,7 @@ import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
 import { Extension } from "../core/extension.js";
 import { exec, rangeEqual, withDo } from "../utils.js";
 import { Widget, h } from "../view/widgets.js";
+import { undo } from "./undo.js";
 
 class DetachedShard extends Widget {
   noteProcessed(trigger, node) {
@@ -52,7 +53,7 @@ function indexOfIndentEnd(string, index) {
 }
 
 export const base = new Extension()
-  .registerShortcut("undo", (x) => x.editor.undo())
+  .copyFrom(undo)
 
   // AST-select up-down
   .registerShortcut(

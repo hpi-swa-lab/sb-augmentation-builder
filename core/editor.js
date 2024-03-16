@@ -156,6 +156,8 @@ export class BaseEditor extends HTMLElement {
         .map((ext) => Extension.get(ext)),
     );
     this.rootShard.extensions = () => [...extensions, ...this.inlineExtensions];
+    for (const extension of this.allExtensions())
+      for (const func of extension.connected) func(this);
     this.rootShard.editor = this;
     this.rootShard.node = this.node;
     this.appendChild(this.rootShard);
@@ -213,6 +215,7 @@ export class BaseEditor extends HTMLElement {
   }
 
   applyChanges(changes, forceApply = false) {
+    const oldSelection = this.selectionRange;
     const oldSource = this.node.sourceString;
     let newSource = oldSource;
     const allChanges = [...this.pendingChanges.value, ...changes];
@@ -246,7 +249,7 @@ export class BaseEditor extends HTMLElement {
 
     for (const extension of this.allExtensions()) {
       for (const func of extension.changesApplied)
-        func(changes, oldSource, newSource, this.node, diff);
+        func(changes, oldSource, newSource, this.node, diff, oldSelection);
     }
 
     // may create or delete shards while iterating, so iterate over a copy
@@ -392,45 +395,5 @@ export class BaseEditor extends HTMLElement {
         }
       }
     }
-  }
-}
-
-class EditHistory {
-  undoStack = [];
-  redoStack = [];
-
-  get lastView() {
-    return this.undoStack[this.undoStack.length - 1]?.view?.deref();
-  }
-
-  push(sourceString, cursorRange, view) {
-    this.redoStack = [];
-    this.undoStack.push({
-      sourceString,
-      cursorRange,
-      view: view ? new WeakRef(view) : null,
-    });
-  }
-
-  undo() {
-    if (this.undoStack.length === 0) return;
-    const item = this.undoStack.pop();
-    this.redoStack.push(item);
-    return item;
-  }
-
-  redo() {
-    if (this.redoStack.length === 0) return;
-    const item = this.redoStack.pop();
-    this.undoStack.push(item);
-    return item;
-  }
-
-  canUndo() {
-    return this.undoStack.length > 0;
-  }
-
-  canRedo() {
-    return this.redoStack.length > 0;
   }
 }
