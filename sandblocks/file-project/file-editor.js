@@ -13,9 +13,6 @@ import { confirmUnsavedChanges } from "../window.js";
 import { wait } from "../../utils.js";
 import { preferences } from "../../core/preferences.js";
 
-const search = new Extension().registerShortcut("search", (x) => {
-  x.editor.context.startSearch();
-});
 // .registerAlways((e) => [
 //   (_) => !!e.searchString,
 //   (x) => x.isText,
@@ -86,10 +83,21 @@ export function FileEditor({
   );
 
   const searchExt = useMemo(() =>
-    new Extension().registerShortcut("search", (x) => {
-      setSearchVisible(true);
-      queueMicrotask(() => searchRef.current?.focus());
-    }),
+    new Extension()
+      .registerShortcut("search", (x) => {
+        setSearchVisible(true);
+        queueMicrotask(() => searchRef.current?.focus());
+      })
+      .registerCss("search-result", [
+        (x) => !!x.editor.data("search-string"),
+        (x) => x.isText,
+        (x) =>
+          x.editor.data("search-is-exact")
+            ? x.text === x.editor.data("search-string")
+            : x.text
+                .toLowerCase()
+                .includes(x.editor.data("search-string").toLowerCase()),
+      ]),
   );
 
   return h(
@@ -145,8 +153,7 @@ export function FileEditor({
         onClose: (selectRange, shard) => {
           setSearchVisible(false);
           editorRef.current?.focus();
-          if (selectRange)
-            editorRef.current?.selectRange(...selectRange, shard, false);
+          if (selectRange) shard.selectRange(selectRange);
         },
       }),
   );
@@ -197,10 +204,9 @@ function SearchField({
   useEffect(() => {
     const match = matches()[selectedIndex];
 
-    editorRef.current?.updateExtension(search, "always", (e) => {
-      e.searchString = searchString;
-      e.searchIsExact = searchExact;
-    });
+    editorRef.current.setData("search-string", searchString);
+    editorRef.current.setData("search-is-exact", searchExact);
+    editorRef.current.updateMarker("css:search-result");
     if (searchString === null) {
       onClose(match?.range, match?.shard);
     }
