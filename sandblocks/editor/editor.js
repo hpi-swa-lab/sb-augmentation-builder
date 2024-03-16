@@ -170,6 +170,7 @@ class SandblocksShard extends BaseShard {
 
   cssClass(node, cls, add) {
     const view = this.views.get(node);
+    if (!view) return;
     for (const c of cls.split(" ")) view.classList.toggle(c, add);
   }
 

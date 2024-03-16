@@ -178,6 +178,12 @@ export class BaseEditor extends HTMLElement {
   onSelectionChange(selection) {
     this._selection = selection;
 
+    for (const shard of this.shards) {
+      for (const ext of shard.extensions()) {
+        for (const func of ext.caret) func(this, shard);
+      }
+    }
+
     if (selection.head.index !== undefined) {
       const node = selection.head.element.selectedFor(this.selectionRange);
       const view = selection.head.element.viewFor(node);

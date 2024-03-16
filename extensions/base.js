@@ -1,6 +1,6 @@
 import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
 import { Extension } from "../core/extension.js";
-import { rangeEqual, withDo } from "../utils.js";
+import { exec, rangeEqual, withDo } from "../utils.js";
 import { Widget, h } from "../view/widgets.js";
 
 class DetachedShard extends Widget {
@@ -205,42 +205,37 @@ export const base = new Extension()
   //   },
   // ])
 
-  .registerSelection((e) => [
-    (x) => false,
-    (x) => x.isSelected,
-    (x) => {
-      for (const n of x.removalNodes) e.ensureClass(n, "removal-range");
-    },
-  ])
+  .registerCaret((e, shard) => {
+    e.data("bracket-highlight", () => []).forEach((c) =>
+      shard.cssClass(c, "highlight", false),
+    );
 
-  .registerSelection((e) => [
-    (x) => x.isSelected,
-    (x) => e.ensureClass(x, "selected"),
-  ])
-
-  .registerCaret((e) => [
-    (x) => [x, x.editor.selectionRange],
-    ([x, r]) => r[0] === r[1] && [x, r[0]],
-    ([x, p]) => x.root.leafForPosition(p),
-    (l) => {
-      do {
-        l = l.parent;
-      } while (
-        l &&
-        !(
-          l.children.some((c) => BRACE_PAIRS[c.text]) &&
-          l.children.some((c) => REVERSED_BRACE_PAIRS[c.text])
-        )
-      );
-      return l;
-    },
-    (l) => {
-      [
+    exec(
+      e.node,
+      (x) => e.selectionRange[0] === e.selectionRange[1],
+      (x) => x.leafForPosition(e.selectionRange[0]),
+      (l) => {
+        do {
+          l = l.parent;
+        } while (
+          l &&
+          !(
+            l.children.some((c) => BRACE_PAIRS[c.text]) &&
+            l.children.some((c) => REVERSED_BRACE_PAIRS[c.text])
+          )
+        );
+        return l;
+      },
+      (l) => [
         l.children.find((c) => BRACE_PAIRS[c.text]),
         l.children.find((c) => REVERSED_BRACE_PAIRS[c.text]),
-      ].forEach((c) => e.ensureClass(c, "highlight"));
-    },
-  ])
+      ],
+      (pair) => {
+        e.setData("bracket-highlight", pair);
+        pair.forEach((c) => shard.cssClass(c, "highlight", true));
+      },
+    );
+  })
 
   .registerCss(
     "highlight",
