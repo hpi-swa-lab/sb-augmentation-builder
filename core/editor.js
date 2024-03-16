@@ -16,9 +16,7 @@ import { setConfig } from "./config.js";
 preferences
   .registerDefaultShortcut("save", "Ctrl-s")
   .registerDefaultShortcut("undo", "Ctrl-z")
-  .registerDefaultShortcut("undo", "Ctrl-z")
   .registerDefaultShortcut("redo", "Ctrl-Z")
-  .registerDefaultShortcut("save", "Ctrl-s")
   .registerDefaultShortcut("cut", "Ctrl-x")
   .registerDefaultShortcut("copy", "Ctrl-c")
   .registerDefaultShortcut("dismiss", "Escape")
@@ -68,7 +66,11 @@ export class BaseEditor extends HTMLElement {
   pendingChanges = signal([]);
   validators = new Set();
   revertChanges = [];
+  inlineExtensions = [];
   extensionData = new Map();
+  // an optional field that may contain an object that knows more
+  // about this editor, for instance what file is open.
+  context = null;
 
   _selection = {
     head: { element: null, elementOffset: null, index: 0 },
@@ -153,7 +155,7 @@ export class BaseEditor extends HTMLElement {
         .filter((ext) => ext.length > 0)
         .map((ext) => Extension.get(ext)),
     );
-    this.rootShard.extensions = () => extensions;
+    this.rootShard.extensions = () => [...extensions, ...this.inlineExtensions];
     this.rootShard.editor = this;
     this.rootShard.node = this.node;
     this.appendChild(this.rootShard);
@@ -211,7 +213,8 @@ export class BaseEditor extends HTMLElement {
   }
 
   applyChanges(changes, forceApply = false) {
-    let newSource = this.node.sourceString;
+    const oldSource = this.node.sourceString;
+    let newSource = oldSource;
     const allChanges = [...this.pendingChanges.value, ...changes];
     for (const { from, to, insert } of allChanges) {
       newSource =
@@ -240,6 +243,11 @@ export class BaseEditor extends HTMLElement {
 
     this.onSuccessfulChange();
     tx.commit();
+
+    for (const extension of this.allExtensions()) {
+      for (const func of extension.changesApplied)
+        func(changes, oldSource, newSource, this.node, diff);
+    }
 
     // may create or delete shards while iterating, so iterate over a copy
     for (const shard of [...this.shards]) {
@@ -346,6 +354,10 @@ export class BaseEditor extends HTMLElement {
         ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
         : a.elementOffset === b.elementOffset)
     );
+  }
+
+  *allExtensions() {
+    yield* this.rootShard.extensions();
   }
 
   setData(key, value) {

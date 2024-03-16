@@ -14,7 +14,7 @@ function hello(b) {
         headers: { "Content-Type": "application/json" },
       }),
       e
-    ))("asdadfsd".length+ 21 ),
+    ))("asdadfsd".length + 21),
   ][1];
 
   console.log(b);

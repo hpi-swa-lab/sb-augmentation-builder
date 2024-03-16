@@ -35,7 +35,7 @@ registerLanguage(
       // "lsp:diagnostics",
       // "lsp:suggestions",
       // "babylonian:javascript",
-      // "prettier:javascript",
+      "prettier:javascript",
       // "watch:javascript",
       // "javascript:print",
     ],

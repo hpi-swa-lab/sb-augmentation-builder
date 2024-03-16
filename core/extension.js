@@ -90,6 +90,7 @@ export class Extension {
   disconnected = [];
   changeFilter = [];
   doubleClick = [];
+  _custom = {};
 
   constructor() {}
 
@@ -101,6 +102,10 @@ export class Extension {
 
   instance(concreteClass) {
     return new concreteClass(this);
+  }
+
+  custom(type) {
+    return this._custom[type] ?? [];
   }
 
   registerReplacement(r) {
@@ -166,6 +171,11 @@ export class Extension {
 
   registerChangeFilter(func) {
     this.changeFilter.push(func);
+    return this;
+  }
+
+  registerCustom(type, func) {
+    (this._custom[type] ??= []).push(func);
     return this;
   }
 

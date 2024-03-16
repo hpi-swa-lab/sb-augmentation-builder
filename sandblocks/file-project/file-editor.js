@@ -1,7 +1,12 @@
 import { h } from "../../view/widgets.js";
 import { editor, useAsyncEffect } from "../../view/widgets.js";
 import { languageForExtension } from "../../core/languages.js";
-import { useEffect, useState, useRef } from "../../external/preact-hooks.mjs";
+import {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "../../external/preact-hooks.mjs";
 import { references } from "./references.js";
 import { Extension } from "../../core/extension.js";
 import { confirmUnsavedChanges } from "../window.js";
@@ -34,6 +39,7 @@ export function FileEditor({
 }) {
   const [sourceString, setSourceString] = useState(null);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [saveInProgress, setSaveInProgress] = useState(false);
   const [searchVisible, setSearchVisible] = useState(!!initialSearchString);
 
   const fileEditorRef = useRef(null);
@@ -46,7 +52,7 @@ export function FileEditor({
 
   useEffect(() => {
     window?.setOkToClose(
-      async () => !unsavedChanges || (await confirmUnsavedChanges())
+      async () => !unsavedChanges || (await confirmUnsavedChanges()),
     );
   }, [window, unsavedChanges]);
 
@@ -64,6 +70,28 @@ export function FileEditor({
   const ext = path.split(".").slice(-1)[0].toLowerCase();
   const language = languageForExtension(ext);
 
+  const saveExt = useMemo(() =>
+    new Extension()
+      .registerChangesApplied(() => setUnsavedChanges(true))
+      .registerShortcut("save", async ({ editor }) => {
+        setSaveInProgress(true);
+        for (const ext of editor.allExtensions()) {
+          for (const cb of ext.custom("preSave"))
+            await cb(editor, editor.sourceString);
+        }
+        await project.writeFile(path, editor.sourceString);
+        setUnsavedChanges(false);
+        setSaveInProgress(false);
+      }),
+  );
+
+  const searchExt = useMemo(() =>
+    new Extension().registerShortcut("search", (x) => {
+      setSearchVisible(true);
+      queueMicrotask(() => searchRef.current?.focus());
+    }),
+  );
+
   return h(
     "sb-file-editor",
     {
@@ -77,10 +105,6 @@ export function FileEditor({
       },
       project,
       path,
-      onstartSearch: () => {
-        setSearchVisible(true);
-        queueMicrotask(() => searchRef.current?.focus());
-      },
     },
     h(
       "div",
@@ -92,21 +116,22 @@ export function FileEditor({
             ...language.defaultExtensions,
           ],
           style: { minHeight: "100%", height: "1px" },
-          inlineExtensions: [references, search, ...(inlineExtensions ?? [])],
+          readonly: saveInProgress,
+          inlineExtensions: [
+            references,
+            searchExt,
+            saveExt,
+            ...(inlineExtensions ?? []),
+          ],
           sourceString,
           editorRef,
           context: fileEditorRef.current,
           language: language.name,
-          onloaded: () => {
+          onready: () => {
             if (initialSelection)
               editorRef.current.selectRange(...initialSelection);
           },
-          onSave: async (data) => {
-            await project.writeFile(path, data);
-            setUnsavedChanges(false);
-          },
-          onChange: () => setUnsavedChanges(true),
-        })
+        }),
     ),
     unsavedChanges &&
       h("div", { class: "sb-file-editor-unsaved", title: "Unsaved changes" }),
@@ -123,7 +148,7 @@ export function FileEditor({
           if (selectRange)
             editorRef.current?.selectRange(...selectRange, shard, false);
         },
-      })
+      }),
   );
 }
 
@@ -137,11 +162,7 @@ customElements.define(
     get editor() {
       return this.querySelector("sb-editor");
     }
-
-    startSearch() {
-      this.dispatchEvent(new CustomEvent("startSearch"));
-    }
-  }
+  },
 );
 
 function wrapNumber(n, min, max) {
@@ -217,8 +238,8 @@ function SearchField({
             wrapNumber(
               selectedIndex + (e.shiftKey ? -1 : 1),
               0,
-              matches().length - 1
-            )
+              matches().length - 1,
+            ),
           );
         } else if (e.key === "Escape") {
           close();
@@ -235,6 +256,6 @@ function SearchField({
       title: "Exact Search",
       onchange: (e) => setSearchExact(e.target.checked),
     }),
-    h("button", { onclick: close }, "Close")
+    h("button", { onclick: close }, "Close"),
   );
 }
