@@ -149,6 +149,10 @@ class SandblocksShard extends BaseShard {
     return this.views.get(node);
   }
 
+  *allViews() {
+    yield* this.views.values();
+  }
+
   isShowing(node) {
     return !!this.views.get(node);
   }
@@ -206,6 +210,7 @@ class SandblocksShard extends BaseShard {
         }
       }
     }
+    for (const r of removed) this.views.delete(r);
 
     const sorted = [...editBuffer.posBuf].sort((a, b) => {
       // we want LoadOp first, then AttachOp, then UpdateOp

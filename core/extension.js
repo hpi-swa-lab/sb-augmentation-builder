@@ -124,6 +124,16 @@ export class Extension {
     });
   }
 
+  registerCss(cls, query, queryDepth = 1) {
+    return this.registerMarker({
+      query,
+      name: `css:${cls}`,
+      queryDepth,
+      attach: (shard, node) => shard.cssClass(node, cls, true),
+      detach: (shard, node) => shard.cssClass(node, cls, false),
+    });
+  }
+
   registerEventListener({ name, query, queryDepth, event, callback }) {
     // TODO store callback
     return this.registerMarker({

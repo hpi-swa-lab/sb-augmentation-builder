@@ -84,7 +84,7 @@ class CodeMirrorShard extends BaseShard {
               preventDefault: true,
               run: (v) => this.onShortcut(window.event),
             },
-          ])
+          ]),
         ),
         keymap.of([indentWithTab]),
         javascript(),
@@ -138,7 +138,7 @@ class CodeMirrorShard extends BaseShard {
       changes.forEach((c, i) => (c.inverse = inverse[i]));
       last(changes).selectionRange = rangeShift(
         [v.state.selection.main.head, v.state.selection.main.anchor],
-        this.range[0]
+        this.range[0],
       );
       this.onTextChanges(changes);
     }
@@ -150,9 +150,9 @@ class CodeMirrorShard extends BaseShard {
         .map((r) =>
           Decoration.replace({
             widget: new CodeMirrorReplacementWidget(r),
-          }).range(...rangeShift(r.range, -this.range[0]))
+          }).range(...rangeShift(r.range, -this.range[0])),
         )
-        .sort((a, b) => a.from - b.from)
+        .sort((a, b) => a.from - b.from),
     );
   }
 
@@ -160,7 +160,7 @@ class CodeMirrorShard extends BaseShard {
     let anyChange = false;
     for (const change of changes.filter(
       (c) =>
-        c.sourceShard !== this && rangeContains(this.range, [c.from, c.from])
+        c.sourceShard !== this && rangeContains(this.range, [c.from, c.from]),
     )) {
       anyChange = true;
       this.cm.dispatch({
@@ -227,7 +227,7 @@ class CodeMirrorShard extends BaseShard {
           changes: [...changes]
             .reverse()
             .filter(({ inverse: c }) =>
-              rangeContains(this.range, [c.from, c.from])
+              rangeContains(this.range, [c.from, c.from]),
             )
             .map(({ inverse: c }) => ({
               from: c.from - this.range[0],
@@ -270,6 +270,8 @@ class CodeMirrorShard extends BaseShard {
     return new Map();
   }
 
+  *allViews() {}
+
   cssClass() {
     // noop, we have our own syntax highlighting
   }
@@ -298,7 +300,7 @@ class CodeMirrorShard extends BaseShard {
   positionAtBoundary(fromPosition, forward) {
     const replacement = orParentThat(
       fromPosition.element,
-      (p) => p instanceof CodeMirrorReplacementWidget
+      (p) => p instanceof CodeMirrorReplacementWidget,
     );
     for (const { from, to, value } of this.iterReplacedRanges()) {
       if (value === replacement)
@@ -324,7 +326,7 @@ class CodeMirrorShard extends BaseShard {
       pos.left,
       pos.top,
       pos.right - pos.left,
-      pos.bottom - pos.top
+      pos.bottom - pos.top,
     );
   }
 }

@@ -68,17 +68,32 @@ export class BaseEditor extends HTMLElement {
   pendingChanges = signal([]);
   validators = new Set();
   revertChanges = [];
+  extensionData = new Map();
 
   _selection = {
     head: { element: null, elementOffset: null, index: 0 },
     anchor: { element: null, elementOffset: null, index: 0 },
   };
+  _selectedNode = null;
+  _selectedView = null;
 
   get selectedText() {
     return this.getAttribute("text").slice(
       this.selectionRange[0],
       this.selectionRange[1],
     );
+  }
+
+  get selectedNode() {
+    return this._selectedNode;
+  }
+
+  get selectedView() {
+    return this._selectedView;
+  }
+
+  get sourceString() {
+    return this.node.sourceString;
   }
 
   static observedAttributes = ["text", "language", "extensions"];
@@ -162,6 +177,20 @@ export class BaseEditor extends HTMLElement {
 
   onSelectionChange(selection) {
     this._selection = selection;
+
+    if (selection.head.index !== undefined) {
+      const node = selection.head.element.selectedFor(this.selectionRange);
+      const view = selection.head.element.viewFor(node);
+      if (node && node !== this._selectedNode) {
+        this._selectedNode = node;
+        this._selectedView = view;
+        for (const shard of this.shards) {
+          for (const ext of shard.extensions()) {
+            for (const func of ext.selection) func(node, view, this);
+          }
+        }
+      }
+    }
   }
 
   replaceTextFromCommand(range, text) {
@@ -311,6 +340,38 @@ export class BaseEditor extends HTMLElement {
         ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
         : a.elementOffset === b.elementOffset)
     );
+  }
+
+  setData(key, value) {
+    this.extensionData.set(key, value);
+  }
+
+  data(key) {
+    return this.extensionData.get(key);
+  }
+
+  updateMarker(namePrefix) {
+    for (const shard of this.shards) {
+      for (const extension of shard.extensions()) {
+        for (const marker of extension.markers) {
+          if (marker.name.startsWith(namePrefix)) {
+            for (const view of shard.allViews()) {
+              const markers = shard.getMarkersFor(view.node);
+              if (!markers) continue;
+              const hasMarker = markers.get(marker.name);
+              const hasMatch = view.node?.exec(...marker.query);
+              if (!hasMarker && hasMatch) {
+                markers.set(marker.name, marker);
+                marker.attach(shard, view.node);
+              } else if (hasMarker && !hasMatch) {
+                markers.delete(marker.name);
+                marker.detach(shard, view.node);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 

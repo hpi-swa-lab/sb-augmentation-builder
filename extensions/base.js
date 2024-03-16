@@ -27,10 +27,10 @@ const PAIRS = {
   "'": "'",
 };
 const REVERSED_PAIRS = Object.fromEntries(
-  Object.entries(PAIRS).map(([a, b]) => [b, a])
+  Object.entries(PAIRS).map(([a, b]) => [b, a]),
 );
 const REVERSED_BRACE_PAIRS = Object.fromEntries(
-  Object.entries(BRACE_PAIRS).map(([a, b]) => [b, a])
+  Object.entries(BRACE_PAIRS).map(([a, b]) => [b, a]),
 );
 
 function indexOfLastNewLine(string, index) {
@@ -71,7 +71,7 @@ export const base = new Extension()
         x.select(view);
       }
     },
-    [needsSelection]
+    [needsSelection],
   )
   .registerShortcut(
     "selectNodeDown",
@@ -83,27 +83,27 @@ export const base = new Extension()
         x.editor.selectRange(
           ...e.data("selectionDownRange"),
           view.shard,
-          false
+          false,
         );
       } else {
         (target ?? x.childBlock(0) ?? x.childNode(0))?.select(view);
       }
     },
-    [needsSelection]
+    [needsSelection],
   )
-  .registerSelection((e) => [
-    (x) => {
-      if (
-        // if we just walked up, we don't want to clear the list
-        !x.children.some((c) => e.data("selectionDownList")?.includes(c)) &&
-        // in particular, if we are triggering multiple times for the same
-        // range, we want to ignore anything but the first time
-        (!x.children[0] || !rangeEqual(x.range, x.children[0].range))
-      ) {
-        e.setData("selectionDownList", []);
-      }
-    },
-  ])
+  .registerSelection((node, view, editor) => {
+    if (
+      // if we just walked up, we don't want to clear the list
+      !node.children.some((c) =>
+        editor.data("selectionDownList")?.includes(c),
+      ) &&
+      // in particular, if we are triggering multiple times for the same
+      // range, we want to ignore anything but the first time
+      (!node.children[0] || !rangeEqual(node.range, node.children[0].range))
+    ) {
+      editor.setData("selectionDownList", []);
+    }
+  })
 
   .registerShortcut(
     "popNodeOut",
@@ -114,7 +114,7 @@ export const base = new Extension()
       window.appendChild(detached);
       x.editor.after(window);
     },
-    [needsSelection]
+    [needsSelection],
   )
 
   .registerShortcut("indentLess", (x, view, e) => {
@@ -132,7 +132,7 @@ export const base = new Extension()
 
   // skip over closing parentheses
   // FIXME may want to do this only for auto-inserted parentheses
-  .registerChangeFilter((change, sourceString) => {
+  .registerChangeFilter(([change], { sourceString }) => {
     if (
       REVERSED_BRACE_PAIRS[change.insert] &&
       sourceString[change.from] === change.insert
@@ -142,14 +142,14 @@ export const base = new Extension()
   })
 
   // insert matching parentheses
-  .registerChangeFilter((change, sourceString) => {
+  .registerChangeFilter(([change], { sourceString }) => {
     if (PAIRS[change.insert]) {
       const match = PAIRS[change.insert];
       if (change.from === change.to) change.insert += match;
       else {
         change.insert = `${change.insert}${sourceString.slice(
           change.from,
-          change.to
+          change.to,
         )}${match}`;
         change.selectionRange = [change.from + 1, change.to + 1];
       }
@@ -157,7 +157,7 @@ export const base = new Extension()
   })
 
   // delete matching parentheses together
-  .registerChangeFilter((change, sourceString) => {
+  .registerChangeFilter(([change], { sourceString }) => {
     const match = PAIRS[change.delete];
     if (match && sourceString[change.from + 1] === match) {
       change.delete += match;
@@ -166,12 +166,12 @@ export const base = new Extension()
   })
 
   // indent on newline
-  .registerChangeFilter((change, sourceString) => {
+  .registerChangeFilter(([change], { sourceString }) => {
     if (change.insert === "\n") {
       function findLastIndent(string, index) {
         return string.slice(
           indexOfLastNewLine(string, index) + 1,
-          indexOfIndentEnd(string, index)
+          indexOfIndentEnd(string, index),
         );
       }
 
@@ -244,15 +244,22 @@ export const base = new Extension()
     },
   ])
 
-  .registerSelection((e) => [
-    (x) => x.isText,
-    // contains at least one of these
-    (x) => !!x.text.match(/["'A-Za-z0-9_\-:]+/),
-    (x) =>
-      x.root.allNodesDo(
-        (n) => n.isText && n.text === x.text && e.ensureClass(n, "highlight")
-      ),
-  ]);
+  .registerCss(
+    "highlight",
+    [
+      (x) => x.isText,
+      (x) => {
+        const text = x.editor.selectedNode?.text;
+        return !!text && x.text === text;
+      },
+      // contains at least one of these
+      (x) => !!x.text.match(/["'A-Za-z0-9_\-:]+/),
+    ],
+    1,
+  )
+  .registerSelection((node, view, editor) =>
+    editor.updateMarker("css:highlight"),
+  );
 
 const words = new Map();
 function noteWord(word) {
@@ -271,7 +278,7 @@ export const identifierSuggestions = new Extension()
     (x) =>
       e.addSuggestionsAndFilter(
         x,
-        [...words.keys()].map((x) => ({ label: x }))
+        [...words.keys()].map((x) => ({ label: x })),
       ),
   ])
   .registerExtensionConnected((e) => [(x) => x.isText, (x) => noteWord(x.text)])
@@ -298,7 +305,7 @@ export const doubleClickToCollapse = new Extension().registerDoubleClick(
       x.viewsDo((v) => e.installReplacement(v, "sb-collapse"));
       e.stopPropagation();
     },
-  ]
+  ],
 );
 
 // class SBCollapse extends Replacement {

@@ -62,7 +62,13 @@ export class BaseShard extends HTMLElement {
 
   onTextChanges(changes) {
     if (this.editor.hasAttribute("readonly")) return;
-    // TODO this.extensionsDo((e) => e.filterChanges(changes));
+
+    for (const extension of this.extensions()) {
+      for (const filter of extension.changeFilter) {
+        filter(changes, this.editor);
+      }
+    }
+
     this.editor.applyChanges(changes);
   }
 
@@ -160,6 +166,10 @@ export class BaseShard extends HTMLElement {
   }
 
   uninstallReplacement(node) {
+    throw "subclass responsibility";
+  }
+
+  *allViews() {
     throw "subclass responsibility";
   }
 
