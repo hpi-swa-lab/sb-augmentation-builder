@@ -544,7 +544,17 @@ class SBNode {
   }
 
   select(adjacentView) {
-    adjacentView.editor.findNode(this).select();
+    let shard = adjacentView?.shard;
+    if (!shard?.isShowing(this)) {
+      for (const s of this.editor) {
+        if (s.isShowing(this)) {
+          shard = s;
+          break;
+        }
+      }
+    }
+
+    if (shard) shard.selectRange(this.range);
   }
 
   get isSelected() {

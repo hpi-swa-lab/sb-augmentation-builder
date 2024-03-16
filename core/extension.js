@@ -195,10 +195,6 @@ export class Extension {
   }
 }
 
-export function needsSelection(x) {
-  return !!x.editor?.selected;
-}
-
 class ExtensionInstance {
   // notification just before changes are applied to the text
   changesApplied(changes, oldSource, newSource, root, diff) {

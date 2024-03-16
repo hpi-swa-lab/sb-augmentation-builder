@@ -346,7 +346,9 @@ export class BaseEditor extends HTMLElement {
     this.extensionData.set(key, value);
   }
 
-  data(key) {
+  data(key, orCreate) {
+    if (orCreate && !this.extensionData.has(key))
+      this.extensionData.set(key, orCreate());
     return this.extensionData.get(key);
   }
 

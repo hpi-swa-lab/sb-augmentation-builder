@@ -1,5 +1,5 @@
 import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
-import { Extension, needsSelection } from "../core/extension.js";
+import { Extension } from "../core/extension.js";
 import { rangeEqual, withDo } from "../utils.js";
 import { Widget, h } from "../view/widgets.js";
 
@@ -58,38 +58,36 @@ export const base = new Extension()
   .registerShortcut(
     "selectNodeUp",
     (x, view, e) => {
+      let target = x;
+      while (target.parent && rangeEqual(target.range, target.parent.range))
+        target = target.parent;
+      if (!target.parent) return;
+      target.editor.data("selectionDownList", () => []).push(target);
+
       if (view.isFullySelected()) {
-        if (!x.isRoot) {
-          // we need to select the furthest ancestor that has the same range
-          // for our selection-down clearing logic to work
-          x.parent.select(view);
-          e.data("selectionDownList", () => []).push(x);
+        if (!target.isRoot) {
+          target.parent.select(view);
         }
       } else {
-        e.data("selectionDownList", () => []).push(x);
-        e.setData("selectionDownRange", x.editor.selectionRange);
-        x.select(view);
+        target.editor.setData("selectionDownRange", x.editor.selectionRange);
+        target.select(view);
       }
     },
-    [needsSelection],
+    [(x) => x.editor.selectedNode],
   )
   .registerShortcut(
     "selectNodeDown",
     (x, view, e) => {
       if (!view) return;
-      const list = e.data("selectionDownList");
+      const list = x.editor.data("selectionDownList");
       const target = list?.pop();
       if (list.length === 0) {
-        x.editor.selectRange(
-          ...e.data("selectionDownRange"),
-          view.shard,
-          false,
-        );
+        view.shard.selectRange(x.editor.data("selectionDownRange"));
       } else {
         (target ?? x.childBlock(0) ?? x.childNode(0))?.select(view);
       }
     },
-    [needsSelection],
+    [(x) => x.editor.selectedNode],
   )
   .registerSelection((node, view, editor) => {
     if (
@@ -114,7 +112,7 @@ export const base = new Extension()
       window.appendChild(detached);
       x.editor.after(window);
     },
-    [needsSelection],
+    [(x) => x.editor.selectedNode],
   )
 
   .registerShortcut("indentLess", (x, view, e) => {

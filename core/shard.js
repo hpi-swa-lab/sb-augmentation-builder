@@ -85,9 +85,10 @@ export class BaseShard extends HTMLElement {
       for (const extension of this.extensions()) {
         if (extension.shortcuts[action]) {
           const [callback, query] = extension.shortcuts[action];
-          if (selected.exec(...query))
+          if (selected.exec(...query)) {
             callback(selected, this.viewFor(selected), event);
-          return true;
+            return true;
+          }
         }
       }
     }
@@ -290,6 +291,15 @@ export class BaseShard extends HTMLElement {
       return true;
     }
     return false;
+  }
+
+  selectRange([head, anchor]) {
+    const s = {
+      head: this.positionForIndex(head),
+      anchor: this.positionForIndex(anchor),
+    };
+    this.select(s);
+    this.editor.onSelectionChange(s);
   }
 
   candidatePositionForIndex(index) {

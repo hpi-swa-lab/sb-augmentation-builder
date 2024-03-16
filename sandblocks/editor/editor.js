@@ -114,10 +114,7 @@ class SandblocksShard extends BaseShard {
       });
     });
 
-    this.addEventListener(
-      "keydown",
-      (this._keyDownListener = this.onKeyDown.bind(this)),
-    );
+    this.addEventListener("keydown", (e) => this.onKeyDown(e));
 
     // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
 
@@ -343,10 +340,6 @@ class SandblocksShard extends BaseShard {
       focusable: "true",
     }))
       this.setAttribute(key, value);
-  }
-
-  disconnectedCallback() {
-    this.removeEventListener("keydown", this._keyDownListener);
   }
 
   onKeyDown(e) {
