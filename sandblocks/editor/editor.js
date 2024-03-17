@@ -134,7 +134,6 @@ class SandblocksShard extends BaseShard {
     });
 
     this.addEventListener("copy", function (e) {
-      console.log(this.editor.selectedText);
       if (this.editor.selectedText) {
         e.clipboardData.setData("text/plain", this.editor.selectedText);
         e.preventDefault();
@@ -615,7 +614,6 @@ class _ShardSelection {
   }
 
   onSelectionChange() {
-    console.log(this._ignoreCounter);
     if (this._ignoreCounter > 0) {
       this._ignoreCounter--;
       return;
