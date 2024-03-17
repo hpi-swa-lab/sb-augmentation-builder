@@ -315,27 +315,32 @@ export class BaseEditor extends HTMLElement {
     );
   }
 
-  moveCursor(forward, selecting) {
+  get range() {
+    return [0, this.node.sourceString.length];
+  }
+
+  moveCursor(forward, selecting, wordWise) {
     this.selection.head.element.resync?.();
     const { head } = this.selection;
     const next = forward
-      ? this.nextPosition(head)
-      : this.previousPosition(head);
-    if (next) {
+      ? this.nextPosition(head, wordWise)
+      : this.previousPosition(head, wordWise);
+    if (next && next.element !== head.element) {
       this.selection.head = next;
       if (!selecting) this.selection.anchor = next;
       // FIXME what if head and anchor are in different elements?
       this.selection.head.element.select(this.selection);
       this.onSelectionChange(this.selection);
+      return true;
     }
-    return true;
+    return false;
   }
 
   nextPosition(a) {
     let next = false;
     for (const b of this.cursorPositions()) {
       if (next) return b;
-      if (this.positionEqual(a, b)) next = true;
+      if (positionEqual(a, b)) next = true;
     }
     return null;
   }
@@ -343,20 +348,10 @@ export class BaseEditor extends HTMLElement {
   previousPosition(a) {
     let last = null;
     for (const b of this.cursorPositions()) {
-      if (this.positionEqual(a, b)) return last;
+      if (positionEqual(a, b)) return last;
       last = b;
     }
     return last;
-  }
-
-  positionEqual(a, b) {
-    // allow tuples by unpacking
-    return (
-      a.element === b.element &&
-      (Array.isArray(a.elementOffset) && Array.isArray(b.elementOffset)
-        ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
-        : a.elementOffset === b.elementOffset)
-    );
   }
 
   *allExtensions() {
@@ -396,4 +391,14 @@ export class BaseEditor extends HTMLElement {
       }
     }
   }
+}
+
+function positionEqual(a, b) {
+  // allow tuples by unpacking
+  return (
+    a.element === b.element &&
+    (Array.isArray(a.elementOffset) && Array.isArray(b.elementOffset)
+      ? a.elementOffset.every((x, i) => x === b.elementOffset[i])
+      : a.elementOffset === b.elementOffset)
+  );
 }

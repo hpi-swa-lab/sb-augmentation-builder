@@ -79,6 +79,11 @@ export class SandblocksEditor extends BaseEditor {
       super.applyPendingChanges(),
     );
   }
+  applyChanges(...args) {
+    ToggleableMutationObserver.ignoreMutation(() =>
+      super.applyChanges(...args),
+    );
+  }
 }
 
 class SandblocksShard extends BaseShard {
@@ -345,14 +350,20 @@ class SandblocksShard extends BaseShard {
 
   onKeyDown(e) {
     const handle = (cb) => {
+      if (!cb?.()) return;
       e.preventDefault();
       e.stopPropagation();
-      cb?.();
     };
     if (e.key === "ArrowLeft")
-      return handle(() => this.editor.moveCursor(false, e.shiftKey));
+      return handle(() => {
+        e.stopPropagation();
+        return this.editor.moveCursor(false, e.shiftKey, e.metaKey, e.ctrlKey);
+      });
     if (e.key === "ArrowRight")
-      return handle(() => this.editor.moveCursor(true, e.shiftKey));
+      return handle(() => {
+        e.stopPropagation();
+        return this.editor.moveCursor(true, e.shiftKey, e.ctrlKey);
+      });
     if (e.key === "Backspace" && this.handleDeleteAtBoundary(false))
       return handle();
     if (e.key === "Delete" && this.handleDeleteAtBoundary(true))
@@ -549,10 +560,9 @@ class SandblocksShard extends BaseShard {
       elementOffset: [anchorNode, anchorOffset],
     },
   }) {
-    const r = document.createRange();
-    r.setStart(focusNode, focusOffset);
-    r.setEnd(anchorNode, anchorOffset);
-    ShardSelection.change(r);
+    ShardSelection.change((s) =>
+      s.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset),
+    );
   }
 
   positionForIndex(index) {
@@ -591,7 +601,21 @@ class _ShardSelection {
     this._ignoreCounter++;
   }
 
+  // since we will later try and find that cursor position again by
+  // comparing the elementOffset field, we need to make sure that we
+  // chose a position as it appears in our cursorPositions list.
+  snapPosition(found, shard) {
+    const range = new Range();
+    range.setEnd(...found);
+    for (const pos of shard.cursorPositions()) {
+      range.setStart(...pos.elementOffset);
+      if (range.toString().length === 0) return pos.elementOffset;
+    }
+    throw new Error("no mapping for position found");
+  }
+
   onSelectionChange() {
+    console.log(this._ignoreCounter);
     if (this._ignoreCounter > 0) {
       this._ignoreCounter--;
       return;
@@ -609,23 +633,23 @@ class _ShardSelection {
     this.selection = {
       head: {
         element: e,
-        elementOffset: [sel.focusNode, sel.focusOffset],
+        elementOffset: this.snapPosition([sel.focusNode, sel.focusOffset], e),
         index: e.indexForRange(sel.focusNode, sel.focusOffset),
       },
       anchor: {
         element: e,
-        elementOffset: [sel.anchorNode, sel.anchorOffset],
+        elementOffset: this.snapPosition([sel.anchorNode, sel.anchorOffset], e),
         index: e.indexForRange(sel.anchorNode, sel.anchorOffset),
       },
     };
     this.shard.editor.onSelectionChange(this.selection);
   }
 
-  change(newRange) {
+  change(cb) {
     const s = getSelection();
     this._ignoreCounter += 2;
     s.removeAllRanges();
-    s.addRange(newRange);
+    cb(s);
   }
 }
 

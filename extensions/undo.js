@@ -38,11 +38,10 @@ class EditHistory {
     this.push();
     const item = this.popUndo();
     if (item) {
-      console.log(item);
       editor.applyChanges([
         {
           from: 0,
-          to: editor.node.range[1],
+          to: editor.range[1],
           insert: item.sourceString,
           selectionRange: item.selectionRange,
           ignoreInHistory: true,
