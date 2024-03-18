@@ -101,6 +101,10 @@ export class BaseEditor extends HTMLElement {
     return this._selectedView;
   }
 
+  get selectedShard() {
+    return this.selectedView.shard;
+  }
+
   get sourceString() {
     return this.node.sourceString;
   }
