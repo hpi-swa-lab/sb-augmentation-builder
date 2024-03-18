@@ -977,18 +977,22 @@ const RepresentationsLayout = (props) => {
             <${Topbar} ...${props} />
             <${Diagram} ...${props} />
         </div>
-        <!-- state diagram -->
-        <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%", display: representations.includes("state") ? "block" : "none" }}>
-            <div>
-                <h3 style=${{ display: "inline-block" }}>State Diagram of</h3>
-                <${ActorSelector} />
-            </div>
-            <${StateDiagram}
-                actor=${selectedActor}
-                currentState=${currNode}
-                previewedState=${graph.nodes.get(previewEdge?.to)}
-            />
-        </div>
+        <!-- state diagram. We remove it from the tree because otherwise mermaid side effects cause havoc -->
+        ${representations.includes("state")
+            ? html`
+            <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%" }}>
+                <div>
+                    <h3 style=${{ display: "inline-block" }}>State Diagram of</h3>
+                    <${ActorSelector} />
+                </div>
+                <${StateDiagram}
+                    actor=${selectedActor}
+                    currentState=${currNode}
+                    previewedState=${graph.nodes.get(previewEdge?.to)}
+                />
+            </div>`
+            : ""
+        }
         <!-- table -->
         <div style=${{ display: representations.includes("table") ? "block" : "none" }}>
         </div>
@@ -1140,9 +1144,26 @@ function SpecEditor({ currNode }) {
         onready: () => setRefresh((r) => r + 1),
         extensions: [
             "tlaplus:base",
-            "tlaplus:latex",
             "tlaplus:nextStateDisplay",
             "tlaplus:syntaxExplain",
+            "tlaplus:tlacup",
+            "tlaplus:tlabulletConj",
+            "tlaplus:tlabulletDisj",
+            "tlaplus:tlalor",
+            "tlaplus:tlaland",
+            "tlaplus:tlaalways",
+            "tlaplus:tladiamond",
+            "tlaplus:tlaimplies",
+            "tlaplus:tlasetIn",
+            "tlaplus:tlanotin",
+            "tlaplus:tlasetsubseteq",
+            "tlaplus:tlasetsubset",
+            "tlaplus:tlamapsTo",
+            "tlaplus:tlaallMapTo",
+            "tlaplus:tladefEq",
+            "tlaplus:tlaexists",
+            "tlaplus:tlaforall",
+            "tlaplus:tlain"
         ],
     });
 }

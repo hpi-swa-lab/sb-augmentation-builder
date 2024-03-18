@@ -1,12 +1,33 @@
 import { Extension } from "../core/extension.js";
 import { h } from "../external/preact.mjs";
 
-export const latex = new Extension().registerReplacement({
-  query: [(x) => x.type === "cup"],
-  queryDepth: 1,
-  component: ({ node }) => h("span", {}, "∪"),
-  name: "tla-latex-cup",
-});
+const createUnicodeReplacement = (sbNodeType, unicodeSymbol) => {
+  return new Extension().registerReplacement({
+    query: [(x) => x.type === sbNodeType],
+    queryDepth: 1,
+    component: () => h("span", {}, unicodeSymbol),
+    name: `tla-latex-${sbNodeType}`,
+  });
+}
+
+export const tlacup = createUnicodeReplacement("cup", "∪");
+export const tlabulletConj = createUnicodeReplacement("bullet_conj", "∧");
+export const tlabulletDisj = createUnicodeReplacement("bullet_disj", "∨");
+export const tlalor = createUnicodeReplacement("lor", "∨");
+export const tlaland = createUnicodeReplacement("land", "∧");
+export const tlaalways = createUnicodeReplacement("always", "□");
+export const tladiamond = createUnicodeReplacement("diamond", "◇");
+export const tlaimplies = createUnicodeReplacement("implies", "⇒");
+export const tlain = createUnicodeReplacement("in", "∈");
+export const tlasetIn = createUnicodeReplacement("set_in", "∈");
+export const tlanotin = createUnicodeReplacement("notin", "∉");
+export const tlasetsubseteq = createUnicodeReplacement("subseteq", "⊆");
+export const tlasetsubset = createUnicodeReplacement("subset", "⊂");
+export const tlamapsTo = createUnicodeReplacement("maps_to", "→");
+export const tlaallMapTo = createUnicodeReplacement("all_map_to", "↦");
+export const tladefEq = createUnicodeReplacement("def_eq", "≜");
+export const tlaexists = createUnicodeReplacement("exists", "∃");
+export const tlaforall = createUnicodeReplacement("forall", "∀");
 
 export const nextStateDisplay = new Extension().registerReplacement({
   query: [
