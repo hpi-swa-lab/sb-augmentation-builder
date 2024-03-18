@@ -52,8 +52,33 @@ function indexOfIndentEnd(string, index) {
   return i;
 }
 
+const suggestions = new Extension()
+  .registerShortcut(
+    "useSuggestion",
+    (x, view, e) => x.editor.useSuggestion(),
+    [(x) => x.editor.isSuggestionsListVisible()],
+    1,
+  )
+  .registerShortcut(
+    "nextSuggestion",
+    (x, view, e) => x.editor.moveSuggestion(1),
+    [(x) => x.editor.canMoveSuggestion(1)],
+  )
+  .registerShortcut(
+    "previousSuggestion",
+    (x, view, e) => x.editor.moveSuggestion(-1),
+    [(x) => x.editor.canMoveSuggestion(-1)],
+  )
+  .registerShortcut(
+    "dismissSuggestions",
+    (x, view, e) => x.editor.clearSuggestions(),
+    [(x) => x.editor.isSuggestionsListVisible()],
+    1,
+  );
+
 export const base = new Extension()
   .copyFrom(undo)
+  .copyFrom(suggestions)
 
   // AST-select up-down
   .registerShortcut(
@@ -121,12 +146,8 @@ export const base = new Extension()
   })
 
   .registerShortcut("indentMore", (x, view, e) => {
-    if (x.editor.isSuggestionsListVisible()) {
-      x.editor.useSuggestion();
-    } else {
-      // TODO if we have a selection, shift whole selection
-      document.execCommand("insertText", false, "\t");
-    }
+    // TODO if we have a selection, shift whole selection
+    document.execCommand("insertText", false, "\t");
   })
 
   // skip over closing parentheses

@@ -2,13 +2,15 @@ import { effect, signal } from "../../external/preact-signals-core.mjs";
 import { clamp, getSelection } from "../../utils.js";
 import { html, icon, render, useReRender } from "../../view/widgets.js";
 
-function Suggestions({ anchor, items, active, root, use }) {
+function Suggestions({ items, active, root, use }) {
   const reRender = useReRender();
 
   effect(() => {
-    if (active.value && !active.value.detail && active.value.fetchDetail) {
-      active.value.fetchDetail().then((detail) => {
-        active.value.detail = detail;
+    const item = active.value;
+    if (item && !item.detail && item.fetchDetail && !item.fetchingDetail) {
+      item.fetchingDetail = true;
+      item.fetchDetail().then((detail) => {
+        item.detail = detail;
         reRender();
       });
     }
@@ -58,7 +60,6 @@ customElements.define(
     connectedCallback() {
       render(
         html`<${Suggestions}
-          anchor=${this.anchor}
           items=${this.items}
           active=${this.active}
           root=${this}
@@ -82,7 +83,7 @@ customElements.define(
     moveSelected(delta) {
       const index = this.items.value.indexOf(this.active.value);
       if (index === -1) return;
-      const newIndex = clamp(index + delta, 0, this.entries.length - 1);
+      const newIndex = clamp(index + delta, 0, this.items.value.length - 1);
       this.active.value = this.items.value[newIndex];
     }
 
@@ -94,7 +95,7 @@ customElements.define(
 
     use(item) {
       item ??= this.active.value;
-      if (item.use) item.use(item.node);
+      if (item.use) item.use(this.anchor.value.node);
       else this.anchor.value.node.replaceWith(item.insertText ?? item.label);
     }
 
@@ -114,7 +115,7 @@ customElements.define(
     show() {
       const rect =
         getSelection().getRangeAt(0).getClientRects()[0] ??
-        this.anchor.getBoundingClientRect();
+        this.anchor.value.getBoundingClientRect();
       this.style.top = `${rect.bottom + 5}px`;
       this.style.left = `${rect.left}px`;
       document.body.appendChild(this);

@@ -14,12 +14,19 @@ import { preferences } from "./preferences.js";
 import { setConfig } from "./config.js";
 
 preferences
+  // .registerDefaultShortcut("nextSuggestion", "ArrowDown")
+  .registerDefaultShortcut("nextSuggestion", "Ctrl-j")
+  // .registerDefaultShortcut("previousSuggestion", "ArrowUp")
+  .registerDefaultShortcut("previousSuggestion", "Ctrl-k")
+  // .registerDefaultShortcut("useSuggestion", "Enter")
+  .registerDefaultShortcut("useSuggestion", "Tab")
+  .registerDefaultShortcut("dismissSuggestions", "Escape")
+
   .registerDefaultShortcut("save", "Ctrl-s")
   .registerDefaultShortcut("undo", "Ctrl-z")
   .registerDefaultShortcut("redo", "Ctrl-Z")
   .registerDefaultShortcut("cut", "Ctrl-x")
   .registerDefaultShortcut("copy", "Ctrl-c")
-  .registerDefaultShortcut("dismiss", "Escape")
   .registerDefaultShortcut("search", "Ctrl-f")
   .registerDefaultShortcut("indentLess", "Shift-Tab")
   .registerDefaultShortcut("indentMore", "Tab")
@@ -252,12 +259,6 @@ export class BaseEditor extends HTMLElement {
     this.onSuccessfulChange();
     tx.commit();
 
-    this.clearSuggestions();
-    for (const extension of this.allExtensions()) {
-      for (const func of extension.changesApplied)
-        func(changes, oldSource, newSource, this.node, diff, oldSelection);
-    }
-
     // may create or delete shards while iterating, so iterate over a copy
     for (const shard of [...this.shards]) {
       // if we are deleted while iterating, don't process diff
@@ -285,6 +286,12 @@ export class BaseEditor extends HTMLElement {
         anchor: bestCandidate.position,
       });
       bestCandidate.position.element.select(this.selection);
+    }
+
+    this.clearSuggestions();
+    for (const extension of this.allExtensions()) {
+      for (const func of extension.changesApplied)
+        func(changes, oldSource, newSource, this.node, diff, oldSelection);
     }
   }
 
@@ -406,7 +413,6 @@ export class BaseEditor extends HTMLElement {
     const fuzzyMatches = candidates
       .filter((w) => !exactMatches.includes(w) && sequenceMatch(query, w.label))
       .sort((a, b) => a.label.length - b.label.length);
-    console.log(query, exactMatches, fuzzyMatches);
     this.addSuggestions(node, [...exactMatches, ...fuzzyMatches].slice(0, 10));
   }
 
@@ -423,6 +429,14 @@ export class BaseEditor extends HTMLElement {
   }
 
   isSuggestionsListVisible() {
+    throw "subclass responsibility";
+  }
+
+  canMoveSuggestion(delta) {
+    throw "subclass responsibility";
+  }
+
+  moveSuggestion(delta) {
     throw "subclass responsibility";
   }
 }

@@ -109,8 +109,8 @@ export const formatting = new Extension().registerCustom("preSave", (x) =>
   ),
 );
 
-export const suggestions = new Extension().registerChangeFilter(
-  (changes, editor) =>
+export const suggestions = new Extension().registerChangesApplied(
+  (_changes, _oldSource, _newSource, { editor }) =>
     lspDo(
       editor,
       (sem) => !!sem.capabilities.completionProvider,
@@ -118,19 +118,21 @@ export const suggestions = new Extension().registerChangeFilter(
         // always re-add our old suggestions while we wait for fresh ones
         // to come in, to prevent a brief flash during wait
         const current = editor.data("lsp-current-completion") ?? [];
-        editor.addSuggestions(current);
+        editor.addSuggestions(editor.selectedNode, current);
 
         const promise = sem.completion(editor);
         editor.setData("lsp-completion", promise);
+
         const suggestions = await promise;
+
         // check that no other completion has been started since
         if (editor.data("lsp-completion") === promise) {
+          const node = editor.selectedNode;
           const list = suggestions
             .sort((a, b) => a.sortText.localeCompare(b.sortText))
             .filter((b) =>
               sequenceMatch(
-                b.filterText?.toLowerCase() ??
-                  editor.selectedNode.sourceString.toLowerCase(),
+                b.filterText?.toLowerCase() ?? node.sourceString.toLowerCase(),
                 b.label.toLowerCase(),
               ),
             )
@@ -168,14 +170,14 @@ export const suggestions = new Extension().registerChangeFilter(
                     }
                   }
 
-                  editor.selectRange(...selection, shard, false);
+                  shard.selectRange(selection);
                 }
               },
             }));
 
           editor.setData("lsp-current-completion", list);
           editor.clearSuggestions();
-          editor.addSuggestions(list);
+          editor.addSuggestions(node, list);
         }
       },
     ),
@@ -378,7 +380,7 @@ export class LanguageClient {
   }
 
   log(...msg) {
-    if (true) console.log(...msg);
+    if (false) console.log(...msg);
   }
 
   write(data) {
@@ -513,15 +515,12 @@ export class LanguageClient {
     );
   }
 
-  async completion(node) {
+  async completion(editor) {
     const res = await this._request("textDocument/completion", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${editor.context.path}`,
       },
-      position: indexToPosition(
-        node.root.sourceString,
-        node.editor.selectionRange[0],
-      ),
+      position: indexToPosition(editor.sourceString, editor.selectionRange[0]),
     });
     // TODO incomplete flag
     return res.items;

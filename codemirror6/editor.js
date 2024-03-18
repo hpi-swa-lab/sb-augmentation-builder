@@ -105,7 +105,6 @@ class CodeMirrorShard extends BaseShard {
         autocompletion({
           override: [
             (context) => {
-              console.log(context);
               return {
                 from: this.suggestionAnchor.range[0],
                 options: this.suggestionList.map((i) => ({

@@ -108,6 +108,14 @@ export class SandblocksEditor extends BaseEditor {
   isSuggestionsListVisible() {
     return this.suggestions.isConnected;
   }
+
+  canMoveSuggestion(delta) {
+    return this.suggestions.canMove(delta);
+  }
+
+  moveSuggestion(delta) {
+    return this.suggestions.moveSelected(delta);
+  }
 }
 
 class SandblocksShard extends BaseShard {

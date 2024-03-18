@@ -83,13 +83,14 @@ export class BaseShard extends HTMLElement {
         this.editor.selection.anchor.index,
       ]) ?? this.editor.node;
     for (const action of this.editor.preferences.getShortcutsFor(event)) {
-      for (const extension of this.extensions()) {
-        if (extension.shortcuts[action]) {
-          const [callback, query] = extension.shortcuts[action];
-          if (selected.exec(...query)) {
-            callback(selected, this.viewFor(selected), event);
-            return true;
-          }
+      const handlers = this.extensions()
+        .map((e) => e.shortcuts[action])
+        .filter(Boolean)
+        .sort(([_, __, a], [___, ____, b]) => b - a);
+      for (const [callback, filter] of handlers) {
+        if (selected.exec(...filter)) {
+          callback(selected, this.viewFor(selected), event);
+          return true;
         }
       }
     }

@@ -160,8 +160,8 @@ export class Extension {
     });
   }
 
-  registerShortcut(name, callback, filterQuery = []) {
-    this.shortcuts[name] = [callback, filterQuery];
+  registerShortcut(name, callback, filterQuery = [], priority = 0) {
+    this.shortcuts[name] = [callback, filterQuery, priority];
     return this;
   }
 
