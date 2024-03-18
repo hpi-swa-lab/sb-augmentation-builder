@@ -7,42 +7,42 @@ registerLsp(
   lsp,
   "tsLSP",
   (project) =>
-    new StdioTransport("typescript-language-server", ["--stdio"], project.path)
+    new StdioTransport("typescript-language-server", ["--stdio"], project.path),
 );
 
 export const base = new Extension()
+  .copyFrom(jsBase)
   // (type_identifier) @type
-  .registerAlways((e) => [
-    (x) => x.type === "type_identifier",
-    (x) => e.applySyntaxHighlighting(x, "type"),
-  ])
+  .registerSyntax("type", [(x) => x.type === "type_identifier"])
   // (predefined_type) @type.builtin
-  .registerAlways((e) => [
-    (x) => x.type === "predefined_type",
-    (x) => e.applySyntaxHighlighting(x, "type", "builtin"),
-  ])
+  .registerSyntax("type builin", [(x) => x.type === "predefined_type"])
   // ((identifier) @type
   //  (#match? @type "^[A-Z]"))
-  .registerAlways((e) => [
+  .registerSyntax("type", [
     (x) => x.type === "identifier",
     (x) => !!x.text.match(/^[A-Z]$/),
-    (x) => e.applySyntaxHighlighting(x, "type"),
   ])
   // (type_arguments
   //   "<" @punctuation.bracket
   //   ">" @punctuation.bracket)
-  .registerAlways((e) => [
-    (x) => x.parent?.type === "type_arguments",
-    (x) => x.text === "<" || x.text === ">",
-    (x) => e.applySyntaxHighlighting(x, "bracket"),
-  ])
-  .registerAlways((e) => [
-    (x) =>
-      x.parent?.type === "required_parameter" ||
-      x.parent?.type === "optional_parameter",
-    (x) => x.type === "identifier",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
-  ])
+  .registerSyntax(
+    "bracket",
+    [
+      (x) => x.parent?.type === "type_arguments",
+      (x) => x.text === "<" || x.text === ">",
+    ],
+    2,
+  )
+  .registerSyntax(
+    "variable parameter",
+    [
+      (x) =>
+        x.parent?.type === "required_parameter" ||
+        x.parent?.type === "optional_parameter",
+      (x) => x.type === "identifier",
+    ],
+    2,
+  )
   // [ "abstract"
   //   "declare"
   //   "enum"
@@ -59,7 +59,7 @@ export const base = new Extension()
   //   "override"
   //   "satisfies"
   // ] @keyword
-  .registerAlways((e) => [
+  .registerSyntax("keyword", [
     (x) =>
       [
         "abstract",
@@ -78,7 +78,4 @@ export const base = new Extension()
         "override",
         "satisfies",
       ].includes(x.text),
-    (x) => e.applySyntaxHighlighting(x, "keyword"),
   ]);
-
-jsBase.copyTo(base);

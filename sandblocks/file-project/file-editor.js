@@ -70,7 +70,7 @@ export function FileEditor({
   const saveExt = useMemo(() =>
     new Extension()
       .registerChangesApplied(() => setUnsavedChanges(true))
-      .registerShortcut("save", async ({ editor }, view, e) => {
+      .registerShortcut("save", async ({ editor }, _view, e) => {
         // need to cancel ourselves, since we handle saving asynchronously
         e.preventDefault();
 
@@ -82,6 +82,11 @@ export function FileEditor({
         await project.writeFile(path, editor.sourceString);
         setUnsavedChanges(false);
         setSaveInProgress(false);
+
+        for (const ext of editor.allExtensions()) {
+          for (const cb of ext.custom("save"))
+            await cb(editor, editor.sourceString);
+        }
       }),
   );
 

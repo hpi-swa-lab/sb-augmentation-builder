@@ -16,6 +16,7 @@ import {
   orParentThat,
 } from "../../utils.js";
 import { Block } from "./elements.js";
+import {} from "./suggestions.js";
 
 function parent(node) {
   return node.parentNode ?? node.getRootNode()?.host;
@@ -62,6 +63,12 @@ function nodeIsEditable(node) {
 export class SandblocksEditor extends BaseEditor {
   static shardTag = "sb-shard";
 
+  constructor() {
+    super();
+
+    this.suggestions = document.createElement("sb-suggestions");
+  }
+
   onSuccessfulChange() {
     // unlike in the text editor, pending changes are inserted as
     // placeholders and are turned into blocks once valid, so we
@@ -83,6 +90,23 @@ export class SandblocksEditor extends BaseEditor {
     ToggleableMutationObserver.ignoreMutation(() =>
       super.applyChanges(...args),
     );
+  }
+
+  clearSuggestions() {
+    this.suggestions.clear();
+  }
+
+  addSuggestions(node, list) {
+    const view = this.selection.head.element.viewFor(node);
+    if (view) this.suggestions.add(view, list);
+  }
+
+  useSuggestion() {
+    this.suggestions.use();
+  }
+
+  isSuggestionsListVisible() {
+    return this.suggestions.isConnected;
   }
 }
 
@@ -121,7 +145,7 @@ class SandblocksShard extends BaseShard {
 
     this.addEventListener("keydown", (e) => this.onKeyDown(e));
 
-    // this.addEventListener("blur", (e) => this.editor.clearSuggestions());
+    //  this.addEventListener("blur", (e) => this.editor.clearSuggestions());
 
     this.addEventListener("paste", function (event) {
       event.preventDefault();
@@ -349,7 +373,7 @@ class SandblocksShard extends BaseShard {
 
   onKeyDown(e) {
     const handle = (cb) => {
-      if (!cb?.()) return;
+      if (cb && !cb?.()) return;
       e.preventDefault();
       e.stopPropagation();
     };

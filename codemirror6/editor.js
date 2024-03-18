@@ -13,6 +13,8 @@ import {
   keymap,
   indentWithTab,
   javascript,
+  autocompletion,
+  startCompletion,
 } from "./external/codemirror.bundle.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
@@ -33,11 +35,22 @@ class CodeMirrorReplacementWidget extends WidgetType {
 
 export class CodeMirrorEditor extends BaseEditor {
   static shardTag = "scm-shard";
+
+  addSuggestions(node, suggestions) {
+    this.selection.head.element.suggestionAnchor = node;
+    this.selection.head.element.suggestionList = suggestions;
+    startCompletion(this.selection.head.element.cm);
+  }
+
+  clearSuggestions() {}
 }
 
 // TODO moving cursor up/down, then left/right
 class CodeMirrorShard extends BaseShard {
   replacementsMap = new Map();
+
+  suggestionAnchor = null;
+  suggestionList = [];
 
   get replacements() {
     return [...this.replacementsMap.values()];
@@ -89,6 +102,21 @@ class CodeMirrorShard extends BaseShard {
         keymap.of([indentWithTab]),
         javascript(),
         this.replacementsField,
+        autocompletion({
+          override: [
+            (context) => {
+              console.log(context);
+              return {
+                from: this.suggestionAnchor.range[0],
+                options: this.suggestionList.map((i) => ({
+                  label: i.label ?? i.insertText,
+                  detail: i.detail,
+                  apply: i.insertText,
+                })),
+              };
+            },
+          ],
+        }),
         EditorView.updateListener.of((v) => this._onChange(v)),
       ],
       parent: this,

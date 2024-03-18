@@ -50,7 +50,7 @@ const typescript = {
   extensions: ["ts"],
   defaultExtensions: [
     "typescript:base",
-    "lsp:base",
+    "typescript:lsp",
     "lsp:browse",
     "lsp:diagnostics",
     "lsp:suggestions",

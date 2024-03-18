@@ -84,7 +84,6 @@ export class Extension {
   shortcuts = {};
   selection = [];
   caret = [];
-  type = [];
   changesApplied = [];
   connected = [];
   disconnected = [];
@@ -186,11 +185,6 @@ export class Extension {
     return this;
   }
 
-  registerType(func) {
-    this.type.push(func);
-    return this;
-  }
-
   registerChangesApplied(func) {
     this.changesApplied.push(func);
     return this;
@@ -209,42 +203,5 @@ export class Extension {
   registerDoubleClick(func) {
     this.doubleClick.push(func);
     return this;
-  }
-}
-
-class ExtensionInstance {
-  // notification just before changes are applied to the text
-  changesApplied(changes, oldSource, newSource, root, diff) {
-    this.extension._processFilter(
-      "changesApplied",
-      changes,
-      oldSource,
-      newSource,
-      root,
-      diff,
-    );
-  }
-
-  async processAsync(trigger, node) {
-    for (const query of this.extension.queries.get(trigger) ?? []) {
-      const res = exec(node, ...query(this));
-      if (res?.then) await res;
-    }
-  }
-
-  addSuggestionsAndFilter(node, candidates) {
-    const query = node.text.toLowerCase();
-    const exactMatches = candidates
-      .filter((w) => w.label.toLowerCase().startsWith(query))
-      .sort((a, b) => a.label.length - b.label.length);
-    const fuzzyMatches = candidates
-      .filter((w) => !exactMatches.includes(w) && sequenceMatch(query, w.label))
-      .sort((a, b) => a.label.length - b.label.length);
-    this.addSuggestions(
-      node,
-      [...exactMatches, ...fuzzyMatches]
-        .slice(0, 10)
-        .filter((w) => w.label.toLowerCase() !== query),
-    );
   }
 }

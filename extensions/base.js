@@ -121,8 +121,8 @@ export const base = new Extension()
   })
 
   .registerShortcut("indentMore", (x, view, e) => {
-    if (x.editor.suggestions.active) {
-      x.editor.suggestions.use();
+    if (x.editor.isSuggestionsListVisible()) {
+      x.editor.useSuggestion();
     } else {
       // TODO if we have a selection, shift whole selection
       document.execCommand("insertText", false, "\t");
@@ -267,15 +267,17 @@ function forgetWord(word) {
   else words.set(word, count - 1);
 }
 export const identifierSuggestions = new Extension()
-  .registerType((e) => [
-    (x) => !!x.text,
-    (x) =>
-      e.addSuggestionsAndFilter(
+  .registerChangesApplied((_changes, _oldSource, _newSource, root) => {
+    const x = root.editor.selectedNode;
+    if (x.isText)
+      root.editor.addSuggestionsAndFilter(
         x,
-        [...words.keys()].map((x) => ({ label: x })),
-      ),
-  ])
-  .registerExtensionConnected((e) => [(x) => x.isText, (x) => noteWord(x.text)])
+        [...words.keys()].map((label) => ({ label })),
+      );
+  })
+  .registerExtensionConnected((editor) => {
+    for (const x of editor.node.allNodes()) noteWord(x.text);
+  })
   .registerChangesApplied((_changes, _oldSource, _newSource, _root, diff) => {
     diff.opsDo((op) => {
       if (op instanceof UpdateOp && op.node.isText) {

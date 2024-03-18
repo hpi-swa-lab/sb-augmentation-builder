@@ -1,7 +1,7 @@
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import { languageFor } from "./languages.js";
-import { clamp, last } from "../utils.js";
+import { clamp, last, sequenceMatch } from "../utils.js";
 import {
   Text,
   Block,
@@ -98,6 +98,10 @@ export class BaseEditor extends HTMLElement {
     return this.node.sourceString;
   }
 
+  get language() {
+    return this.node.language;
+  }
+
   static observedAttributes = ["text", "language", "extensions"];
   async attributeChangedCallback() {
     this._queueUpdate();
@@ -106,6 +110,7 @@ export class BaseEditor extends HTMLElement {
   _queuedUpdate = false;
   _queueUpdate() {
     if (this._queuedUpdate) return;
+    this._queuedUpdate = true;
     queueMicrotask(() => {
       this._queuedUpdate = false;
       this.setText(this.getAttribute("text"), this.getAttribute("language"));
@@ -247,6 +252,7 @@ export class BaseEditor extends HTMLElement {
     this.onSuccessfulChange();
     tx.commit();
 
+    this.clearSuggestions();
     for (const extension of this.allExtensions()) {
       for (const func of extension.changesApplied)
         func(changes, oldSource, newSource, this.node, diff, oldSelection);
@@ -390,6 +396,34 @@ export class BaseEditor extends HTMLElement {
         }
       }
     }
+  }
+
+  addSuggestionsAndFilter(node, candidates) {
+    const query = node.text.toLowerCase();
+    const exactMatches = candidates
+      .filter((w) => w.label.toLowerCase().startsWith(query))
+      .sort((a, b) => a.label.length - b.label.length);
+    const fuzzyMatches = candidates
+      .filter((w) => !exactMatches.includes(w) && sequenceMatch(query, w.label))
+      .sort((a, b) => a.label.length - b.label.length);
+    console.log(query, exactMatches, fuzzyMatches);
+    this.addSuggestions(node, [...exactMatches, ...fuzzyMatches].slice(0, 10));
+  }
+
+  addSuggestions(node, list) {
+    throw "subclass responsibility";
+  }
+
+  clearSuggestions() {
+    throw "subclass responsibility";
+  }
+
+  useSuggestion() {
+    throw "subclass responsibility";
+  }
+
+  isSuggestionsListVisible() {
+    throw "subclass responsibility";
   }
 }
 
