@@ -101,7 +101,9 @@ export class Extension {
 
   copyFrom(other) {
     for (const prop of Object.getOwnPropertyNames(other)) {
-      this[prop] = other[prop];
+      if (Array.isArray(other[prop])) this[prop].push(...other[prop]);
+      else if (typeof other[prop] === "object")
+        this[prop] = { ...this[prop], ...other[prop] };
     }
     return this;
   }

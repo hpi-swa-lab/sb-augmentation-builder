@@ -28,7 +28,7 @@ async function tryFormat(string, cursorOffset, filepath, parser, deps, config) {
       semi: true,
       singleQuote: false,
       tabWidth: 2,
-      trailingComma: "es5",
+      trailingComma: "all",
       useTabs: false,
       embeddedLanguageFormatting: "auto",
       vueIndentScriptAndStyle: false,

@@ -38,7 +38,7 @@ function _setUserPreference(root, preference, value, method = "set") {
     root.insert(
       `\n\npreferences.${method}("${preference}", ${JSON.stringify(value)});`,
       "expression_statement",
-      9e8
+      9e8,
     );
   }
 }
@@ -46,7 +46,7 @@ function _setUserPreference(root, preference, value, method = "set") {
 export function getPreferenceOr(preference, defaultValue) {
   if (!_userPreferencesLoaded)
     throw new Error(
-      "attempted to access preference before user preferences were loaded"
+      "attempted to access preference before user preferences were loaded",
     );
   return preferences.get(preference) ?? defaultValue;
 }
@@ -54,7 +54,7 @@ export function getPreferenceOr(preference, defaultValue) {
 export async function getPreferenceOrAsk(preference, ifMissing) {
   if (!_userPreferencesLoaded)
     throw new Error(
-      "attempted to access preference before user preferences were loaded"
+      "attempted to access preference before user preferences were loaded",
     );
   if (!preferences.has(preference) || preferences.get(preference) === null) {
     const value = await ifMissing();
@@ -68,7 +68,7 @@ export function openPreferences() {
   openComponentInWindow(FileEditor, {
     project: localStorageProject,
     path: preferencesFilePath,
-    inlineExtensions: [preferencesExtension],
+    // inlineExtensions: [preferencesExtension],
   });
 }
 
@@ -81,7 +81,7 @@ const preferencesExtension = new Extension()
           type: "checkbox",
           checked: node.type === "true",
           onchange: (e) => node.replaceWith(e.target.checked.toString()),
-        })
+        }),
       ),
   ])
   .registerReplacement((e) => [
@@ -103,12 +103,12 @@ const preferencesExtension = new Extension()
                 {},
                 methodIcon(method),
                 " ",
-                field.childBlock(0).sourceString
+                field.childBlock(0).sourceString,
               ),
-              h("td", {}, shard(value))
-            )
+              h("td", {}, shard(value)),
+            ),
           ),
-        props
+        props,
       ),
   ]);
 // .registerSave((e) => [
@@ -182,7 +182,7 @@ function methodIcon(method) {
       set: "toggle_on",
       setShortcut: "keyboard",
       addDefaultExtension: "extension",
-    }[method.text]
+    }[method.text],
   );
 }
 
@@ -192,7 +192,7 @@ function prefIcon(name) {
     {
       shortcut: "keyboard",
       "default-extension": "extension",
-    }[prefix] ?? "toggle_on"
+    }[prefix] ?? "toggle_on",
   );
 }
 
@@ -217,8 +217,8 @@ function Preference({ field, value, root }) {
       "td",
       {},
       button(JSON.stringify(value), () =>
-        _setUserPreference(root, name, JSON.parse(prompt()), prefMethod(field))
-      )
-    )
+        _setUserPreference(root, name, JSON.parse(prompt()), prefMethod(field)),
+      ),
+    ),
   );
 }

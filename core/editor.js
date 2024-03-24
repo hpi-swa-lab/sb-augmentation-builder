@@ -113,6 +113,10 @@ export class BaseEditor extends HTMLElement {
     return this.node.language;
   }
 
+  get tabSize() {
+    return 2;
+  }
+
   static observedAttributes = ["text", "language", "extensions"];
   async attributeChangedCallback() {
     this._queueUpdate();
@@ -230,6 +234,17 @@ export class BaseEditor extends HTMLElement {
     ]);
   }
 
+  insertTextFromCommand(position, text) {
+    this.applyChanges([
+      {
+        from: position,
+        to: position,
+        insert: text,
+        selectionRange: [position + text.length, position + text.length],
+      },
+    ]);
+  }
+
   applyChanges(changes, forceApply = false) {
     const oldSelection = this.selectionRange;
     const oldSource = this.node.sourceString;
@@ -277,14 +292,14 @@ export class BaseEditor extends HTMLElement {
       last(allChanges).selectionRange?.[0] ?? this.selectionRange[0];
     let bestCandidate =
       this.selection.head.element.candidatePositionForIndex(newIndex);
-    if (bestCandidate.distance > 0) {
+    if (bestCandidate && bestCandidate.distance > 0) {
       for (const shard of this.shards) {
         const candidate = shard.candidatePositionForIndex(newIndex);
         if (candidate.distance < bestCandidate.distance)
           bestCandidate = candidate;
       }
     }
-    if (bestCandidate.position) {
+    if (bestCandidate?.position) {
       this.onSelectionChange({
         head: bestCandidate.position,
         anchor: bestCandidate.position,
@@ -454,3 +469,24 @@ function positionEqual(a, b) {
       : a.elementOffset === b.elementOffset)
   );
 }
+
+class OffscreenShard {
+  candidatePositionForIndex(index) {
+    return null;
+  }
+  *extensions() {}
+}
+export class OffscreenEditor extends BaseEditor {
+  rootShard = new OffscreenShard();
+  selection = {
+    head: { index: 0, element: this.rootShard },
+    anchor: { index: 0, element: this.rootShard },
+  };
+  constructor(root) {
+    super();
+    this.node = root;
+  }
+
+  clearSuggestions() {}
+}
+customElements.define("sb-offscreen-editor", OffscreenEditor);

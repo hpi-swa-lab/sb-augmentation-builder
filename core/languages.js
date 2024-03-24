@@ -54,6 +54,7 @@ const typescript = {
     "lsp:browse",
     "lsp:diagnostics",
     "lsp:suggestions",
+    "copilot:gh",
     // "base:identifierSuggestions",
     "prettier:typescript",
   ],

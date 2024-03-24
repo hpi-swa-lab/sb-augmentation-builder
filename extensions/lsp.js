@@ -370,7 +370,7 @@ export class LanguageClient {
       }
     };
     transport.onStderr = (data) => {
-      this.log("[stderr]", message);
+      this.log("[stderr]", data);
       console.error(data);
     };
     transport.onClose = (code) => {

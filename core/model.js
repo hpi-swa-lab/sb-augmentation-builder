@@ -1,5 +1,6 @@
 import { WeakArray, exec, last } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
+import { OffscreenEditor } from "./editor.js";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -25,21 +26,6 @@ const cyrb53 = (str, seed = 0) => {
 };
 const hash = (str) => cyrb53(str);
 const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
-
-class SBEditor {}
-class OffscreenEditor extends SBEditor {
-  root = null;
-
-  constructor(root) {
-    super();
-    this.root = root;
-  }
-
-  replaceTextFromCommand([from, to], text) {
-    const s = this.root.sourceString;
-    this.root.updateModelAndView(s.slice(0, from) + text + s.slice(to));
-  }
-}
 
 export class SBLanguage {
   constructor({ name, extensions, defaultExtensions }) {

@@ -1,6 +1,6 @@
 import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
 import { Extension } from "../core/extension.js";
-import { exec, rangeEqual, withDo } from "../utils.js";
+import { exec, rangeEqual, rangeShift, withDo } from "../utils.js";
 import { Widget, h } from "../view/widgets.js";
 import { undo } from "./undo.js";
 
@@ -141,13 +141,33 @@ export const base = new Extension()
     [(x) => x.editor.selectedNode],
   )
 
-  .registerShortcut("indentLess", (x, view, e) => {
-    debugger;
+  .registerShortcut("indentLess", ({ editor }, view, e) => {
+    // TODO if we have a selection, shift whole selection
+    const index = editor.selectionRange[0] - 1;
+    const start = indexOfLastNewLine(editor.sourceString, index);
+    const end = indexOfIndentEnd(editor.sourceString, index);
+
+    if (end >= start + editor.tabSize)
+      editor.applyChanges([
+        {
+          from: end - editor.tabSize,
+          to: end,
+          insert: "",
+          selectionRange: rangeShift(editor.selectionRange, -editor.tabSize),
+        },
+      ]);
   })
 
-  .registerShortcut("indentMore", (x, view, e) => {
+  .registerShortcut("indentMore", ({ editor }, view, e) => {
     // TODO if we have a selection, shift whole selection
-    document.execCommand("insertText", false, "\t");
+    editor.applyChanges([
+      {
+        from: editor.selectionRange[0],
+        to: editor.selectionRange[0],
+        insert: " ".repeat(editor.tabSize),
+        selectionRange: rangeShift(editor.selectionRange, editor.tabSize),
+      },
+    ]);
   })
 
   // skip over closing parentheses
