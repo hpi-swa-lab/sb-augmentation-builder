@@ -81,11 +81,6 @@ export function Window({
   const windowRef = useRef(null);
   const okToCloseRef = useRef(() => true);
 
-  const findTopWindow = () =>
-    [...document.querySelectorAll("sb-window")].reduce((window, best) =>
-      parseInt(window.zIndex) > parseInt(best.zIndex) ? window : best
-    );
-
   const close = async () => {
     if (!(await okToCloseRef.current())) return;
     root.remove();
@@ -93,9 +88,12 @@ export function Window({
   };
 
   const raise = () => {
-    const top = findTopWindow();
-    if (top) top.style.zIndex = 0;
-    root.style.zIndex = 1;
+    const all = [...document.querySelectorAll("sb-window")].sort(
+      (a, b) => a.style.zIndex - b.style.zIndex
+    );
+    all.splice(all.indexOf(root), 1);
+    all.push(root);
+    all.forEach((w, i) => (w.style.zIndex = 100 + i));
   };
 
   useEffect(() => {
