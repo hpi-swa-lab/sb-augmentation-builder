@@ -206,7 +206,7 @@ export const base = new Extension()
   })
 
   // indent on newline
-  .registerChangeFilter(([change], { sourceString }) => {
+  .registerChangeFilter(([change], { sourceString, tabSize }) => {
     if (change.insert === "\n") {
       function findLastIndent(string, index) {
         return string.slice(
@@ -217,9 +217,12 @@ export const base = new Extension()
 
       let indent = findLastIndent(sourceString, change.from - 1);
       let offset = indent.length;
-      if (PAIRS[sourceString[change.from - 1]]) {
-        indent += "\t\n" + indent;
-        offset++;
+      const prev = sourceString[change.from - 1];
+      if (PAIRS[prev]) {
+        const orig = indent;
+        indent += " ".repeat(tabSize);
+        if (sourceString[change.from] === PAIRS[prev]) indent += "\n" + orig;
+        offset += tabSize;
       }
       change.insert += indent;
       change.selectionRange[0] += offset;

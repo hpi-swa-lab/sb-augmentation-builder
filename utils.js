@@ -250,7 +250,7 @@ export function orParentThat(node, predicate) {
 
 export function parentWithTag(node, tag) {
   return orParentThat(node, (n) =>
-    Array.isArray(tag) ? tag.includes(n.tagName) : n.tagName === tag
+    Array.isArray(tag) ? tag.includes(n.tagName) : n.tagName === tag,
   );
 }
 
@@ -385,10 +385,10 @@ export function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function sequenceMatch(query, word) {
+export function sequenceMatch(query, word, startMustMatch = true) {
   if (!query) return true;
   if (word.length < query.length) return false;
-  if (query[0] !== word[0]) return false;
+  if (startMustMatch && query[0] !== word[0]) return false;
 
   let i = 0;
   for (const char of word.toLowerCase()) {

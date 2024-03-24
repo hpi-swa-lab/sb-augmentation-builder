@@ -87,7 +87,7 @@ export class BaseEditor extends HTMLElement {
   _selectedView = null;
 
   get selectedText() {
-    return this.getAttribute("text").slice(
+    return this.sourceString.slice(
       this.selectionRange[0],
       this.selectionRange[1],
     );
