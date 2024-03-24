@@ -216,10 +216,14 @@ export const base = new Extension()
       }
 
       let indent = findLastIndent(sourceString, change.from - 1);
-      if (PAIRS[sourceString[change.from - 1]]) indent += "\t";
+      let offset = indent.length;
+      if (PAIRS[sourceString[change.from - 1]]) {
+        indent += "\t\n" + indent;
+        offset++;
+      }
       change.insert += indent;
-      change.selectionRange[0] += indent.length;
-      change.selectionRange[1] += indent.length;
+      change.selectionRange[0] += offset;
+      change.selectionRange[1] += offset;
     }
   })
 
