@@ -153,7 +153,7 @@ class SandblocksShard extends BaseShard {
 
     this.addEventListener("keydown", (e) => this.onKeyDown(e));
 
-    //  this.addEventListener("blur", (e) => this.editor.clearSuggestions());
+    this.addEventListener("blur", (e) => this.editor.clearSuggestions());
 
     this.addEventListener("paste", function (event) {
       event.preventDefault();

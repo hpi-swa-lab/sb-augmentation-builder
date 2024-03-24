@@ -31,6 +31,8 @@ registerLanguage(
       "javascript:base",
       "base:base",
       "typescript:lsp",
+      "copilot:gh",
+      "browser:javascript",
       "lsp:browse",
       // "lsp:diagnostics",
       "lsp:suggestions",

@@ -255,9 +255,11 @@ export const base = new Extension()
   // ])
 
   .registerCaret((e, shard) => {
+    // FIXME storing this info in the editor does not work for multiple shards
     e.data("bracket-highlight", () => []).forEach((c) =>
       shard.cssClass(c, "highlight", false),
     );
+    e.setData("bracket-highlight", []);
 
     exec(
       e.node,

@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "../external/preact-hooks.mjs";
+import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import { orParentThat, takeWhile } from "../utils.js";
 import { shard, shardList } from "../view/widgets.js";
@@ -27,8 +27,11 @@ export function StickyShard({ node, ...props }) {
   useStickyNodeValidator(node);
   return shard(node, props);
 }
+export function StickyShardList({ list, ...props }) {
+  useValidator(() => list.every((n) => n.connected), list);
+  return shardList(list, props);
+}
 export function StickySlot({ node, ...props }) {
-  const owner = useContext(ShardContext);
   const all = [
     ...takeWhile(
       node.parent.children.slice(0, node.siblingIndex).reverse(),
@@ -40,7 +43,7 @@ export function StickySlot({ node, ...props }) {
     ),
   ];
 
-  useValidator(() => all.every((n) => n.connected));
+  useValidator(() => all.every((n) => n.connected), all);
 
   return shardList(all, props);
 }

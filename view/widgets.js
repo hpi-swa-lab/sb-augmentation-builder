@@ -43,12 +43,7 @@ export const stickyShard = (node, props = {}) =>
   h(StickyShard, { node, ...props });
 export const shardList = (list, props = {}) => {
   const node = useMemo(() => new SBList(list), list);
-  return h(node.editor.constructor.shardTag, {
-    node,
-    key: node.id,
-    editor: node.editor,
-    ...props,
-  });
+  return shard(node, props);
 };
 export const icon = (name) =>
   h(

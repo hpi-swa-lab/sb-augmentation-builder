@@ -1,8 +1,18 @@
 import { Extension } from "../core/extension.js";
-import { StickyShard } from "../core/replacement.js";
+import { StickyShard, StickyShardList } from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
 import { h } from "../view/widgets.js";
+
+function takeBackwardWhile(list, start, condition) {
+  let index = list.indexOf(start) - 1;
+
+  while (index >= 0 && condition(list[index])) {
+    index--;
+  }
+
+  return list.slice(index + 1, list.indexOf(start));
+}
 
 export const javascript = new Extension().registerReplacement({
   query: [(x) => x.type === "program"],
@@ -32,6 +42,15 @@ export const javascript = new Extension().registerReplacement({
     }, []);
 
     const shownSymbol = selectedMember ?? selectedSymbol;
+    const shownSymbolList = [
+      ...takeBackwardWhile(
+        shownSymbol.parent.children,
+        shownSymbol,
+        (n) => n.type === "comment" || n.isWhitespace(),
+      ),
+      shownSymbol,
+    ];
+    console.log(shownSymbolList);
 
     const listStyles = {
       flex: 1,
@@ -101,7 +120,7 @@ export const javascript = new Extension().registerReplacement({
               return "(val) " + x.atField("property").text;
             return x.sourceString.slice(0, 10);
           },
-        })
+        }),
       ),
 
       h(
@@ -116,11 +135,11 @@ export const javascript = new Extension().registerReplacement({
           },
         },
         shownSymbol.editor &&
-          h(StickyShard, {
-            node: shownSymbol,
+          h(StickyShardList, {
+            list: shownSymbolList,
             style: { display: "inline-block", width: "100%" },
-          })
-      )
+          }),
+      ),
     );
   },
   name: "sb-browser",

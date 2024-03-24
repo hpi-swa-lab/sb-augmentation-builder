@@ -152,7 +152,7 @@ class SBNode {
 
   get preferForSelection() {
     // named or likely a keyword
-    return this.named || this.text.match(/^[A-Za-z]+$/);
+    return this.named || this.text?.match(/^[A-Za-z]+$/);
   }
 
   get depth() {
@@ -167,6 +167,8 @@ class SBNode {
     return [
       new LoadOp(this),
       new AttachOp(this, this.parent, this.siblingIndex),
+
+      ...this.children.flatMap((child) => child.initOps()),
     ];
   }
 
@@ -651,13 +653,6 @@ export class SBBlock extends SBNode {
 
   get named() {
     return this._named;
-  }
-
-  initOps() {
-    return [
-      ...super.initOps(),
-      ...this.children.flatMap((child) => child.initOps()),
-    ];
   }
 
   shallowClone() {
