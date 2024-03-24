@@ -183,20 +183,20 @@ export const suggestions = new Extension().registerChangesApplied(
     ),
 );
 
-export const browse = new Extension().registerShortcut("browseIt", (node) =>
+export const browse = new Extension().registerShortcut("browseIt", (node) => {
   lspDo(
     node,
     (sem) => !!sem.capabilities.workspaceSymbolProvider,
     async (sem) => {
-      const symbols = sem.workspaceSymbols(node.text);
+      const symbols = await sem.workspaceSymbols(node.text);
       const top = symbols
         .filter((sym) => sym.name === node.text)
         .sort((a, b) => a.kind - b.kind)[0];
 
       if (top) browseLocation(node.context.project, top.location);
     },
-  ),
-);
+  );
+});
 
 export const diagnostics = new Extension().registerCustom(
   "lsp-diagnostics",

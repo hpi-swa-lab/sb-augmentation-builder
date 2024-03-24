@@ -58,12 +58,6 @@ export function FileEditor({
     setUnsavedChanges(false);
   }, [path]);
 
-  useAsyncEffect(async () => {
-    if (sourceString && initialSelection) {
-      editorRef.current.addEventListener("loaded", () => {}, { once: true });
-    }
-  }, [sourceString]);
-
   const ext = path.split(".").slice(-1)[0].toLowerCase();
   const language = languageForExtension(ext);
 
@@ -145,7 +139,7 @@ export function FileEditor({
           language: language.name,
           onready: () => {
             if (initialSelection)
-              editorRef.current.selectRange(...initialSelection);
+              editorRef.current.selectRange(initialSelection, true);
           },
         }),
     ),

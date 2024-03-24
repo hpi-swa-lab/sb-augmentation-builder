@@ -351,6 +351,11 @@ export class BaseEditor extends HTMLElement {
     return [0, this.node.sourceString.length];
   }
 
+  selectRange([from, to], scrollIntoView = false) {
+    this.selectedShard.selectRange([from, to]);
+    if (scrollIntoView) this.selectedShard.scrollToShow([from, to]);
+  }
+
   moveCursor(forward, selecting, wordWise) {
     this.selection.head.element.resync?.();
     const { head } = this.selection;

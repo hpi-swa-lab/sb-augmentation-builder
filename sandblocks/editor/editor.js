@@ -190,6 +190,12 @@ class SandblocksShard extends BaseShard {
     return !!this.views.get(node);
   }
 
+  scrollToShow([from, to]) {
+    let el = this.positionForIndex(from).elementOffset[0];
+    if (el.nodeType === Node.TEXT_NODE) el = el.parentNode;
+    el.scrollIntoView();
+  }
+
   getReplacementFor(node) {
     const view = this.views.get(node);
     return view?.isNodeReplacement ? view : null;

@@ -176,6 +176,10 @@ export class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
+  scrollToShow(range) {
+    throw "subclass responsibility";
+  }
+
   buildReplacementFor(node, extension) {
     const view = document.createElement("sb-replacement");
     view.editor = this.editor;

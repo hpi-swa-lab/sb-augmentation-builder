@@ -30,10 +30,10 @@ registerLanguage(
     defaultExtensions: [
       "javascript:base",
       "base:base",
-      // "typescript:lsp",
-      // "lsp:browse",
+      "typescript:lsp",
+      "lsp:browse",
       // "lsp:diagnostics",
-      // "lsp:suggestions",
+      "lsp:suggestions",
       // "babylonian:javascript",
       "prettier:javascript",
       // "watch:javascript",
