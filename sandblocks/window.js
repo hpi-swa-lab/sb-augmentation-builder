@@ -88,7 +88,9 @@ export function Window({
   };
 
   const raise = () => {
-    const all = [...document.querySelectorAll("sb-window")];
+    const all = [...document.querySelectorAll("sb-window")].sort(
+      (a, b) => a.style.zIndex - b.style.zIndex,
+    );
     all.splice(all.indexOf(root), 1);
     all.push(root);
     all.forEach((w, i) => (w.style.zIndex = 100 + i));
