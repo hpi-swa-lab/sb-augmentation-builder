@@ -26,7 +26,7 @@ function updateFocus(target) {
   while (target?.shadowRoot) {
     const inner = target.shadowRoot.elementFromPoint(
       globalMousePos.x,
-      globalMousePos.y
+      globalMousePos.y,
     );
     if (!inner || inner === target) break;
     target = inner;
@@ -72,7 +72,7 @@ export function Window({
     initialPosition ?? {
       x: globalMousePos.x - initialSize.x / 2,
       y: globalMousePos.y - initialSize.y / 2,
-    }
+    },
   );
   const [title, setTitle] = useState(initialTitle ?? "");
   const [size, setSize] = useState(initialSize);
@@ -81,11 +81,6 @@ export function Window({
   const windowRef = useRef(null);
   const okToCloseRef = useRef(() => true);
 
-  const findTopWindow = () =>
-    [...document.querySelectorAll("sb-window")].reduce((window, best) =>
-      parseInt(window.zIndex) > parseInt(best.zIndex) ? window : best
-    );
-
   const close = async () => {
     if (!(await okToCloseRef.current())) return;
     root.remove();
@@ -93,9 +88,10 @@ export function Window({
   };
 
   const raise = () => {
-    const top = findTopWindow();
-    if (top) top.style.zIndex = 0;
-    root.style.zIndex = 1;
+    const all = [...document.querySelectorAll("sb-window")];
+    all.splice(all.indexOf(root), 1);
+    all.push(root);
+    all.forEach((w, i) => (w.style.zIndex = 100 + i));
   };
 
   useEffect(() => {
@@ -180,7 +176,7 @@ export function Window({
   flex-direction: column;
   flex-grow: 1;
   min-height: 0;
-}`
+}`,
     ),
     h(
       "div",
@@ -211,7 +207,7 @@ export function Window({
             onMove: (delta) =>
               setPosition((p) => ({ x: p.x + delta.x, y: p.y + delta.y })),
           },
-          [button("x", close), title]
+          [button("x", close), title],
         ),
         h("div", { class: "sb-window-content" }, children, h("slot")),
         initialPlacement &&
@@ -226,7 +222,7 @@ export function Window({
           onMove: (delta) =>
             setSize((p) => ({ x: p.x + delta.x, y: p.y + delta.y })),
         }),
-      ]
+      ],
     ),
   ];
 }
@@ -277,7 +273,7 @@ function MoveHandle({ onMove, onFinish, children, startAttached, ...props }) {
       },
       ...props,
     },
-    children
+    children,
   );
 }
 
@@ -293,7 +289,7 @@ export function confirmUnsavedChanges() {
         ],
         cancelActionIndex: 1,
       },
-      { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } }
+      { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } },
     );
   });
 }
@@ -304,7 +300,7 @@ export function choose(items, labelFunc) {
     openComponentInWindow(
       Choose,
       { items, labelFunc, resolve },
-      { doNotStartAttached: true, initialSize: { x: 200, y: "auto" } }
+      { doNotStartAttached: true, initialSize: { x: 200, y: "auto" } },
     );
   });
 }
@@ -332,8 +328,8 @@ function Choose({ items, labelFunc, resolve, window }) {
             resolve(i);
           },
           height: "10rem",
-        })
-      )
+        }),
+      ),
     ),
     actions: [
       ["Cancel", () => resolve(null)],
@@ -380,10 +376,10 @@ export function Dialog({ body, actions, cancelActionIndex, window }) {
               window.close();
               action();
             },
-            autofocus
-          )
-        )
+            autofocus,
+          ),
+        ),
       ),
-    ]
+    ],
   );
 }

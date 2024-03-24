@@ -635,14 +635,9 @@ class _ShardSelection {
   // since we will later try and find that cursor position again by
   // comparing the elementOffset field, we need to make sure that we
   // chose a position as it appears in our cursorPositions list.
-  snapPosition(found, shard) {
-    const range = new Range();
-    range.setEnd(...found);
-    for (const pos of shard.cursorPositions()) {
-      range.setStart(...pos.elementOffset);
-      if (range.toString().length === 0) return pos.elementOffset;
-    }
-    throw new Error("no mapping for position found");
+  snapPosition(node, offset, shard) {
+    const index = shard.indexForRange(node, offset);
+    return shard.positionForIndex(index);
   }
 
   onSelectionChange() {
@@ -661,16 +656,8 @@ class _ShardSelection {
 
     this.shard = e;
     this.selection = {
-      head: {
-        element: e,
-        elementOffset: this.snapPosition([sel.focusNode, sel.focusOffset], e),
-        index: e.indexForRange(sel.focusNode, sel.focusOffset),
-      },
-      anchor: {
-        element: e,
-        elementOffset: this.snapPosition([sel.anchorNode, sel.anchorOffset], e),
-        index: e.indexForRange(sel.anchorNode, sel.anchorOffset),
-      },
+      head: this.snapPosition(sel.focusNode, sel.focusOffset, e),
+      anchor: this.snapPosition(sel.anchorNode, sel.anchorOffset, e),
     };
     this.shard.editor.onSelectionChange(this.selection);
   }

@@ -50,7 +50,7 @@ export class TreeSitterLanguage extends SBLanguage {
     await this.constructor.initTS();
 
     this.tsLanguage = await TreeSitter.Language.load(
-      config.url(`external/tree-sitter-${this.name}.wasm`)
+      config.url(`external/tree-sitter-${this.name}.wasm`),
     );
 
     if (!options?.parserOnly)
@@ -72,7 +72,7 @@ export class TreeSitterLanguage extends SBLanguage {
 
     const grammar = await (
       await fetch(
-        `https://raw.githubusercontent.com/${this.repo}/${this.branch}${this.path}src/grammar.json`
+        `https://raw.githubusercontent.com/${this.repo}/${this.branch}${this.path}src/grammar.json`,
       )
     ).json();
     localStorage.setItem(
@@ -82,7 +82,7 @@ export class TreeSitterLanguage extends SBLanguage {
         branch: this.branch,
         path: this.path,
         grammar,
-      })
+      }),
     );
     return grammar;
   }
@@ -96,7 +96,7 @@ export class TreeSitterLanguage extends SBLanguage {
       grammar.rules[external.name] = new GrammarNode(
         { type: "BLANK" },
         null,
-        external.name
+        external.name,
       );
     }
 
@@ -111,7 +111,6 @@ export class TreeSitterLanguage extends SBLanguage {
     const parser = new TreeSitter();
     parser.setLanguage(this.tsLanguage);
 
-    // TODO reuse oldRoot._tree (breaks indices, need to update or use new nodes)
     const newRoot = this._nodeFromTree(parser.parse(text), text);
     oldRoot?._tree?.delete();
 
@@ -155,7 +154,7 @@ export class TreeSitterLanguage extends SBLanguage {
       cursor.currentFieldName(),
       cursor.startIndex,
       cursor.endIndex,
-      cursor.nodeIsNamed
+      cursor.nodeIsNamed,
     );
 
     if (cursor.gotoFirstChild()) {
@@ -175,8 +174,8 @@ export class TreeSitterLanguage extends SBLanguage {
         new SBText(
           text.slice(this.lastLeafIndex, node.range[1]),
           this.lastLeafIndex,
-          node.range[1]
-        )
+          node.range[1],
+        ),
       );
       this.lastLeafIndex = node.range[1];
     }
@@ -193,7 +192,7 @@ export class TreeSitterLanguage extends SBLanguage {
 
     if (isLeaf && cursor.nodeText.length > 0) {
       node.addChild(
-        new SBText(cursor.nodeText, cursor.startIndex, cursor.endIndex)
+        new SBText(cursor.nodeText, cursor.startIndex, cursor.endIndex),
       );
       this.lastLeafIndex = cursor.endIndex;
     }
@@ -626,7 +625,7 @@ export class TSQuery {
     }
     if (!a.isText && !b.isText && a.type === b.type) {
       const leading = a.childNodes.findIndex((c) =>
-        c.text.startsWith(this.multiPrefix)
+        c.text.startsWith(this.multiPrefix),
       );
       // if we have a multi match for children, match the prefix and suffix
       // of the template (if any), then collect the remaining children
@@ -641,7 +640,7 @@ export class TSQuery {
             !this._match(
               a.childNodes[a.childNodes.length - i - 1],
               b.childNodes[b.childNodes.length - i - 1],
-              captures
+              captures,
             )
           )
             return false;
