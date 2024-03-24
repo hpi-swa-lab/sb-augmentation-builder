@@ -30,6 +30,7 @@ sb-block[type] {
   /*border: 1px solid #efefef;*/
 }
 sb-text {
+  font-family: monospace;
   white-space: pre-wrap;
   display: inline;
   vertical-align: top;

@@ -1,6 +1,6 @@
 import { Extension } from "../core/extension.js";
 import { StickyShard, StickyShardList } from "../core/replacement.js";
-import { useEffect, useState } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
 import { h } from "../view/widgets.js";
 
@@ -27,10 +27,14 @@ export const javascript = new Extension().registerReplacement({
     if (selectedBody?.type === "class_declaration")
       selectedBody = selectedBody.atField("body");
 
-    const members =
-      (["class_body"].includes(selectedBody?.type)
-        ? selectedBody?.childBlocks
-        : null) ?? [];
+    const members = useMemo(
+      () =>
+        (["class_body"].includes(selectedBody?.type)
+          ? selectedBody?.childBlocks
+          : null) ?? [],
+      [selectedBody],
+    );
+
     const [selectedMember, setSelectedMember] = useState(members[0]);
     useEffect(() => {
       setSelectedMember(members[0]);
@@ -50,7 +54,6 @@ export const javascript = new Extension().registerReplacement({
       ),
       shownSymbol,
     ];
-    console.log(shownSymbolList);
 
     const listStyles = {
       flex: 1,
