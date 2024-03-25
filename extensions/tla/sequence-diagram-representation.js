@@ -338,7 +338,6 @@ const SequenceDiagram = ({
     previewEdge,
 }) => {
     const { a2c, actors } = useContext(DiagramConfig);
-    const [inspectEdge, setInspectEdge] = useState(null);
 
     return html`
     <div style=${{ display: "flex", flexDirection: "column", flex: "1 0 0" }}>
@@ -411,7 +410,6 @@ const Topbar = ({
     setShowMessagePayload,
 }) => {
     const { actors, varToActor } = useContext(DiagramConfig);
-
 
     const diagramContainerStyle = {
         padding: "16px 32px 16px 16px",

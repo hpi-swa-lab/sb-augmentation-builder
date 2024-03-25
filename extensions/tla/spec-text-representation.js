@@ -50,7 +50,6 @@ const exportToHTML = (keys, ...varsList) => {
         } else {
             // variable is nested (e.g. a set or sequence, represented as array)
             const before = jsonToTLAString(Array.isArray(values[0]) ? values[0][i] : values)
-            console.log(before)
             rows.push(html`
                 <tr>
                     <td></td>
@@ -86,7 +85,7 @@ const tableHeaderStyle = {
     verticalAlign: "middle",
 };
 
-function SpecEditor({ currNode, setCurrNode, graph }) {
+function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge }) {
     const source = useContext(DiagramConfig).source;
     const [refresh, setRefresh] = useState(0);
     const editorRef = useRef(null);
@@ -137,7 +136,7 @@ function SpecEditor({ currNode, setCurrNode, graph }) {
                                 <th style=${tableHeaderStyle}></th>
                                 ${edges.map(edge => html`
                                 <th>
-                                    <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges: () => { }, setPreviewEdge: () => { } }} 
+                                    <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge }} 
                                         filterFn=${e => e === edge} />
                                 </th>`)}
                             </tr>
@@ -191,9 +190,9 @@ function SpecEditor({ currNode, setCurrNode, graph }) {
     });
 }
 
-export const SpecTextRepresentation = ({ currNode, setCurrNode, graph }) => {
+export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge }) => {
     return html`
     <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
-    <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} />
+    <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
     `
 }
