@@ -191,7 +191,7 @@ function SpecEditor({ currNode, setCurrNode, graph }) {
 
 export const SpecTextRepresentation = ({ currNode, setCurrNode, graph }) => {
     return html`
-    <h3 style=${{ display: "inline-block" }}>Spec Source Code</h3>
+    <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
     <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} />
     `
 }

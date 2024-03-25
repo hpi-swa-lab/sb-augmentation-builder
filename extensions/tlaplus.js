@@ -1,33 +1,35 @@
 import { Extension } from "../core/extension.js";
 import { h } from "../external/preact.mjs";
 
-const createUnicodeReplacement = (sbNodeType, unicodeSymbol) => {
+const createUnicodeReplacement = (sbNodeType, unicodeSymbol, explanation) => {
   return new Extension().registerReplacement({
     query: [(x) => x.type === sbNodeType],
     queryDepth: 1,
-    component: () => h("span", {}, unicodeSymbol),
+    component: () => h("span", { title: explanation }, unicodeSymbol),
     name: `tla-latex-${sbNodeType}`,
   });
 }
 
-export const tlacup = createUnicodeReplacement("cup", "∪");
-export const tlabulletConj = createUnicodeReplacement("bullet_conj", "∧");
-export const tlabulletDisj = createUnicodeReplacement("bullet_disj", "∨");
-export const tlalor = createUnicodeReplacement("lor", "∨");
-export const tlaland = createUnicodeReplacement("land", "∧");
-export const tlaalways = createUnicodeReplacement("always", "□");
-export const tladiamond = createUnicodeReplacement("diamond", "◇");
-export const tlaimplies = createUnicodeReplacement("implies", "⇒");
-export const tlain = createUnicodeReplacement("in", "∈");
-export const tlasetIn = createUnicodeReplacement("set_in", "∈");
-export const tlanotin = createUnicodeReplacement("notin", "∉");
-export const tlasetsubseteq = createUnicodeReplacement("subseteq", "⊆");
-export const tlasetsubset = createUnicodeReplacement("subset", "⊂");
-export const tlamapsTo = createUnicodeReplacement("maps_to", "→");
-export const tlaallMapTo = createUnicodeReplacement("all_map_to", "↦");
-export const tladefEq = createUnicodeReplacement("def_eq", "≜");
-export const tlaexists = createUnicodeReplacement("exists", "∃");
-export const tlaforall = createUnicodeReplacement("forall", "∀");
+export const tlacup = createUnicodeReplacement("cup", "∪", "Union combines two sets into one set.\n\nFor example, {1, 2} ∪ {2, 3} = {1, 2, 3}.");
+
+export const tlabulletConj = createUnicodeReplacement("bullet_conj", "∧", "Conjunction combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.");
+export const tlabulletDisj = createUnicodeReplacement("bullet_disj", "∨", "Disjunction combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.");
+export const tlalor = createUnicodeReplacement("lor", "∨", "Logical OR combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.");
+export const tlaland = createUnicodeReplacement("land", "∧", "Logical AND combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.");
+export const tlaalways = createUnicodeReplacement("always", "□", "Always is a temporal operator that asserts that a property holds at all times.\n\nFor example, □P asserts that P is always true.");
+export const tladiamond = createUnicodeReplacement("diamond", "◇", "Diamond is a temporal operator that asserts that a property holds at some time.\n\nFor example, ◇P asserts that P is true at some point in time.");
+export const tlaimplies = createUnicodeReplacement("implies", "⇒", "Implies is a logical operator that asserts that if the left-hand side is true, then the right-hand side must also be true.\n\nFor example, P ⇒ Q asserts that if P is true, then Q must also be true. It is equivalent to ¬P ∨ Q.");
+export const tlain = createUnicodeReplacement("in", "∈", "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.");
+export const tlasetIn = createUnicodeReplacement("set_in", "∈", "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.");
+export const tlanotin = createUnicodeReplacement("notin", "∉", "Not in asserts that an element is not a member of a set.\n\nFor example, 3 ∉ {1, 2} asserts that 3 is not an element of the set {1, 2}.");
+export const tlasetsubseteq = createUnicodeReplacement("subseteq", "⊆", "Subset or equal to asserts that one set is a subset of another set, including the case where the sets are equal.\n\nFor example, {1} ⊆ {1, 2} asserts that the set {1} is a subset of the set {1, 2}.");
+export const tlasetsubset = createUnicodeReplacement("subset", "⊂", "Subset asserts that one set is a subset of another set, excluding the case where the sets are equal.\n\nFor example, {1} ⊂ {1, 2} asserts that the set {1} is a proper subset of the set {1, 2}.");
+export const tlamapsTo = createUnicodeReplacement("maps_to", "→", "This gives the set of all functions from one set to another.\n\nFor example, [{1, 2} → {3, 4}] is the set of all functions that map 1 to 3 or 4, and 2 to 3 or 4.");
+export const tlaallMapTo = createUnicodeReplacement("all_map_to", "↦", "This defines a function. The left-hand side is the domain.\n\nFor example, [x ↦ x + 1] is the function that adds 1 to its input.");
+export const tladefEq = createUnicodeReplacement("def_eq", "≜", "This is a definition. It asserts that the left-hand side is defined to be the right-hand side.\n\nFor example, x ≜ 1 asserts that x is defined to be 1.");
+export const tlaexists = createUnicodeReplacement("exists", "∃", "Exists asserts that there exists at least one element in a set that satisfies a property.\n\nFor example, ∃x ∈ {1, 2} : x > 1 asserts that there exists an element x in the set {1, 2} such that x is greater than 1.");
+export const tlaforall = createUnicodeReplacement("forall", "∀", "For all asserts that every element in a set satisfies a property.\n\nFor example, ∀x ∈ {1, 2} : x > 0 asserts that every element x in the set {1, 2} is greater than 0.");
+
 
 export const nextStateDisplay = new Extension().registerReplacement({
   query: [
