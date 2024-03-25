@@ -665,6 +665,89 @@ const Diagram = ({
   `;
 };
 
+const EdgePickers = ({ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge, filterFn }) => {
+    const enabledEdges = graph.outgoingEdges.get(currNode.id);
+    const enabledEdgesOfSelectedActor = enabledEdges.filter(filterFn)
+
+    const selectNode = (e) => {
+        setCurrNode(graph.nodes.get(e.to));
+        setPrevEdges(prevEdges => [...prevEdges, e]);
+    }
+
+    return enabledEdgesOfSelectedActor.map(e => html`
+            <${EdgePickerButton} 
+                onClick=${() => selectNode(e)}
+                onMouseEnter=${() => setPreviewEdge(e)}
+                onMouseLeave=${() => setPreviewEdge(null)}
+                >
+                ${e.label + e.parameters}
+            </${EdgePickerButton}>
+        `)
+}
+
+const jsonToTLAString = (obj) => {
+    let json = JSON.stringify(obj);
+    if (json === undefined) return undefined;
+    // remove all " and replace : in pattern "<key>": with <key>↦
+    json = json.replace(/"(\w+)":/g, "$1↦");
+    // replace all remaining : with →
+    json = json.replace(/:/g, "→");
+    // replace all , with ,\n
+    json = json.replace(/,/g, ",\n");
+    // replace all { with [
+    json = json.replace(/{/g, "[");
+    // replace all } with ]
+    json = json.replace(/}/g, "]");
+    return json;
+}
+
+const exportToHTML = (keys, ...varsList) => {
+    const values = varsList.map(vars => apply(vars, keys));
+    const maxRows = Math.max(...values.map(v => Array.isArray(v) ? v.length : 1));
+
+    const rows = []
+    for (let i = 0; i < maxRows; i++) {
+        if (i === 0) {
+            const scope = keys.reduce((acc, k) => acc + "[" + k + "]");
+            rows.push(html`
+                <tr>
+                    <td>${scope}</td>
+                    ${values.map(v => html`
+                        <td style=${{ "wordBreak": "break-word" }}>
+                            ${jsonToTLAString(Array.isArray(v) ? v[i] : v)}
+                        </td>`)}
+                </tr>`);
+        } else {
+            rows.push(html`
+                <tr>
+                    <td></td>
+                    ${values.map(v => html`
+                        <td style=${{ "wordBreak": "break-word" }}>
+                            ${jsonToTLAString(Array.isArray(v) ? v[i] : v)}
+                        </td>`)}
+                </tr>`);
+        }
+    }
+
+    // add one empty row to the end. It has no vertical lines to
+    // separate the table from the rest of the content
+    rows.push(html`
+        <tr>
+            <td style=${{ border: "none" }}></td>
+            ${values.map(v => html`
+                <td style=${{ "border": "none" }}></td>`)}
+        </tr>`)
+
+    return rows;
+};
+
+const tableHeaderStyle = {
+    textAlign: "left",
+    fontWeight: "bold",
+    wordBreak: "break-word",
+    verticalAlign: "middle",
+};
+
 const Topbar = ({
     graph,
     prevEdges,
@@ -672,65 +755,16 @@ const Topbar = ({
     setPreviewEdge,
     setCurrNode,
     setPrevEdges,
-    vizData,
     setShowMessagePayload,
 }) => {
     const { actors, varToActor } = useContext(DiagramConfig);
 
-    const tableHeaderStyle = {
-        textAlign: "left",
-        fontWeight: "normal",
-    };
 
     const diagramContainerStyle = {
         padding: "16px 32px 16px 16px",
     };
 
-    const nextEdges = graph.outgoingEdges.get(currNode.id);
-
-    const selectNodeFn = (e) => {
-        return () => {
-            setCurrNode(graph.nodes.get(e.to));
-            setPrevEdges([...prevEdges, e]);
-        };
-    };
-
-    const nextActionsPerActorIndex = actors.map((a) =>
-        nextEdges.filter((e) => edgeToVizData(e).actor === a),
-    );
-
-    const keysMappingToActors = nestedKeys(varToActor);
     // TODO what about keys not mapping to actors
-    const keysPerActorIndex = actors.map((a) => {
-        const keysOfThisActor = keysMappingToActors.filter(
-            (keys) => apply(varToActor, keys) === a,
-        );
-        return keysOfThisActor;
-    });
-
-    const exportToHTML = (keys) => {
-        const value = apply(currNode.vars, keys);
-
-        const scope = keys.reduce((acc, k) => acc + "[" + k + "]");
-
-        if (Array.isArray(value) && value.length > 0) {
-            return value.map(
-                (v, i) => html`
-          <tr>
-            ${i === 0
-                        ? html`<td style=${{ rowspan: value.length }}>${scope}</td>`
-                        : html`<td></td>`}
-            <td>${JSON.stringify(v)}</td>
-          </tr>
-        `,
-            );
-        }
-
-        return html` <tr>
-      <td>${scope}</td>
-      <td>${JSON.stringify(value)}</td>
-    </tr>`;
-    };
 
     const UndoButton = () => {
         return html` <button
@@ -757,32 +791,6 @@ const Topbar = ({
 
     return html`
     <div style=${diagramContainerStyle}>
-      <!-- <div class="gridWrapper" style=${{ gridGap: "16px" }}>
-        ${actors.map(
-        (a, i) =>
-            html` <div
-            style=${{
-                    display: "flex",
-                    flexDirection: "column",
-                    gridColumn: i + 1,
-                    gridRow: 1,
-                }}
-          >
-            <h4>${a}</h4>
-            <table>
-              <thead>
-                <tr>
-                  <th style=${tableHeaderStyle}>Scope</th>
-                  <th style=${tableHeaderStyle}>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${keysPerActorIndex[i].map(exportToHTML)}
-              </tbody>
-            </table>
-          </div>`,
-    )}
-      </div> -->
       <div
         style=${{
             display: "flex",
@@ -796,8 +804,8 @@ const Topbar = ({
         <${UndoButton} />
       </div>
       <div class="gridWrapper">
-        ${nextActionsPerActorIndex.map(
-            (actions, i) => html`
+        ${actors.map(
+            (actor, i) => html`
             <div
               style=${{
                     gridColumn: i + 1,
@@ -806,16 +814,8 @@ const Topbar = ({
                     flexDirection: "column",
                 }}
             >
-              ${actions.map(
-                    (e) => html`
-                        <${EdgePickerButton} 
-                            onClick=${selectNodeFn(e)}
-                            onMouseEnter=${() => setPreviewEdge(e)}
-                            onMouseLeave=${() => setPreviewEdge(null)}
-                            >
-                            ${e.label + e.parameters}
-                        </${EdgePickerButton}>`,
-                )}
+              <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge }} 
+                filterFn=${e => edgeToVizData(e).actor === actor} />
             </div>
           `,
         )}
@@ -914,11 +914,15 @@ const RepresentationsLayout = (props) => {
     const {
         graph,
         previewEdge,
-        currNode,
+        currNode, setCurrNode,
         selectedActor, setSelectedActor,
         heightIncreaseFactor, setHeightIncreaseFactor,
-        representations
+        representations,
+        setPrevEdges,
+        setPreviewEdge
     } = props;
+
+    const nextEdges = graph.outgoingEdges.get(currNode.id);
 
     const containerStyle = {
         display: "flex",
@@ -985,6 +989,7 @@ const RepresentationsLayout = (props) => {
                     <h3 style=${{ display: "inline-block" }}>State Diagram of</h3>
                     <${ActorSelector} />
                 </div>
+                <${EdgePickers} ...${props} filterFn=${e => edgeToVizData(e).actor === selectedActor} />
                 <${StateDiagram}
                     actor=${selectedActor}
                     currentState=${currNode}
@@ -999,7 +1004,7 @@ const RepresentationsLayout = (props) => {
         <!-- text -->
         <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%", display: representations.includes("text") ? "block" : "none" }}>
             <h3 style=${{ display: "inline-block" }}>Spec Source Code</h3>
-            <${SpecEditor} currNode=${currNode} />
+            <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} />
         </div>
       </div>
     `
@@ -1066,7 +1071,7 @@ const State = ({ graph, initNodes }) => {
     );
     const [showMessagePayload, setShowMessagePayload] = useState(false);
     const [heightIncreaseFactor, setHeightIncreaseFactor] = useState(1);
-    const [representations, setRepresentations] = useState(["sequence", "state", "text"]);
+    const [representations, setRepresentations] = useState(["text"]);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;
     const vizData = edges.map(edgeToVizData);
@@ -1109,25 +1114,58 @@ const State = ({ graph, initNodes }) => {
   `;
 };
 
-function SpecEditor({ currNode }) {
+function SpecEditor({ currNode, setCurrNode, graph }) {
     const source = useContext(DiagramConfig).source;
     const [refresh, setRefresh] = useState(0);
     const editorRef = useRef(null);
+
+    const enabledEdges = graph.outgoingEdges.get(currNode.id);
+    const enabledEdgesNames = enabledEdges.map(e => e.label);
 
     useEffect(() => {
         for (const r of editorRef.current.querySelectorAll(
             "sb-replacement[name=tla-next-state-display]",
         )) {
             r.props.renderContent = ({ node }) => {
-                return false
-                    ? shard(node)
-                    : h(
-                        "div",
-                        { style: { border: "4px solid black" } },
-                        h("h3", {}, "Next State Variables: ", node.atField("name").text),
-                        shard(node, { style: { display: "block" } }),
-                        h("pre", {}, JSON.stringify(currNode.vars.rmState, null, 2)),
-                    );
+                const actionName = node.atField("name").text;
+                // its possible to have multipe edges with same name
+                // for example through non-deterministic transitions or parameters
+                const edges = enabledEdges.filter(e => e.label === actionName);
+
+                if (edges.length === 0 || !enabledEdgesNames.includes(actionName)) {
+                    return shard(node)
+                }
+
+                const allReadKeys = edges.flatMap(e => nestedKeys(e.reads));
+                const allWriteKeys = edges.flatMap(e => nestedKeys(e.writes));
+                const combinedKeys = [...allReadKeys, ...allWriteKeys]
+                    .toSorted((a, b) => a.join("").localeCompare(b.join("")))
+                    // remove duplicates
+                    .filter((k, i, arr) => i === 0 || arr[i - 1].join("") !== k.join(""));
+
+                const nextNodes = edges.map(e => graph.nodes.get(e.to));
+                const nextNodesVars = nextNodes.map(n => n.vars);
+
+                return html`
+                <div style=${{ borderLeft: "6px solid green", marginLeft: "12px", paddingLeft: "8px" }} >
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style=${tableHeaderStyle}>Scope</th>
+                          <th style=${tableHeaderStyle}>Before</th>
+                          ${edges.map(edge => html`
+                            <th>
+                                <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges: () => { }, setPreviewEdge: () => { } }} 
+                                    filterFn=${e => e === edge} />
+                            </th>`)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${combinedKeys.map(keySeq => exportToHTML(keySeq, currNode.vars, ...nextNodesVars))}
+                      </tbody>
+                    </table>
+                    ${shard(node, { style: { display: "block" } })}
+                </div>`
             };
             // FIXME not sure why this has to be in a micro task, is there global state
             // in preact that disallows nesting render calls?
