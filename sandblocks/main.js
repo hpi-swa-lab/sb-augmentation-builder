@@ -4,7 +4,7 @@ import { render, h } from "../view/widgets.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { matchesKey, withDo } from "../utils.js";
 import { choose, openComponentInWindow } from "./window.js";
-import {} from "./file-project/search.js";
+import { } from "./file-project/search.js";
 import { loadUserPreferences, openPreferences } from "./preference-window.js";
 
 await loadUserPreferences();
@@ -72,7 +72,7 @@ SandblocksEditor.init();
 
 const rag = async () => (await import("./oRAGle/ragPrototype.js")).RAGApp;
 const tla = async () =>
-  (await import("../extensions/tla/tlaSequenceDiagram.js")).SequenceDiagram;
+  (await import("../extensions/tla/state-explorer.js")).TlaStateExplorer;
 const queryBuilder = async () =>
   (await import("./query-builder/main.js")).QueryBuilder;
 
