@@ -13,6 +13,7 @@ import { edgeToVizData } from "./actor-mapping.js";
 import htm from "../../external/htm.mjs";
 import { StateDiagramRepresentation, nodeToStateDescription } from "./state-diagram-representation.js";
 import { SpecTextRepresentation } from "./spec-text-representation.js";
+import { TableRepresentation } from "./table-representation.js";
 const html = htm.bind(h);
 
 /** actor to column map */
@@ -65,6 +66,7 @@ const RepresentationsLayout = (props) => {
         }
         <!-- table -->
         <div style=${{ display: representations.includes("table") ? "block" : "none" }}>
+            <${TableRepresentation} ...${props} />
         </div>
         <!-- text -->
         <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%", display: representations.includes("text") ? "block" : "none" }}>
@@ -135,7 +137,7 @@ const State = ({ graph, initNodes }) => {
     );
     const [showMessagePayload, setShowMessagePayload] = useState(false);
     const [heightIncreaseFactor, setHeightIncreaseFactor] = useState(1);
-    const [representations, setRepresentations] = useState(["text"]);
+    const [representations, setRepresentations] = useState(["table", "text"]);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;
     const vizData = edges.map(edgeToVizData);

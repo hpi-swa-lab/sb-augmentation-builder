@@ -77,6 +77,22 @@ export function nestedKeys(varTree) {
     return keys;
 }
 
+export const jsonToTLAString = (obj) => {
+    let json = JSON.stringify(obj);
+    if (json === undefined) return undefined;
+    // remove all " and replace : in pattern "<key>": with <key>↦
+    json = json.replace(/"(\w+)":/g, "$1 ↦ ");
+    // replace all remaining : with →
+    json = json.replace(/:/g, "→");
+    // replace all , with ,\n
+    json = json.replace(/,/g, ", ");
+    // replace all { with [
+    json = json.replace(/{/g, "[");
+    // replace all } with ]
+    json = json.replace(/}/g, "]");
+    return json;
+}
+
 const EdgePickerButton = (props) => {
     useEffect(() => {
         // onMouseLeave is not called if the button gets removed while the mouse is still on it

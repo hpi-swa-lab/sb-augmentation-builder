@@ -3,25 +3,8 @@ import { useContext, useEffect, useRef, useState } from "../../external/preact-h
 import { h } from "../../external/preact.mjs";
 import { shard, editor } from "../../view/widgets.js";
 import { DiagramConfig } from "./state-explorer.js";
-import { EdgePickers, apply, nestedKeys } from "./utils.js";
+import { EdgePickers, apply, jsonToTLAString, nestedKeys } from "./utils.js";
 const html = htm.bind(h);
-
-
-const jsonToTLAString = (obj) => {
-    let json = JSON.stringify(obj);
-    if (json === undefined) return undefined;
-    // remove all " and replace : in pattern "<key>": with <key>↦
-    json = json.replace(/"(\w+)":/g, "$1↦");
-    // replace all remaining : with →
-    json = json.replace(/:/g, "→");
-    // replace all , with ,\n
-    json = json.replace(/,/g, ",\n");
-    // replace all { with [
-    json = json.replace(/{/g, "[");
-    // replace all } with ]
-    json = json.replace(/}/g, "]");
-    return json;
-}
 
 
 const exportToHTML = (keys, ...varsList) => {
@@ -105,8 +88,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
 
                 if (edges.length === 0 || !enabledEdgesNames.includes(actionName)) {
                     // this action is disabled
-                    const opacity = "60%";
-                    return shard(node, { style: { opacity } })
+                    return shard(node, { style: { opacity: "60%" } })
                 }
 
                 const allReadKeys = edges.flatMap(e => nestedKeys(e.reads));
