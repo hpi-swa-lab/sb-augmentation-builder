@@ -72,7 +72,7 @@ const RepresentationsLayout = (props) => {
             <${TableRepresentation} ...${props} />
         </div>
         <!-- text -->
-        <div style=${{ display: "flex", flexDirection: "column" }}>
+        <div style=${{ display: representations.includes("text") ? "flex" : "none", flexDirection: "column" }}>
             <${SpecTextRepresentation} ...${props} />
         </div>
     </div>
@@ -140,7 +140,7 @@ const State = ({ graph, initNodes }) => {
     );
     const [showMessagePayload, setShowMessagePayload] = useState(false);
     const [heightIncreaseFactor, setHeightIncreaseFactor] = useState(1);
-    const [representations, setRepresentations] = useState(["table", "text"]);
+    const [representations, setRepresentations] = useState(["sequence", "state", "table", "text"]);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;
     const vizData = edges.map(edgeToVizData);

@@ -421,7 +421,7 @@ const Topbar = ({
   // TODO what about keys not mapping to actors
   const ToggleMsgLabelsButton = () => {
     return html` <button
-      style=${{ height: "min-content" }}
+      style=${{ height: "min-content", margin: "8px" }}
       onClick=${() => setShowMessagePayload((v) => !v)}
     >
       Toggle Message Payload Visibility
@@ -429,34 +429,24 @@ const Topbar = ({
   };
 
   return html`
+    <${ToggleMsgLabelsButton} />
     <div style=${diagramContainerStyle}>
-      <div
-        style=${{
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-      >
-        <h4>Choose Next Action</h4>
-        <${ToggleMsgLabelsButton} />
-      </div>
       <div class="gridWrapper">
         ${actors.map(
-      (actor, i) => html`
+    (actor, i) => html`
             <div
               style=${{
-          gridColumn: i + 1,
-          gridRow: 1,
-          display: "flex",
-          flexDirection: "column",
-        }}
+        gridColumn: i + 1,
+        gridRow: 1,
+        display: "flex",
+        flexDirection: "column",
+      }}
             >
               <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge }} 
                 filterFn=${e => edgeToVizData(e).actor === actor} />
             </div>
           `,
-    )}
+  )}
       </div>
     </div>
   `;

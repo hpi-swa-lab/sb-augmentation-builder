@@ -3,6 +3,7 @@ import { DiagramConfig } from "./state-explorer.js";
 import {
     useContext,
 } from "../../external/preact-hooks.mjs";
+import { jsonToTLAString } from "./utils.js";
 
 /** transforms a list of edges to visual variables for the diagram
  * @returns {{
@@ -72,7 +73,7 @@ export function edgeToVizData({ reads, writes, label }) {
                     from: activatedActor,
                     type: "async-send",
                     label: "",
-                    key: JSON.stringify(msg),
+                    key: jsonToTLAString(msg),
                 });
             }
         }
@@ -82,7 +83,7 @@ export function edgeToVizData({ reads, writes, label }) {
                     to: activatedActor,
                     type: "async-receive",
                     label: "",
-                    key: JSON.stringify(msg),
+                    key: jsonToTLAString(msg),
                 });
             }
         }

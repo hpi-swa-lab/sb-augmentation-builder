@@ -91,10 +91,10 @@ export const TableRepresentation = (props) => {
 
     return html`
     <style>
-        th {
+        #table-representation th {
             border: 1px solid #ccc;
         }
-        td {
+        #table-representation td {
             word-break: break-word;
             white-space: pre-line;
         }
@@ -103,7 +103,7 @@ export const TableRepresentation = (props) => {
     <div style=${{ display: "inline-block" }}>
         <${EdgePickers} ...${props} filterFn=${_ => true} />
     </div>
-    <div style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
+    <div id="table-representation" style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
         <table style=${{ width: "100%" }}>
             <${TableHeader}  columnsKeys=${columnsKeys}/>
             ${values.map((rowValues, r_i) => html`
