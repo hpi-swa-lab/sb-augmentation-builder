@@ -171,6 +171,20 @@ const State = ({ graph, initNodes }) => {
     </div>`;
     };
 
+    const UndoButton = () => {
+        return html` <button
+      style=${{ height: "min-content", width: "min-content", margin: "4px", padding: "8px" }}
+      onClick=${() => {
+                if (prevEdges.length > 0) {
+                    setCurrNode(graph.nodes.get(prevEdges[prevEdges.length - 1].from));
+                    setPrevEdges((prevEdges) => prevEdges.slice(0, prevEdges.length - 1));
+                }
+            }}
+    >
+      Undo
+    </button>`;
+    };
+
     return html`
     <div style=${{
             display: "flex",
@@ -179,7 +193,10 @@ const State = ({ graph, initNodes }) => {
             overflowY: "clip"
         }}>
       <${RepresentationsPicker} representations=${representations} setRepresentations=${setRepresentations} />
-      <${InitStateSelection} />
+      <div style=${{ display: "flex", justifyContent: "space-between", margin: "8px" }}>
+        <${InitStateSelection} />
+        <${UndoButton} />
+      </div>
       <${RepresentationsLayout} ...${props} representations=${representations} />
     </div>
   `;
