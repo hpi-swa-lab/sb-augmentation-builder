@@ -103,7 +103,7 @@ export const TableRepresentation = (props) => {
     <div style=${{ display: "inline-block" }}>
         <${EdgePickers} ...${props} filterFn=${_ => true} />
     </div>
-    <div style=${{ padding: "0.5em" }}>
+    <div style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
         <table style=${{ width: "100%" }}>
             <${TableHeader}  columnsKeys=${columnsKeys}/>
             ${values.map((rowValues, r_i) => html`

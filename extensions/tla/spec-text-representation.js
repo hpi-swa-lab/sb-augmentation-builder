@@ -175,6 +175,13 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
 export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge }) => {
     return html`
     <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
-    <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
+    <div  style=${{
+            padding: "0 16px 0 0",
+            overflow: "scroll",
+            flexDirection: "column",
+            flex: "1 1 0px"
+        }}>
+        <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
+    </div>
     `
 }

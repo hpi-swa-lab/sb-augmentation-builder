@@ -53,7 +53,7 @@ const RepresentationsLayout = (props) => {
         }}
       >
         <!-- sequence diagram -->
-        <div style=${{ ...containerStyle, display: representations.includes("sequence") ? "flex" : "none" }}>
+        <div style=${{ ...containerStyle, display: representations.includes("sequence") ? "flex" : "none", flexDirection: "column" }}>
             <${SequenceDiagramRepresentation} ...${props} />
         </div>
         <!-- state diagram. We remove it from the tree because otherwise mermaid side effects cause havoc -->
@@ -65,11 +65,11 @@ const RepresentationsLayout = (props) => {
             : ""
         }
         <!-- table -->
-        <div style=${{ display: representations.includes("table") ? "block" : "none" }}>
+        <div style=${{ display: representations.includes("table") ? "flex" : "none", flexDirection: "column" }}>
             <${TableRepresentation} ...${props} />
         </div>
         <!-- text -->
-        <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%", display: representations.includes("text") ? "block" : "none" }}>
+        <div style=${{ display: "flex", flexDirection: "column" }}>
             <${SpecTextRepresentation} ...${props} />
         </div>
     </div>
@@ -172,7 +172,12 @@ const State = ({ graph, initNodes }) => {
     };
 
     return html`
-    <div>
+    <div style=${{
+            display: "flex",
+            flexDirection: "column",
+            flex: "1 1 0px",
+            overflowY: "clip"
+        }}>
       <${RepresentationsPicker} representations=${representations} setRepresentations=${setRepresentations} />
       <${InitStateSelection} />
       <${RepresentationsLayout} ...${props} representations=${representations} />
@@ -337,13 +342,8 @@ export const TlaStateExplorer = () => {
       </style>
     `,
         html`
-        <div style=${{
-                display: "flex",
-                flex: "1 1 0",
-                flexDirection: "column",
-                overflowY: "scroll",
-            }}>
+        <div style=${{ height: "100%", display: "flex", flexDirection: "column" }}>
             <${SpecPicker} />
-        </div>`,
+        </div>`
     ];
 };
