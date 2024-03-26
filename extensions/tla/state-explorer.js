@@ -53,9 +53,12 @@ const RepresentationsLayout = (props) => {
         }}
       >
         <!-- sequence diagram -->
-        <div style=${{ ...containerStyle, display: representations.includes("sequence") ? "flex" : "none", flexDirection: "column" }}>
-            <${SequenceDiagramRepresentation} ...${props} />
-        </div>
+        ${representations.includes("sequence")
+            ? html`
+                <div style=${{ ...containerStyle, display: "flex", flexDirection: "column" }}>
+                    <${SequenceDiagramRepresentation} ...${props} />
+                </div>`
+            : ""}
         <!-- state diagram. We remove it from the tree because otherwise mermaid side effects cause havoc -->
         ${representations.includes("state")
             ? html`

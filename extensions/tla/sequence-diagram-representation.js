@@ -28,6 +28,7 @@ const MessagesPositionsCompution = ({
   vizData,
   showMessagePayload,
   heightIncreaseFactor,
+  representations
 }) => {
   const { a2c } = useContext(DiagramConfig);
 
@@ -133,7 +134,7 @@ const MessagesPositionsCompution = ({
   }
 
   const toKey = (m) =>
-    `${m.fromCol}-${m.toCol}-${m.fromRow}-${m.toRow}-${m.label}-${m.yRelativePositionFrom}-${m.yRelativePositionTo}-${heightIncreaseFactor}`;
+    `${m.fromCol}-${m.toCol}-${m.fromRow}-${m.toRow}-${m.label}-${m.yRelativePositionFrom}-${m.yRelativePositionTo}-${heightIncreaseFactor}-${JSON.stringify(representations)}`;
 
   return [...syncMsgs, ...asyncMsgs].map(
     (m) =>
@@ -336,6 +337,7 @@ const SequenceDiagram = ({
   showMessagePayload,
   heightIncreaseFactor,
   previewEdge,
+  representations
 }) => {
   const { a2c, actors } = useContext(DiagramConfig);
 
@@ -382,6 +384,7 @@ const SequenceDiagram = ({
             vizData=${vizData}
             showMessagePayload=${showMessagePayload}
             heightIncreaseFactor=${heightIncreaseFactor}
+            representations=${representations}
           />
           <!-- last row with fixed height to still show some of the lifeline -->
           ${actors.map(
