@@ -72,7 +72,7 @@ const RepresentationsLayout = (props) => {
         <div style=${{ padding: "0 16px 0 0", overflow: "scroll", height: "100%", display: representations.includes("text") ? "block" : "none" }}>
             <${SpecTextRepresentation} ...${props} />
         </div>
-      </div>
+    </div>
     `
 }
 
@@ -336,6 +336,14 @@ export const TlaStateExplorer = () => {
         }
       </style>
     `,
-        html`<${SpecPicker} />`,
+        html`
+        <div style=${{
+                display: "flex",
+                flex: "1 1 0",
+                flexDirection: "column",
+                overflowY: "scroll",
+            }}>
+            <${SpecPicker} />
+        </div>`,
     ];
 };
