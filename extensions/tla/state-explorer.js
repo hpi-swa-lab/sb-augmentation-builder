@@ -80,13 +80,10 @@ const RepresentationsLayout = (props) => {
 }
 
 const RepresentationsPicker = ({ representations, setRepresentations }) => {
-    const onChange = (e) => {
-        if (e.target.checked) {
-            setRepresentations((r) => [...r, e.target.value]);
-        } else {
-            setRepresentations((r) => r.filter((v) => v !== e.target.value));
-        }
-    }
+    const onChange = (/** @type {string} */ value) =>
+        setRepresentations((representations) => representations.includes(value)
+            ? representations.filter((r) => r !== value)
+            : [...representations, value])
 
     return html`
     <div>
@@ -103,28 +100,28 @@ const RepresentationsPicker = ({ representations, setRepresentations }) => {
               name="sequence diagram"
               value="sequence"
               checked=${representations.includes("sequence")}
-              onChange=${onChange}
+              onChange=${e => onChange(e.target.value)}
             />
-            <label for="sequence diagram">Sequence Diagram</label>
+            <label for="sequence diagram" onClick=${() => onChange("sequence")}>Sequence Diagram</label>
           </div>
           <div class="checkbox-btn">
             <input type="checkbox" name="state machine" value="state" 
                 checked=${representations.includes("state")} 
-                onChange=${onChange}
+                onChange=${e => onChange(e.target.value)}
             />
-            <label for="state machine">State Machine</label>
+            <label for="state machine" onClick=${() => onChange("state")}>State Diagram</label>
           </div>
           <div class="checkbox-btn">
-            <input type="checkbox" name="table" value="table" onChange=${onChange}
+            <input type="checkbox" name="table" value="table" onChange=${e => onChange(e.target.value)}
                 checked=${representations.includes("table")}
             />
-            <label for="table">Table</label>
+            <label for="table" onClick=${() => onChange("table")}>Table</label>
           </div>
           <div class="checkbox-btn">
-            <input type="checkbox" name="text" value="text" onChange=${onChange}
+            <input type="checkbox" name="text" value="text" onChange=${e => onChange(e.target.value)}
                 checked=${representations.includes("text")}
             />
-            <label for="text">Text</label>
+            <label for="text" onClick=${() => onChange("text")}>Text</label>
           </div>
         </div>
     </div>`
