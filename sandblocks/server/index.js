@@ -9,10 +9,19 @@ import { Server } from "socket.io";
 import { exec, spawn } from "child_process";
 import Gitignore from "gitignore-fs";
 import crypto from "crypto";
+import https from "https";
 import { hotReload } from "./hot-reload.js";
 
+let key, cert;
+try {
+  key = fs.readFileSync("localhost-key.pem");
+  cert = fs.readFileSync("localhost.pem");
+} catch (error) {}
+
 const app = express();
-const server = http.createServer(app);
+const server = key
+  ? https.createServer({ key, cert }, app)
+  : http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
@@ -25,7 +34,7 @@ app.post("/sb-watch", (req, res) => {
 
 const rootPath = fsPath.join(
   fsPath.dirname(fileURLToPath(import.meta.url)),
-  "../.."
+  "../..",
 );
 if (process.env.HOT) hotReload(app, rootPath, io);
 app.use(express.static(rootPath));
@@ -66,9 +75,9 @@ io.on("connection", (socket) => {
             path,
             hash: crypto.createHash("sha1").update(b).digest("hex"),
             data: b.toString(),
-          }))
-        )
-      )
+          })),
+        ),
+      ),
   );
 
   // TODO handle path does not exist
@@ -161,4 +170,7 @@ cp ${repoName}.wasm ${upToRoot}/../../../external/${repoName}.wasm"`);
 });
 
 const port = process.env.PORT ?? 3000;
-server.listen(port, () => console.log(`listening on *:${port}`));
+
+server.listen(port, () =>
+  console.log(`listening on http${key ? "s" : ""}://localhost:${port}`),
+);

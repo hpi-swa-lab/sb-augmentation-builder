@@ -14,6 +14,12 @@ function takeBackwardWhile(list, start, condition) {
   return list.slice(index + 1, list.indexOf(start));
 }
 
+const removeIndent = new Extension().registerReplacement({
+  query: [(x) => x.isText && x.text[0] === "\n" && x.text.length > 2],
+  queryDepth: 1,
+  component: ({ node, replacement }) => h("span", {}, "WWW"),
+});
+
 export const javascript = new Extension().registerReplacement({
   query: [(x) => x.type === "program"],
   queryDepth: 1,
@@ -140,6 +146,10 @@ export const javascript = new Extension().registerReplacement({
         shownSymbol.editor &&
           h(StickyShardList, {
             list: shownSymbolList,
+            extensions: function () {
+              console.log(this);
+              return [this.parentShard?.extensions(), removeIndent];
+            },
             style: { display: "inline-block", width: "100%" },
           }),
       ),

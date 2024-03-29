@@ -2,6 +2,12 @@
 
 let a = 12;
 
+class MyCls {
+  test() {
+    console.log("a");
+  }
+}
+
 function hello(b) {
   () => ({ sbExample: "example1", args: [123], self: null });
 
@@ -30,7 +36,7 @@ function hello(b) {
         e
       ))("adasd"),
     ][1],
-    12
+    12,
   );
   return a;
 }
