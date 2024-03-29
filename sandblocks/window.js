@@ -66,6 +66,7 @@ export function Window({
   initialPosition,
   initialSize,
   doNotStartAttached,
+  fullscreen,
 }) {
   initialSize ??= { x: 500, y: 200 };
   const [position, setPosition] = useState(
@@ -143,6 +144,23 @@ export function Window({
   display: flex;
   flex-direction: column;
 }
+.sb-window.fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  border: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.sb-window.fullscreen .sb-window-bar {
+  display: none;
+}
+.sb-window.fullscreen .sb-window-resize {
+  display: none;
+}
 
 .sb-window-bar {
   background-color: #ccc;
@@ -184,7 +202,7 @@ export function Window({
       "div",
       {
         ref: windowRef,
-        class: "sb-window",
+        class: "sb-window " + (fullscreen ? "fullscreen" : ""),
         style: {
           left: position.x,
           top: position.y,
