@@ -13,16 +13,6 @@ import { confirmUnsavedChanges } from "../window.js";
 import { wait } from "../../utils.js";
 import { preferences } from "../../core/preferences.js";
 
-// .registerAlways((e) => [
-//   (_) => !!e.searchString,
-//   (x) => x.isText,
-//   (x) =>
-//     e.searchIsExact
-//       ? x.text === e.searchString
-//       : x.text.toLowerCase().includes(e.searchString.toLowerCase()),
-//   (x) => e.ensureClass(x, "search-result"),
-// ]);
-
 export function FileEditor({
   window,
   project,

@@ -221,3 +221,8 @@ sb-suggestions .material-symbols-outlined {
 .sb-pending-remove:before {
   content: "\00a0";
 }
+
+.node-clickable {
+  cursor: pointer;
+  text-decoration: underline;
+}

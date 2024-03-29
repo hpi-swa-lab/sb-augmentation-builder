@@ -413,14 +413,13 @@ export class BaseEditor extends HTMLElement {
             for (const view of shard.allViews()) {
               const markers = shard.getMarkersFor(view.node);
               if (!markers) continue;
-              const hasMarker = markers.get(marker.name);
+              const markerData = markers.get(marker.name);
               const hasMatch = view.node?.exec(...marker.query);
-              if (!hasMarker && hasMatch) {
-                markers.set(marker.name, marker);
-                marker.attach(shard, view.node);
-              } else if (hasMarker && !hasMatch) {
+              if (!markerData && hasMatch) {
+                markers.set(marker.name, marker.attach(shard, view.node) ?? {});
+              } else if (markerData && !hasMatch) {
                 markers.delete(marker.name);
-                marker.detach(shard, view.node);
+                marker.detach(shard, view.node, markerData);
               }
             }
           }

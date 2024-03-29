@@ -148,17 +148,17 @@ export class Extension {
   }
 
   registerEventListener({ name, query, queryDepth, event, callback }) {
-    // TODO store callback
     return this.registerMarker({
       query,
       name,
       queryDepth,
-      attach: (shard, node) =>
-        shard.withDom(node, (dom) =>
-          dom.addEventListener(event, (e) => callback(e, shard, node, dom)),
-        ),
-      detach: (shard, node) => {},
-      // shard.withDom(node, (dom) => dom.removeEventListener(event, func)),
+      attach: (shard, node) => {
+        const cb = (e) => callback(e, shard, node, dom);
+        shard.withDom(node, (dom) => dom.addEventListener(event, cb));
+        return { cb };
+      },
+      detach: (shard, node, { cb }) =>
+        shard.withDom(node, (dom) => dom.removeEventListener(event, cb)),
     });
   }
 
