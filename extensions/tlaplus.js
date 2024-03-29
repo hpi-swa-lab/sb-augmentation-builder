@@ -145,27 +145,34 @@ export const nextStateDisplay = new Extension().registerReplacement({
   name: "tla-next-state-display",
 });
 
-export const syntaxExplain = new Extension().registerEventListener({
-  name: "tla-syntax-explain-theorem",
-  event: "mouseenter",
-  query: [(x) => x.type === "theorem"],
-  queryDepth: 1,
-  callback: (e, shard, node, dom) => {
-    console.log(dom);
-    const rect = dom.getBoundingClientRect();
-    const tooltip = document.createElement("div");
-    tooltip.style.position = "fixed";
-    tooltip.style.backgroundColor = "white";
-    tooltip.style.border = "1px solid black";
-    tooltip.style.padding = "1em";
-    tooltip.style.zIndex = 9999999999999;
-    tooltip.textContent = "A theorem explaining the thing.";
-    tooltip.style.top = rect.bottom + "px";
-    tooltip.style.left = rect.left + "px";
-    document.body.appendChild(tooltip);
-    dom.addEventListener("mouseleave", () => tooltip.remove());
-  },
-});
+const validType = (x) =>
+  ["identifier", "string", "identifier_ref"].includes(x.type);
+
+export const clickableIdentifiers = new Extension()
+  .registerMarker({
+    query: [validType],
+    name: "tla-clickable-identifiers",
+    queryDepth: 1,
+    attach: (shard, node) => {
+      const func = (e) => {
+        node.editor.data("search-string").value = node.sourceString;
+        // triggered via the signal update
+        // node.editor.updateMarker("css:search-result");
+      };
+      shard.cssClass(node, "node-clickable", true);
+      shard.withDom(node, (dom) => dom.addEventListener("click", func));
+      return { func };
+    },
+    detach: (shard, node, { func }) => {
+      shard.cssClass(node, "node-clickable", false);
+      shard.withDom(node, (dom) => dom.removeEventListener("click", func));
+    },
+  })
+  .registerCss("search-result", [
+    (x) => !!x.editor.data("search-string").value,
+    validType,
+    (x) => x.sourceString === x.editor.data("search-string").value,
+  ]);
 
 export const base = new Extension()
   // tla+ keywords

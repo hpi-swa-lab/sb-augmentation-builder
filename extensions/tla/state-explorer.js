@@ -7,6 +7,7 @@ import {
     useContext,
 } from "../../external/preact-hooks.mjs";
 import { Component, createContext, createRef } from "../../external/preact.mjs";
+import { useSignal } from "../../external/preact-signals.mjs";
 import { SequenceDiagramRepresentation } from "./sequence-diagram-representation.js";
 import { EdgePickers } from "./utils.js";
 import { edgeToVizData } from "./actor-mapping.js";
@@ -19,6 +20,20 @@ const html = htm.bind(h);
 /** actor to column map */
 export const DiagramConfig = createContext();
 
+export function ClickableIdentifier({ label, highlightIdentifier }) {
+  return html`
+    <span
+      style=${{
+        cursor: "pointer",
+        textDecoration: "underline",
+      }}
+      class=${highlightIdentifier.value === label ? "search-result" : ""}
+      onClick=${() => highlightIdentifier.value = label}
+    >
+      ${label}
+    </span>
+  `;
+}
 
 const RepresentationsLayout = (props) => {
     const config = useContext(DiagramConfig);
@@ -138,6 +153,7 @@ const State = ({ graph, initNodes }) => {
     const [showMessagePayload, setShowMessagePayload] = useState(false);
     const [heightIncreaseFactor, setHeightIncreaseFactor] = useState(1);
     const [representations, setRepresentations] = useState(["sequence", "state", "table", "text"]);
+    const highlightIdentifier = useSignal(null);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;
     const vizData = edges.map(edgeToVizData);
@@ -150,7 +166,8 @@ const State = ({ graph, initNodes }) => {
         vizData,
         selectedActor, setSelectedActor,
         showMessagePayload, setShowMessagePayload,
-        heightIncreaseFactor, setHeightIncreaseFactor
+        heightIncreaseFactor, setHeightIncreaseFactor,
+        highlightIdentifier,
     };
 
     const InitStateSelection = () => {

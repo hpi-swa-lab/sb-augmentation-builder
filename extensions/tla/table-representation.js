@@ -1,5 +1,5 @@
 import { useContext } from "../../external/preact-hooks.mjs";
-import { DiagramConfig } from "./state-explorer.js";
+import { ClickableIdentifier, DiagramConfig } from "./state-explorer.js";
 import { EdgePickers, apply, jsonToTLAString, nestedKeys } from "./utils.js";
 import htm from "../../external/htm.mjs";
 import { h } from "../../external/preact.mjs";
@@ -115,8 +115,8 @@ export const TableRepresentation = (props) => {
             && values[r_i - 1][c_i] === colVal // the value is the same as in the previous row 
 
         return html`
-                    <td style=${{ opacity: isValueUnchanged ? "20%" : "100%" }}>
-                        ${colVal}
+                    <td style=${{ opacity: isValueUnchanged ? "20%" : "100%", whitespace: 'nowrap' }}>
+                        <${ClickableIdentifier} label=${colVal} highlightIdentifier=${props.highlightIdentifier} />
                     </td>`})}
                 </tr>`)
         }
