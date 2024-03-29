@@ -9,40 +9,128 @@ const createUnicodeReplacement = (sbNodeType, unicodeSymbol, explanation) => {
     component: () => h("span", { title: explanation }, unicodeSymbol),
     name: `tla-latex-${sbNodeType}`,
   });
-}
+};
 
-export const cup = createUnicodeReplacement("cup", "∪", "Union combines two sets into one set.\n\nFor example, {1, 2} ∪ {2, 3} = {1, 2, 3}.");
-export const bulletConj = createUnicodeReplacement("bullet_conj", "∧", "Conjunction combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.");
-export const bulletDisj = createUnicodeReplacement("bullet_disj", "∨", "Disjunction combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.");
-export const lor = createUnicodeReplacement("lor", "∨", "Logical OR combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.");
-export const land = createUnicodeReplacement("land", "∧", "Logical AND combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.");
-export const always = createUnicodeReplacement("always", "□", "Always is a temporal operator that asserts that a property holds at all times.\n\nFor example, □P asserts that P is always true.");
-export const diamond = createUnicodeReplacement("diamond", "◇", "Diamond is a temporal operator that asserts that a property holds at some time.\n\nFor example, ◇P asserts that P is true at some point in time.");
-export const implies = createUnicodeReplacement("implies", "⇒", "Implies is a logical operator that asserts that if the left-hand side is true, then the right-hand side must also be true.\n\nFor example, P ⇒ Q asserts that if P is true, then Q must also be true. It is equivalent to ¬P ∨ Q.");
-export const setIn = createUnicodeReplacement("set_in", "∈", "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.");
-export const notin = createUnicodeReplacement("notin", "∉", "Not in asserts that an element is not a member of a set.\n\nFor example, 3 ∉ {1, 2} asserts that 3 is not an element of the set {1, 2}.");
-export const setsubseteq = createUnicodeReplacement("subseteq", "⊆", "Subset or equal to asserts that one set is a subset of another set, including the case where the sets are equal.\n\nFor example, {1} ⊆ {1, 2} asserts that the set {1} is a subset of the set {1, 2}.");
-export const setsubset = createUnicodeReplacement("subset", "⊂", "Subset asserts that one set is a subset of another set, excluding the case where the sets are equal.\n\nFor example, {1} ⊂ {1, 2} asserts that the set {1} is a proper subset of the set {1, 2}.");
-export const mapsTo = createUnicodeReplacement("maps_to", "→", "This gives the set of all functions from one set to another.\n\nFor example, [{1, 2} → {3, 4}] is the set of all functions that map 1 to 3 or 4, and 2 to 3 or 4.");
-export const allMapTo = createUnicodeReplacement("all_map_to", "↦", "This defines a function or record. The left-hand side is the domain. If it is a symbol, it is interpreted as a string.\n\nFor example, [x ∈ {1, 2}  ↦ x + 1] is the function that adds 1 to its input.\n\nThe other case is a record:\nFor example, [type ↦ \"working\"] is a record with the key \"type\", mapping to \"working\".");
-export const defEq = createUnicodeReplacement("def_eq", "≜", "This is a definition. It asserts that the left-hand side is defined to be the right-hand side.\n\nFor example, x ≜ 1 asserts that x is defined to be 1.");
-export const exists = createUnicodeReplacement("exists", "∃", "Exists asserts that there exists at least one element in a set that satisfies a property.\n\nFor example, ∃x ∈ {1, 2} : x > 1 asserts that there exists an element x in the set {1, 2} such that x is greater than 1.");
-export const forall = createUnicodeReplacement("forall", "∀", "For all asserts that every element in a set satisfies a property.\n\nFor example, ∀x ∈ {1, 2} : x > 0 asserts that every element x in the set {1, 2} is greater than 0.");
-export const tlain = createUnicodeReplacement("in", "∈", "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.");
+export const cup = createUnicodeReplacement(
+  "cup",
+  "∪",
+  "Union combines two sets into one set.\n\nFor example, {1, 2} ∪ {2, 3} = {1, 2, 3}.",
+);
+export const bulletConj = createUnicodeReplacement(
+  "bullet_conj",
+  "∧",
+  "Conjunction combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.",
+);
+export const bulletDisj = createUnicodeReplacement(
+  "bullet_disj",
+  "∨",
+  "Disjunction combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.",
+);
+export const lor = createUnicodeReplacement(
+  "lor",
+  "∨",
+  "Logical OR combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.",
+);
+export const land = createUnicodeReplacement(
+  "land",
+  "∧",
+  "Logical AND combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.",
+);
+export const always = createUnicodeReplacement(
+  "always",
+  "□",
+  "Always is a temporal operator that asserts that a property holds at all times.\n\nFor example, □P asserts that P is always true.",
+);
+export const diamond = createUnicodeReplacement(
+  "diamond",
+  "◇",
+  "Diamond is a temporal operator that asserts that a property holds at some time.\n\nFor example, ◇P asserts that P is true at some point in time.",
+);
+export const implies = createUnicodeReplacement(
+  "implies",
+  "⇒",
+  "Implies is a logical operator that asserts that if the left-hand side is true, then the right-hand side must also be true.\n\nFor example, P ⇒ Q asserts that if P is true, then Q must also be true. It is equivalent to ¬P ∨ Q.",
+);
+export const setIn = createUnicodeReplacement(
+  "set_in",
+  "∈",
+  "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.",
+);
+export const notin = createUnicodeReplacement(
+  "notin",
+  "∉",
+  "Not in asserts that an element is not a member of a set.\n\nFor example, 3 ∉ {1, 2} asserts that 3 is not an element of the set {1, 2}.",
+);
+export const setsubseteq = createUnicodeReplacement(
+  "subseteq",
+  "⊆",
+  "Subset or equal to asserts that one set is a subset of another set, including the case where the sets are equal.\n\nFor example, {1} ⊆ {1, 2} asserts that the set {1} is a subset of the set {1, 2}.",
+);
+export const setsubset = createUnicodeReplacement(
+  "subset",
+  "⊂",
+  "Subset asserts that one set is a subset of another set, excluding the case where the sets are equal.\n\nFor example, {1} ⊂ {1, 2} asserts that the set {1} is a proper subset of the set {1, 2}.",
+);
+export const mapsTo = createUnicodeReplacement(
+  "maps_to",
+  "→",
+  "This gives the set of all functions from one set to another.\n\nFor example, [{1, 2} → {3, 4}] is the set of all functions that map 1 to 3 or 4, and 2 to 3 or 4.",
+);
+export const allMapTo = createUnicodeReplacement(
+  "all_map_to",
+  "↦",
+  'This defines a function or record. The left-hand side is the domain. If it is a symbol, it is interpreted as a string.\n\nFor example, [x ∈ {1, 2}  ↦ x + 1] is the function that adds 1 to its input.\n\nThe other case is a record:\nFor example, [type ↦ "working"] is a record with the key "type", mapping to "working".',
+);
+export const defEq = createUnicodeReplacement(
+  "def_eq",
+  "≜",
+  "This is a definition. It asserts that the left-hand side is defined to be the right-hand side.\n\nFor example, x ≜ 1 asserts that x is defined to be 1.",
+);
+export const exists = createUnicodeReplacement(
+  "exists",
+  "∃",
+  "Exists asserts that there exists at least one element in a set that satisfies a property.\n\nFor example, ∃x ∈ {1, 2} : x > 1 asserts that there exists an element x in the set {1, 2} such that x is greater than 1.",
+);
+export const forall = createUnicodeReplacement(
+  "forall",
+  "∀",
+  "For all asserts that every element in a set satisfies a property.\n\nFor example, ∀x ∈ {1, 2} : x > 0 asserts that every element x in the set {1, 2} is greater than 0.",
+);
+export const tlain = createUnicodeReplacement(
+  "in",
+  "∈",
+  "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.",
+);
 
 export const except = new Extension().registerReplacement({
   query: [(x) => x.type === "except"],
   queryDepth: 1,
-  component: ({ node }) => h("span", { title: "EXCEPT is used to modify a function by changing the value of one or more of its arguments, while copying all except the changed ones.\n\nFor example, if we define f == [x \\in {1, 2} |-> \"init\"], which would represent a function like {1 |-> \"init\", 2 |-> \"init\"}, we can then use EXCEPT to change the value of 1 to \"changed\" and copying the rest by writing [f EXCEPT ![1] = \"changed\"]." }, shard(node)),
+  component: ({ node }) =>
+    h(
+      "span",
+      {
+        title:
+          'EXCEPT is used to modify a function by changing the value of one or more of its arguments, while copying all except the changed ones.\n\nFor example, if we define f == [x \\in {1, 2} |-> "init"], which would represent a function like {1 |-> "init", 2 |-> "init"}, we can then use EXCEPT to change the value of 1 to "changed" and copying the rest by writing [f EXCEPT ![1] = "changed"].',
+      },
+      shard(node),
+    ),
   name: "tla-except",
-})
+});
 
 export const unchanged = new Extension().registerReplacement({
   query: [(x) => x.type === "unchanged"],
   queryDepth: 1,
-  component: ({ node }) => h("span", { title: "UCHANGED is used to assert that a variable does not change its value.\n\nFor example, UCHANGED x asserts that the value of x does not change after running this action." }, shard(node)),
+  component: ({ node }) =>
+    h(
+      "span",
+      {
+        title:
+          "UCHANGED is used to assert that a variable does not change its value.\n\nFor example, UCHANGED x asserts that the value of x does not change after running this action.",
+      },
+      shard(node),
+    ),
   name: "tla-unchanged",
-})
+});
 
 export const nextStateDisplay = new Extension().registerReplacement({
   query: [
