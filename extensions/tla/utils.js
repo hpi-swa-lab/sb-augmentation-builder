@@ -90,6 +90,12 @@ export const jsonToTLAString = (obj) => {
     json = json.replace(/{/g, "[");
     // replace all } with ]
     json = json.replace(/}/g, "]");
+    // we cannot do this here because records and sets are not distinguished
+    // meaning that we would interpret records as sets if proceeeding here
+    // replace all [ with {
+    //json = json.replace(/\[/g, "{");
+    // replace all ] with }
+    //json = json.replace(/\]/g, "}");
     return json;
 }
 

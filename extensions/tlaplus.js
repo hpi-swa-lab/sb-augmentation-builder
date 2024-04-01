@@ -145,34 +145,17 @@ export const nextStateDisplay = new Extension().registerReplacement({
   name: "tla-next-state-display",
 });
 
+export const constantsDisplay = new Extension().registerReplacement({
+  query: [
+    (x) => x?.parent?.type === "constant_declaration",
+  ],
+  queryDepth: 1,
+  component: ({ node, renderContent }) => renderContent?.({ node }),
+  name: "tla-constants-display",
+});
+
 const validType = (x) =>
   ["identifier", "string", "identifier_ref"].includes(x.type);
-
-export const clickableIdentifiers = new Extension()
-  .registerMarker({
-    query: [validType],
-    name: "tla-clickable-identifiers",
-    queryDepth: 1,
-    attach: (shard, node) => {
-      const func = (e) => {
-        node.editor.data("search-string").value = node.sourceString;
-        // triggered via the signal update
-        // node.editor.updateMarker("css:search-result");
-      };
-      shard.cssClass(node, "node-clickable", true);
-      shard.withDom(node, (dom) => dom.addEventListener("click", func));
-      return { func };
-    },
-    detach: (shard, node, { func }) => {
-      shard.cssClass(node, "node-clickable", false);
-      shard.withDom(node, (dom) => dom.removeEventListener("click", func));
-    },
-  })
-  .registerCss("search-result", [
-    (x) => !!x.editor.data("search-string").value,
-    validType,
-    (x) => x.sourceString === x.editor.data("search-string").value,
-  ]);
 
 export const base = new Extension()
   // tla+ keywords

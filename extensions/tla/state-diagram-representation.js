@@ -1,6 +1,6 @@
 import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
 import htm from "../../external/htm.mjs";
-import { EdgePickers } from "./utils.js";
+import { EdgePickers, jsonToTLAString } from "./utils.js";
 import { useContext, useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { DiagramConfig } from "./state-explorer.js";
 import { h } from "../../external/preact.mjs";
@@ -14,9 +14,12 @@ export const nodeToStateDescription = (selectors, node) => {
             const results = jmespath.search(node, query);
             if (!results) return []; // this will be removed in the subsequent flattening
             if (results.length === 0) return fallback ?? [];
+            const tla = Array.isArray(results[0])
+                ? `{${results[0].map(jsonToTLAString).join(", ")}}`
+                : jsonToTLAString(results[0]);
             return annotation.replace(
                 /@/g,
-                JSON.stringify(results[0]).replace(/\"/g, ""),
+                tla?.replace(/\"/g, "'"),
             );
         })
         .flat()
