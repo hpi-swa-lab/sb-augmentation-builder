@@ -1,6 +1,5 @@
 import htm from "../../external/htm.mjs";
 import { useContext, useEffect, useRef, useState } from "../../external/preact-hooks.mjs";
-import { useComputed, useSignalEffect } from "../../external/preact-signals.mjs";
 import { h } from "../../external/preact.mjs";
 import { shard, editor } from "../../view/widgets.js";
 import { DiagramConfig } from "./state-explorer.js";
@@ -159,13 +158,6 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
         }
     }, [refresh, currNode]);
 
-    useEffect(() => editorRef.current.setData('search-string', highlightIdentifier), []);
-    useSignalEffect(() => {
-        // read for subscription
-        highlightIdentifier.value;
-        editorRef.current.updateMarker('css:search-result');
-    });
-
     return editor({
         editorRef,
         sourceString: source,
@@ -175,7 +167,6 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
         onready: () => setRefresh((r) => r + 1),
         extensions: [
             "tlaplus:base",
-            "tlaplus:clickableIdentifiers",
             "tlaplus:nextStateDisplay",
             "tlaplus:constantsDisplay",
             "tlaplus:cup",
@@ -197,12 +188,12 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             "tlaplus:forall",
             "tlaplus:tlain",
             "tlaplus:except",
-            "tlaplus:unchanged",
+            "tlaplus:unchanged"
         ],
     });
 }
 
-export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, highlightIdentifier }) => {
+export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge }) => {
     return html`
     <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
     <div  style=${{
@@ -211,7 +202,7 @@ export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEd
             flexDirection: "column",
             flex: "1 1 0px"
         }}>
-        <${SpecEditor} highlightIdentifier=${highlightIdentifier} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
+        <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
     </div>
     `
 }
