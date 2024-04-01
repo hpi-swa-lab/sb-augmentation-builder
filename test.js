@@ -5,9 +5,10 @@ import {
   SelectionInteraction,
   useValidator,
 } from "./core/replacement.js";
+import { matchingParentheses } from "./extensions/base.js";
 import { h } from "./external/preact.mjs";
 import { SandblocksEditor } from "./sandblocks/editor/editor.js";
-import { markInputEditable, shard } from "./view/widgets.js";
+import { markInputEditable, shard, shardList } from "./view/widgets.js";
 
 const tests = [];
 const configStack = [{}];
@@ -213,6 +214,32 @@ describe("codemirror", () => {
     await tick();
     assertEq(editor.sourceString, "b+a\n");
   });
+
+  test("insert parentheses pair in nested shard", async () => {
+    const extension = new Extension().registerReplacement({
+      name: "test-program-replacement",
+      query: [(x) => x.type === "program"],
+      queryDepth: 1,
+      rerender: () => true,
+      component: ({ node }) =>
+        h("span", {}, "[[", shardList(node.children), "]]"),
+    });
+    if (editor instanceof SandblocksEditor)
+      editor.inlineExtensions = [extension, matchingParentheses];
+    else editor.inlineExtensions = [extension];
+
+    await editor.setText("a", "javascript");
+    editor.selectAndFocus([1, 1]);
+    editor.simulateKeyStroke("(");
+    assertEq(editor.selection.head.index, 2);
+    assertEq(editor.sourceString, "a()\n");
+    editor.simulateKeyStroke(")");
+    assertEq(editor.selection.head.index, 3);
+    assertEq(editor.sourceString, "a()\n");
+    editor.simulateKeyStroke("b");
+    assertEq(editor.selection.head.index, 4);
+    assertEq(editor.sourceString, "a()b\n");
+  });
 });
 
 describe("sandblocks", () => {
@@ -296,7 +323,7 @@ describe("pending changes", () => {
     editor.remove();
   });
 
-  test.skip("are buffered correctly when parentheses are entered", async () => {
+  test("are buffered correctly when parentheses are entered", async () => {
     const ext = new Extension().registerReplacement({
       name: "validator-test",
       query: [(x) => x.type === "program"],
@@ -314,6 +341,7 @@ describe("pending changes", () => {
     editor.simulateKeyStroke(")");
     assertContains(editor.pendingChanges.value, [
       { from: 1, to: 1, insert: "()" },
+      { from: 2, to: 3, insert: ")" },
     ]);
     editor.applyPendingChanges();
     assertEq(editor.sourceString, "a()\n");

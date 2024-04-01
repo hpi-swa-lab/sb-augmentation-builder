@@ -52,6 +52,67 @@ function indexOfIndentEnd(string, index) {
   return i;
 }
 
+export const matchingParentheses = new Extension()
+  // skip over closing parentheses
+  // FIXME may want to do this only for auto-inserted parentheses
+  .registerChangeFilter(([change], { sourceString }) => {
+    if (
+      REVERSED_BRACE_PAIRS[change.insert] &&
+      sourceString[change.from] === change.insert
+    ) {
+      change.insert = "";
+    }
+  })
+
+  // insert matching parentheses
+  .registerChangeFilter(([change], { sourceString }) => {
+    if (PAIRS[change.insert]) {
+      const match = PAIRS[change.insert];
+      if (change.from === change.to) change.insert += match;
+      else {
+        change.insert = `${change.insert}${sourceString.slice(
+          change.from,
+          change.to,
+        )}${match}`;
+        change.selectionRange = [change.from + 1, change.to + 1];
+      }
+    }
+  })
+
+  // delete matching parentheses together
+  .registerChangeFilter(([change], { sourceString }) => {
+    const match = PAIRS[change.delete];
+    if (match && sourceString[change.from + 1] === match) {
+      change.delete += match;
+      change.to++;
+    }
+  })
+
+  // indent on newline
+  .registerChangeFilter(([change], { sourceString, tabSize }) => {
+    if (change.insert === "\n") {
+      function findLastIndent(string, index) {
+        return string.slice(
+          indexOfLastNewLine(string, index) + 1,
+          indexOfIndentEnd(string, index),
+        );
+      }
+
+      let indent = findLastIndent(sourceString, change.from - 1);
+      let offset = indent.length;
+      const prev = sourceString[change.from - 1];
+      if (PAIRS[prev]) {
+        const orig = indent;
+        indent += " ".repeat(tabSize);
+        if (sourceString[change.from] === PAIRS[prev]) indent += "\n" + orig;
+        offset += tabSize;
+      }
+      change.insert += indent;
+      change.selectionRange[0] += offset;
+      change.selectionRange[1] += offset;
+    }
+  });
+
 const suggestions = new Extension()
   .registerShortcut(
     "useSuggestion",
@@ -170,65 +231,7 @@ export const base = new Extension()
     ]);
   })
 
-  // skip over closing parentheses
-  // FIXME may want to do this only for auto-inserted parentheses
-  .registerChangeFilter(([change], { sourceString }) => {
-    if (
-      REVERSED_BRACE_PAIRS[change.insert] &&
-      sourceString[change.from] === change.insert
-    ) {
-      change.insert = "";
-    }
-  })
-
-  // insert matching parentheses
-  .registerChangeFilter(([change], { sourceString }) => {
-    if (PAIRS[change.insert]) {
-      const match = PAIRS[change.insert];
-      if (change.from === change.to) change.insert += match;
-      else {
-        change.insert = `${change.insert}${sourceString.slice(
-          change.from,
-          change.to,
-        )}${match}`;
-        change.selectionRange = [change.from + 1, change.to + 1];
-      }
-    }
-  })
-
-  // delete matching parentheses together
-  .registerChangeFilter(([change], { sourceString }) => {
-    const match = PAIRS[change.delete];
-    if (match && sourceString[change.from + 1] === match) {
-      change.delete += match;
-      change.to++;
-    }
-  })
-
-  // indent on newline
-  .registerChangeFilter(([change], { sourceString, tabSize }) => {
-    if (change.insert === "\n") {
-      function findLastIndent(string, index) {
-        return string.slice(
-          indexOfLastNewLine(string, index) + 1,
-          indexOfIndentEnd(string, index),
-        );
-      }
-
-      let indent = findLastIndent(sourceString, change.from - 1);
-      let offset = indent.length;
-      const prev = sourceString[change.from - 1];
-      if (PAIRS[prev]) {
-        const orig = indent;
-        indent += " ".repeat(tabSize);
-        if (sourceString[change.from] === PAIRS[prev]) indent += "\n" + orig;
-        offset += tabSize;
-      }
-      change.insert += indent;
-      change.selectionRange[0] += offset;
-      change.selectionRange[1] += offset;
-    }
-  })
+  .copyFrom(matchingParentheses)
 
   // .registerQuery("shortcut", (e) => [
   //   needsSelection,

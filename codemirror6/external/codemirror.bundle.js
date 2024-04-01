@@ -26613,4 +26613,4 @@ const minimalSetup = /*@__PURE__*/(() => [
     ])
 ])();
 
-export { Decoration, EditorView, Prec, RangeSet, StateField, WidgetType, autocompletion, basicSetup, indentWithTab, javascript, keymap, minimalSetup, startCompletion };
+export { Decoration, EditorState, EditorView, Prec, RangeSet, StateField, WidgetType, autocompletion, basicSetup, bracketMatching, closeBrackets, closeBracketsKeymap, completionKeymap, crosshairCursor, defaultHighlightStyle, defaultKeymap, drawSelection, dropCursor, foldGutter, foldKeymap, highlightActiveLine, highlightActiveLineGutter, highlightSelectionMatches, highlightSpecialChars, history, historyKeymap, indentOnInput, indentWithTab, javascript, keymap, lineNumbers, lintKeymap, minimalSetup, rectangularSelection, searchKeymap, startCompletion, syntaxHighlighting };

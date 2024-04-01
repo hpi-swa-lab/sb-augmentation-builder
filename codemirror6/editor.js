@@ -4,7 +4,6 @@ import { BaseShard } from "../core/shard.js";
 import {
   EditorView,
   basicSetup,
-  minimalSetup,
   RangeSet,
   StateField,
   Prec,
@@ -15,6 +14,30 @@ import {
   javascript,
   autocompletion,
   startCompletion,
+  highlightSpecialChars,
+  history,
+  drawSelection,
+  dropCursor,
+  EditorState,
+  indentOnInput,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  bracketMatching,
+  closeBrackets,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+  highlightSelectionMatches,
+  closeBracketsKeymap,
+  defaultKeymap,
+  searchKeymap,
+  historyKeymap,
+  foldKeymap,
+  completionKeymap,
+  lintKeymap,
+  lineNumbers,
+  highlightActiveLineGutter,
+  foldGutter,
 } from "./external/codemirror.bundle.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
@@ -45,6 +68,37 @@ export class CodeMirrorEditor extends BaseEditor {
   clearSuggestions() {}
 }
 
+const baseCMExtensions = [
+  highlightSpecialChars(),
+  history(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
+const extraCMExtensionsForRoot = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  foldGutter(),
+];
+
 // TODO moving cursor up/down, then left/right
 class CodeMirrorShard extends BaseShard {
   replacementsMap = new Map();
@@ -73,7 +127,8 @@ class CodeMirrorShard extends BaseShard {
     this.cm = new EditorView({
       doc: "",
       extensions: [
-        this.node.isRoot ? basicSetup : minimalSetup,
+        ...baseCMExtensions,
+        ...(this.node.isRoot ? extraCMExtensionsForRoot : []),
         Prec.highest(
           keymap.of([
             {
