@@ -70,7 +70,9 @@ const tableHeaderStyle = {
 };
 
 function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, highlightIdentifier }) {
-    const source = useContext(DiagramConfig).source;
+    const config = useContext(DiagramConfig);
+    const constants = config.mcConfig.CONSTANTS;
+    const source = config.source;
     const [refresh, setRefresh] = useState(0);
     const editorRef = useRef(null);
 
@@ -136,6 +138,25 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             // in preact that disallows nesting render calls?
             queueMicrotask(() => r.render());
         }
+
+        for (const r of editorRef.current.querySelectorAll(
+            "sb-replacement[name=tla-constants-display]",
+        )) {
+            r.props.renderContent = ({ node }) => {
+                if (node.type !== "identifier") return shard(node);
+                const identifierBlock = node;
+                return html`
+                <div style=${{ display: "inline-block" }}>
+                    ${shard(identifierBlock)}
+                    <span> = </span>
+                    <span>${jsonToTLAString(constants)}</span>
+                </div>
+                `
+            };
+            // FIXME not sure why this has to be in a micro task, is there global state
+            // in preact that disallows nesting render calls?
+            queueMicrotask(() => r.render());
+        }
     }, [refresh, currNode]);
 
     useEffect(() => editorRef.current.setData('search-string', highlightIdentifier), []);
@@ -156,6 +177,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             "tlaplus:base",
             "tlaplus:clickableIdentifiers",
             "tlaplus:nextStateDisplay",
+            "tlaplus:constantsDisplay",
             "tlaplus:cup",
             "tlaplus:bulletConj",
             "tlaplus:bulletDisj",

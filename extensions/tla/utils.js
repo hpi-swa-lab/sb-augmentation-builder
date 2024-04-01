@@ -90,6 +90,10 @@ export const jsonToTLAString = (obj) => {
     json = json.replace(/{/g, "[");
     // replace all } with ]
     json = json.replace(/}/g, "]");
+    // replace all [ with {
+    json = json.replace(/\[/g, "{");
+    // replace all ] with }
+    json = json.replace(/\]/g, "}");
     return json;
 }
 

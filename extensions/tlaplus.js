@@ -145,6 +145,15 @@ export const nextStateDisplay = new Extension().registerReplacement({
   name: "tla-next-state-display",
 });
 
+export const constantsDisplay = new Extension().registerReplacement({
+  query: [
+    (x) => x?.parent?.type === "constant_declaration",
+  ],
+  queryDepth: 1,
+  component: ({ node, renderContent }) => renderContent?.({ node }),
+  name: "tla-constants-display",
+});
+
 const validType = (x) =>
   ["identifier", "string", "identifier_ref"].includes(x.type);
 

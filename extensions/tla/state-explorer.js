@@ -21,12 +21,12 @@ const html = htm.bind(h);
 export const DiagramConfig = createContext();
 
 export function ClickableIdentifier({ label, highlightIdentifier }) {
-  return html`
+    return html`
     <span
       style=${{
-        cursor: "pointer",
-        textDecoration: "underline",
-      }}
+            cursor: "pointer",
+            textDecoration: "underline",
+        }}
       class=${highlightIdentifier.value === label ? "search-result" : ""}
       onClick=${() => highlightIdentifier.value = label}
     >
@@ -306,6 +306,7 @@ const GraphProvider = ({ spec }) => {
         stateSpaceByActor,
         stateSpaceSelectors: spec.transformation.stateSpaceSelectors,
         source: spec.source,
+        mcConfig: spec.mcConfig,
     };
 
     return [
