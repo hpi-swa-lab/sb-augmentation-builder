@@ -1,6 +1,10 @@
 import { Extension } from "../core/extension.js";
-import { SelectionInteraction, StickyShardList } from "../core/replacement.js";
-import { useEffect, useMemo, useState } from "../external/preact-hooks.mjs";
+import {
+  DeletionInteraction,
+  SelectionInteraction,
+  StickyShardList,
+} from "../core/replacement.js";
+import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
 import { h } from "../view/widgets.js";
 
@@ -18,6 +22,7 @@ const removeIndent = new Extension().registerReplacement({
   query: [(x) => x.isText && x.text.includes("\n") && x.text.length > 2],
   queryDepth: 1,
   selection: SelectionInteraction.Point,
+  deletion: DeletionInteraction.SelectThenFull,
   component: ({ node, replacement }) => {
     const root = replacement.shard.node;
     let minIndent = Infinity;
@@ -59,7 +64,7 @@ export const javascript = new Extension().registerReplacement({
 
     let [selectedMember, setSelectedMember] = useState(members[0]);
     // if we have become disconnected while selected, choose a fallback
-    if (!selectedMember.connected) selectedMember = members[0];
+    if (!selectedMember?.connected) selectedMember = members[0];
     useEffect(() => {
       setSelectedMember(members[0]);
     }, [selectedSymbol]);
@@ -165,7 +170,7 @@ export const javascript = new Extension().registerReplacement({
           h(StickyShardList, {
             list: shownSymbolList,
             extensions: function () {
-              return [...this.parentShard?.extensions(), removeIndent];
+              return [...(this.parentShard?.extensions() ?? []), removeIndent];
             },
             style: { display: "inline-block", width: "100%" },
           }),

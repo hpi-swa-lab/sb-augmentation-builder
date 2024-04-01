@@ -1,6 +1,7 @@
 import { CodeMirrorEditor } from "./codemirror6/editor.js";
 import { Extension } from "./core/extension.js";
 import {
+  DeletionInteraction,
   SBReplacement,
   SelectionInteraction,
   useValidator,
@@ -73,8 +74,19 @@ function tick() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-describe("codemirror offscreen", () => {
-  test("range shift complex", () => {
+describe("range shift pending changes", () => {
+  test("simple", () => {
+    const editor = new CodeMirrorEditor();
+    editor.pendingChanges.value = [
+      { from: 3, to: 3, insert: "a" },
+      { from: 7, to: 10, insert: "" },
+    ];
+    assertEq(editor.adjustRange([0, 1], false), [0, 1]);
+    assertEq(editor.adjustRange([3, 4], false), [4, 5]);
+    assertEq(editor.adjustRange([7, 10], false), [7, 8]);
+  });
+
+  test("complex", () => {
     const editor = new CodeMirrorEditor();
     editor.pendingChanges.value = [
       { from: 5, to: 5, insert: "3" },
@@ -86,24 +98,13 @@ describe("codemirror offscreen", () => {
     assertEq(editor.adjustRange([1, 6], false), [1, 4]);
   });
 
-  test("range shift simple", () => {
-    const editor = new CodeMirrorEditor();
-    editor.pendingChanges.value = [
-      { from: 3, to: 3, insert: "a" },
-      { from: 7, to: 10, insert: "" },
-    ];
-    assertEq(editor.adjustRange([0, 1], false), [0, 1]);
-    assertEq(editor.adjustRange([3, 4], false), [4, 5]);
-    assertEq(editor.adjustRange([7, 10], false), [7, 8]);
-  });
-
-  test("range shift root", () => {
+  test("root", () => {
     const editor = new CodeMirrorEditor();
     editor.pendingChanges.value = [{ from: 0, to: 0, insert: "a" }];
     assertEq(editor.adjustRange([0, 10], true), [0, 11]);
   });
 
-  test("edit with pending changes", async () => {
+  test("edit", async () => {
     const editor = new CodeMirrorEditor();
     await editor.setText("a + b", "javascript");
 
@@ -152,6 +153,13 @@ describe("codemirror", () => {
     assertEq(editor.sourceString, "b+\n");
   });
 
+  test("delete at boundary", async () => {
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([0, 0]);
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+12\n");
+  });
+
   test("delete into replacement", async () => {
     const extension = new Extension().registerReplacement({
       name: "test-hiding-replacement",
@@ -191,6 +199,8 @@ describe("codemirror", () => {
         name: "test-hiding-replacement",
         query: [(x) => x.type === "number"],
         queryDepth: 1,
+        deletion: DeletionInteraction.Character,
+        selection: SelectionInteraction.Skip,
         rerender: () => true,
         component: ({ node }) =>
           h("span", { style: { "background-color": "red" } }, node.text),
@@ -264,52 +274,113 @@ describe("sandblocks", () => {
 describe("replacement", () => {
   let editor;
   beforeEach(() => {
-    editor = new SandblocksEditor();
+    editor = new CodeMirrorEditor();
     document.body.appendChild(editor);
   });
   afterEach(() => {
     editor.remove();
   });
 
-  test("cursor positions for point selection", async () => {
-    const ext = new Extension().registerReplacement({
-      name: "test",
-      query: [(x) => x.type === "number"],
-      queryDepth: 1,
-      selection: SelectionInteraction.Point,
-      component: ({ node }) => h("span", {}, node.text),
-    });
-    editor.inlineExtensions = [ext];
-    await editor.setText(";12", "javascript");
+  describe("cursor positions", () => {
+    test("for point selection", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        selection: SelectionInteraction.Point,
+        component: ({ node }) => h("span", {}, node.text),
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText(";12", "javascript");
 
-    const c = [...editor.rootShard.cursorPositions()];
-    assertEq(editor.rootShard.replacements[0].range, [1, 3]);
-    // ;  --> 0-1
-    // 12 --> 1-3
-    // \n --> 3-4
-    assertEq(c.length, 5);
-    assertTrue(c[2].element instanceof SBReplacement);
+      const c = [...editor.rootShard.cursorPositions()];
+      assertEq(editor.rootShard.replacements[0].range, [1, 3]);
+      // ;  --> 0-1
+      // 12 --> 1-3
+      // \n --> 3-4
+      assertEq(c.length, 5);
+      assertTrue(c[2].element instanceof SBReplacement);
+    });
+
+    test("for start and end selection", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        selection: SelectionInteraction.StartAndEnd,
+        component: () => h("input", { ref: markInputEditable, value: "ab" }),
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText(";12", "javascript");
+
+      const c = [...editor.rootShard.cursorPositions()];
+      assertEq(editor.rootShard.replacements[0].range, [1, 3]);
+      assertEq(c.length, 9);
+      assertTrue(c[2].element instanceof SBReplacement);
+      assertTrue(c[3].element instanceof HTMLInputElement);
+      assertTrue(c[4].element instanceof HTMLInputElement);
+      assertTrue(c[5].element instanceof HTMLInputElement);
+      assertTrue(c[6].element instanceof SBReplacement);
+    });
   });
 
-  test("cursor positions for start and end selection", async () => {
-    const ext = new Extension().registerReplacement({
-      name: "test",
-      query: [(x) => x.type === "number"],
-      queryDepth: 1,
-      selection: SelectionInteraction.StartAndEnd,
-      component: () => h("input", { ref: markInputEditable, value: "ab" }),
-    });
-    editor.inlineExtensions = [ext];
-    await editor.setText(";12", "javascript");
+  describe("deletion", () => {
+    test("by character", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        deletion: DeletionInteraction.Character,
+        rerender: () => true,
+        component: ({ node }) => h("span", {}, node.text),
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText("12", "javascript");
+      editor.selectAndFocus([2, 2]);
 
-    const c = [...editor.rootShard.cursorPositions()];
-    assertEq(editor.rootShard.replacements[0].range, [1, 3]);
-    assertEq(c.length, 9);
-    assertTrue(c[2].element instanceof SBReplacement);
-    assertTrue(c[3].element instanceof HTMLInputElement);
-    assertTrue(c[4].element instanceof HTMLInputElement);
-    assertTrue(c[5].element instanceof HTMLInputElement);
-    assertTrue(c[6].element instanceof SBReplacement);
+      editor.simulateKeyStroke("Backspace");
+      assertEq(editor.sourceString, "1\n");
+      editor.simulateKeyStroke("Backspace");
+      assertEq(editor.sourceString, "\n");
+    });
+
+    test("full", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        deletion: DeletionInteraction.Full,
+        component: ({ node }) => h("span", {}, node.text),
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText("12", "javascript");
+      editor.selectAndFocus([2, 2]);
+
+      editor.simulateKeyStroke("Backspace");
+      assertEq(editor.sourceString, "\n");
+    });
+
+    test("select then full", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        selection: SelectionInteraction.Point,
+        deletion: DeletionInteraction.SelectThenFull,
+        component: ({ node }) => h("span", {}, node.text),
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText("12", "javascript");
+      editor.selectAndFocus([2, 2]);
+
+      editor.simulateKeyStroke("Backspace");
+      assertEq(editor.sourceString, "12\n");
+      await tick();
+      editor.simulateKeyStroke("Backspace");
+      assertEq(editor.sourceString, "\n");
+      editor.simulateKeyStroke("a");
+      assertEq(editor.sourceString, "a\n");
+    });
   });
 });
 

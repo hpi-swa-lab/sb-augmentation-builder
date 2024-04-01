@@ -29,6 +29,11 @@ export const SelectionInteraction = {
   Point: "point",
   StartAndEnd: "startAndEnd",
 };
+export const DeletionInteraction = {
+  Character: "character",
+  Full: "full",
+  SelectThenFull: "selectThenFull",
+};
 
 const ShardContext = createContext(null);
 export function StickyShard({ node, ...props }) {
@@ -72,6 +77,7 @@ export class SBReplacement extends HTMLElement {
 
   _selectionAtStart = false;
   _selectionInteraction = SelectionInteraction.Skip;
+  deletion = DeletionInteraction.Character;
 
   set selection(v) {
     console.assert(v !== undefined);
@@ -97,11 +103,6 @@ export class SBReplacement extends HTMLElement {
     return true;
   }
 
-  takeCursor(atStart) {
-    this.focus();
-    this._selectionAtStart = atStart;
-  }
-
   *allViews() {
     yield this;
   }
@@ -116,6 +117,22 @@ export class SBReplacement extends HTMLElement {
     if (e.key === "ArrowRight") {
       e.preventDefault();
       return this.editor.moveCursor(true, e.shiftKey);
+    }
+
+    if (
+      e.key === "Backspace" &&
+      this.deletion === DeletionInteraction.SelectThenFull &&
+      document.activeElement === this
+    ) {
+      e.preventDefault();
+      this.editor.applyChanges([
+        {
+          from: this.range[0],
+          to: this.range[1],
+          insert: "",
+          selectionRange: [this.range[0], this.range[0]],
+        },
+      ]);
     }
   }
 
@@ -177,10 +194,36 @@ export class SBReplacement extends HTMLElement {
     }
   }
 
-  select({
-    head: { elementOffset: headAtStart },
-    anchor: { elementOffset: anchorAtStart },
-  }) {
+  handleDelete(pos) {
+    switch (this.deletion) {
+      case DeletionInteraction.Character:
+        this.editor.applyChanges([
+          {
+            from: pos,
+            to: pos + 1,
+            insert: "",
+            selectionRange: [pos, pos],
+          },
+        ]);
+        break;
+      case DeletionInteraction.Full:
+        this.editor.applyChanges([
+          {
+            from: this.range[0],
+            to: this.range[1],
+            insert: "",
+            selectionRange: [this.range[0], this.range[0]],
+          },
+        ]);
+        break;
+      case DeletionInteraction.SelectThenFull:
+        this._selectionAtStart = false;
+        this.focus();
+        break;
+    }
+  }
+
+  select() {
     this.focus();
   }
 }

@@ -60,6 +60,7 @@ export class CodeMirrorEditor extends BaseEditor {
   static shardTag = "scm-shard";
 
   addSuggestions(node, suggestions) {
+    if (!this.selection.head.element.cm) return;
     this.selection.head.element.suggestionAnchor = node;
     this.selection.head.element.suggestionList = suggestions;
     startCompletion(this.selection.head.element.cm);
@@ -105,6 +106,13 @@ class CodeMirrorShard extends BaseShard {
 
   suggestionAnchor = null;
   suggestionList = [];
+
+  get hasFocus() {
+    return (
+      document.activeElement === this ||
+      document.activeElement === this.cm.docView.dom
+    );
+  }
 
   get replacements() {
     return [...this.replacementsMap.values()];
@@ -252,11 +260,14 @@ class CodeMirrorShard extends BaseShard {
   _collectReplacements() {
     return RangeSet.of(
       this.replacements
-        .map((r) =>
-          Decoration.replace({
+        .map((r) => {
+          const range = rangeShift(r.range, -this.range[0]);
+          return (
+            range[0] === range[1] ? Decoration.widget : Decoration.replace
+          )({
             widget: new CodeMirrorReplacementWidget(r),
-          }).range(...rangeShift(r.range, -this.range[0])),
-        )
+          }).range(...range);
+        })
         .sort((a, b) => a.from - b.from),
     );
   }

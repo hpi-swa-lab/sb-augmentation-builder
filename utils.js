@@ -350,14 +350,20 @@ function _isEmptyObject(obj) {
 }
 
 export function rangeEqual(a, b) {
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
   return a[0] === b[0] && a[1] === b[1];
 }
 
 export function rangeContains(a, b) {
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
   return a[0] <= b[0] && a[1] >= b[1];
 }
 
 export function rangeIntersects(a, b) {
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
   return a[0] <= b[1] && a[1] >= b[0];
 }
 

@@ -132,6 +132,10 @@ export class BaseShard extends HTMLElement {
     return this._node;
   }
 
+  get hasFocus() {
+    return document.activeElement === this;
+  }
+
   initView() {
     throw "subclass responsibility";
   }
@@ -289,18 +293,16 @@ export class BaseShard extends HTMLElement {
 
   handleDeleteAtBoundary(forward) {
     const pos = this.editor.selection.head.index + (forward ? 1 : -1);
+    if (pos < 0 || pos >= this.editor.sourceString.length) return false;
+
     // check if the next index is not visible: in that case, we delete
     // the character via the edit operation, instead of letting the native
     // editor handle the input
-    if (!this.isShowingIndex(pos)) {
-      this.editor.applyChanges([
-        {
-          from: pos,
-          to: pos + 1,
-          insert: "",
-          selectionRange: [pos, pos],
-        },
-      ]);
+    const replacement = this.replacements.find((r) =>
+      rangeContains(r.range, [pos, pos]),
+    );
+    if (replacement) {
+      replacement.handleDelete(pos);
       return true;
     }
     return false;

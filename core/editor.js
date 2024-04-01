@@ -12,6 +12,7 @@ import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
 import { preferences } from "./preferences.js";
 import { setConfig } from "./config.js";
+import { BaseShard } from "./shard.js";
 
 preferences
   // .registerDefaultShortcut("nextSuggestion", "ArrowDown")
@@ -335,7 +336,7 @@ export class BaseEditor extends HTMLElement {
 
   selectRange([from, to], scrollIntoView = false) {
     let bestCandidate =
-      this.selection.head.element.candidatePositionForIndex(from);
+      this.selection.head.element.candidatePositionForIndex?.(from);
     if (bestCandidate && bestCandidate.distance > 0) {
       for (const shard of this.shards) {
         const candidate = shard.candidatePositionForIndex(from);
@@ -469,7 +470,13 @@ export class BaseEditor extends HTMLElement {
   }
 
   simulateKeyStroke(key) {
-    this.selectedShard.simulateKeyStroke(key);
+    if (this.selectedShard.hasFocus) {
+      this.selectedShard.simulateKeyStroke(key);
+    } else {
+      document.activeElement.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true }),
+      );
+    }
   }
 }
 
