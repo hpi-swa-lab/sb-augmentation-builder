@@ -144,11 +144,14 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             r.props.renderContent = ({ node }) => {
                 if (node.type !== "identifier") return shard(node);
                 const identifierBlock = node;
+                const tlaValue = Array.isArray(constants)
+                    ? `{${constants.map(jsonToTLAString).join(", ")}}`
+                    : jsonToTLAString(constants);
                 return html`
                 <div style=${{ display: "inline-block" }}>
                     ${shard(identifierBlock)}
                     <span> = </span>
-                    <span>${jsonToTLAString(constants)}</span>
+                    <span>${tlaValue}</span>
                 </div>
                 `
             };

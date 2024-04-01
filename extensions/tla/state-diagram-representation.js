@@ -14,9 +14,12 @@ export const nodeToStateDescription = (selectors, node) => {
             const results = jmespath.search(node, query);
             if (!results) return []; // this will be removed in the subsequent flattening
             if (results.length === 0) return fallback ?? [];
+            const tla = Array.isArray(results[0])
+                ? `{${results[0].map(jsonToTLAString).join(", ")}}`
+                : jsonToTLAString(results[0]);
             return annotation.replace(
                 /@/g,
-                jsonToTLAString(results[0])?.replace(/\"/g, ""),
+                tla?.replace(/\"/g, "'"),
             );
         })
         .flat()
