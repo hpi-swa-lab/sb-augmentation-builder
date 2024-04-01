@@ -1,6 +1,6 @@
 import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
 import htm from "../../external/htm.mjs";
-import { EdgePickers } from "./utils.js";
+import { EdgePickers, jsonToTLAString } from "./utils.js";
 import { useContext, useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { DiagramConfig } from "./state-explorer.js";
 import { h } from "../../external/preact.mjs";
@@ -16,7 +16,7 @@ export const nodeToStateDescription = (selectors, node) => {
             if (results.length === 0) return fallback ?? [];
             return annotation.replace(
                 /@/g,
-                JSON.stringify(results[0]).replace(/\"/g, ""),
+                jsonToTLAString(results[0])?.replace(/\"/g, ""),
             );
         })
         .flat()
