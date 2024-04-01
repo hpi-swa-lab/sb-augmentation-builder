@@ -15,12 +15,20 @@ export function useStickyReplacementValidator(replacement) {
   );
 }
 export function useValidator(func, deps) {
+  if (deps === undefined)
+    throw new Error("no dependencies for useValidator provided");
   const owner = useContext(ShardContext);
   useEffect(() => {
     owner.editor.registerValidator(func);
     return () => owner.editor.unregisterValidator(func);
   }, deps);
 }
+
+export const SelectionInteraction = {
+  Skip: "skip",
+  Point: "point",
+  StartAndEnd: "startAndEnd",
+};
 
 const ShardContext = createContext(null);
 export function StickyShard({ node, ...props }) {
@@ -63,9 +71,12 @@ export class SBReplacement extends HTMLElement {
   props = {};
 
   _selectionAtStart = false;
+  _selectionInteraction = SelectionInteraction.Skip;
 
-  set selectable(v) {
-    if (v) {
+  set selection(v) {
+    console.assert(v !== undefined);
+    this._selectionInteraction = v;
+    if (this._selectionInteraction !== SelectionInteraction.Skip) {
       this.tabIndex = -1;
       this.setAttribute("sb-editable", "");
     } else {
@@ -76,10 +87,6 @@ export class SBReplacement extends HTMLElement {
 
   get range() {
     return this.editor.adjustRange(this.node.range, false);
-  }
-
-  get shard() {
-    return orParentThat(this, (p) => p instanceof BaseShard);
   }
 
   get sourceString() {
@@ -100,15 +107,15 @@ export class SBReplacement extends HTMLElement {
   }
 
   onKeyDown(e) {
-    if (!this.hasAttribute("sb-editable")) return;
+    if (this._selectionInteraction === SelectionInteraction.Skip) return;
 
-    if (e.key === "ArrowLeft" && this._selectionAtStart) {
+    if (e.key === "ArrowLeft") {
       e.preventDefault();
-      this.editor.moveCursor(false, e.shiftKey);
+      return this.editor.moveCursor(false, e.shiftKey);
     }
-    if (e.key === "ArrowRight" && !this._selectionAtStart) {
+    if (e.key === "ArrowRight") {
       e.preventDefault();
-      this.editor.moveCursor(true, e.shiftKey);
+      return this.editor.moveCursor(true, e.shiftKey);
     }
   }
 
@@ -143,19 +150,38 @@ export class SBReplacement extends HTMLElement {
   }
 
   *cursorPositions() {
-    if (this.hasAttribute("sb-editable"))
-      yield {
-        element: this,
-        elementOffset: true,
-        index: this.range[0],
-      };
-    yield* super.cursorPositions();
-    if (this.hasAttribute("sb-editable"))
-      yield {
-        element: this,
-        elementOffset: false,
-        index: this.range[0],
-      };
+    switch (this._selectionInteraction) {
+      case SelectionInteraction.Point:
+        yield {
+          element: this,
+          elementOffset: true,
+          index: this.range[0],
+        };
+        return;
+      case SelectionInteraction.StartAndEnd:
+        yield {
+          element: this,
+          elementOffset: true,
+          index: this.range[0],
+        };
+        yield* super.cursorPositions();
+        yield {
+          element: this,
+          elementOffset: false,
+          index: this.range[0],
+        };
+        return;
+      case SelectionInteraction.Skip:
+        yield* super.cursorPositions();
+        return;
+    }
+  }
+
+  select({
+    head: { elementOffset: headAtStart },
+    anchor: { elementOffset: anchorAtStart },
+  }) {
+    this.focus();
   }
 }
 

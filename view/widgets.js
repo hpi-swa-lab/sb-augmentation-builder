@@ -9,6 +9,7 @@ import {
 } from "../external/preact-hooks.mjs";
 import { SBList } from "../core/model.js";
 import htm from "../../external/htm.mjs";
+import { BaseEditor } from "../core/editor.js";
 
 export const html = htm.bind(h);
 export { h, render, Component } from "../external/preact.mjs";
@@ -124,7 +125,9 @@ function nextEditor(element) {
   return orParentThat(element, (p) => p instanceof BaseEditor);
 }
 
-function markInputEditable(input) {
+export function markInputEditable(input) {
+  if (input.hasAttribute("sb-editable")) return;
+
   // codemirror sets css that hides the caret
   input.style.cssText = "caret-color: black !important";
   function update() {
@@ -148,12 +151,15 @@ function markInputEditable(input) {
     input.selectionStart = head.elementOffset;
     input.selectionEnd = anchor.elementOffset;
   };
+
   input.setAttribute("sb-editable", "");
   input.addEventListener("focus", update);
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
       move(true, e);
     if (e.key === "ArrowLeft" && input.selectionStart === 0) move(false, e);
+    // make sure it doesn't bubble up to replacements or similar
+    e.stopPropagation();
   });
 }
 

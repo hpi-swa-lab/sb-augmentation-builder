@@ -102,7 +102,7 @@ export class BaseEditor extends HTMLElement {
   }
 
   get selectedShard() {
-    return this.selectedView.shard;
+    return this.selection.head.element ?? this.rootShard;
   }
 
   get sourceString() {
@@ -209,8 +209,8 @@ export class BaseEditor extends HTMLElement {
     }
 
     if (selection.head.index !== undefined) {
-      const node = selection.head.element.selectedFor(this.selectionRange);
-      const view = selection.head.element.viewFor(node);
+      const node = selection.head.element.selectedFor?.(this.selectionRange);
+      const view = selection.head.element.viewFor?.(node);
       if (node && node !== this._selectedNode) {
         this._selectedNode = node;
         this._selectedView = view;
@@ -287,25 +287,7 @@ export class BaseEditor extends HTMLElement {
     this.pendingChanges.value = [];
     this.revertChanges = [];
 
-    // update selection: if the index is no longer visible, find a new element
-    const newIndex =
-      last(allChanges).selectionRange?.[0] ?? this.selectionRange[0];
-    let bestCandidate =
-      this.selection.head.element.candidatePositionForIndex(newIndex);
-    if (bestCandidate && bestCandidate.distance > 0) {
-      for (const shard of this.shards) {
-        const candidate = shard.candidatePositionForIndex(newIndex);
-        if (candidate.distance < bestCandidate.distance)
-          bestCandidate = candidate;
-      }
-    }
-    if (bestCandidate?.position) {
-      this.onSelectionChange({
-        head: bestCandidate.position,
-        anchor: bestCandidate.position,
-      });
-      bestCandidate.position.element.select(this.selection);
-    }
+    this.selectRange(last(allChanges).selectionRange ?? this.selectionRange);
 
     this.clearSuggestions();
     for (const extension of this.allExtensions()) {
@@ -352,8 +334,31 @@ export class BaseEditor extends HTMLElement {
   }
 
   selectRange([from, to], scrollIntoView = false) {
-    this.selectedShard.selectRange([from, to]);
-    if (scrollIntoView) this.selectedShard.scrollToShow([from, to]);
+    let bestCandidate =
+      this.selection.head.element.candidatePositionForIndex(from);
+    if (bestCandidate && bestCandidate.distance > 0) {
+      for (const shard of this.shards) {
+        const candidate = shard.candidatePositionForIndex(from);
+        if (candidate.distance < bestCandidate.distance)
+          bestCandidate = candidate;
+      }
+    }
+    if (bestCandidate?.position) {
+      this.onSelectionChange({
+        head: bestCandidate.position,
+        anchor:
+          bestCandidate.position.element.candidatePositionForIndex(to)
+            ?.position ?? bestCandidate.position,
+      });
+      bestCandidate.position.element.select(this.selection);
+    }
+
+    if (scrollIntoView) bestCandidate.position.element.scrollToShow([from, to]);
+  }
+
+  selectAndFocus(range) {
+    this.selectRange(range, true);
+    this.selectedShard.focus();
   }
 
   moveCursor(forward, selecting, wordWise) {
@@ -461,6 +466,10 @@ export class BaseEditor extends HTMLElement {
 
   moveSuggestion(delta) {
     throw "subclass responsibility";
+  }
+
+  simulateKeyStroke(key) {
+    this.selectedShard.simulateKeyStroke(key);
   }
 }
 

@@ -156,6 +156,13 @@ export class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
+  isShowingIndex(index) {
+    for (const range of this.iterVisibleRanges()) {
+      if (rangeContains(range, index)) return true;
+    }
+    return false;
+  }
+
   getReplacementFor(node) {
     throw "subclass responsibility";
   }
@@ -182,12 +189,12 @@ export class BaseShard extends HTMLElement {
 
   buildReplacementFor(node, extension) {
     const view = document.createElement("sb-replacement");
+    view.shard = this;
     view.editor = this.editor;
-    view.query = extension.query;
-    view.component = extension.component;
-    view.selectable = extension.selectable;
     view.setAttribute("name", extension.name);
     view.node = node;
+    for (const key in extension) view[key] = extension[key];
+    view.render();
     return view;
   }
 
@@ -222,7 +229,7 @@ export class BaseShard extends HTMLElement {
     // re-render remaining replacements (FIXME we're currently re-rendering all)
     for (const replacement of this.replacements) {
       console.assert(replacement.node.connected);
-      replacement.render();
+      if (replacement.rerender?.(editBuffer)) replacement.render();
     }
 
     // check for new replacements
@@ -281,17 +288,17 @@ export class BaseShard extends HTMLElement {
   }
 
   handleDeleteAtBoundary(forward) {
-    const pos = this.editor.selection.head.index;
-    if (
-      pos === this.editor.selection.anchor.index &&
-      pos === this.range[forward ? 1 : 0]
-    ) {
+    const pos = this.editor.selection.head.index + (forward ? 1 : -1);
+    // check if the next index is not visible: in that case, we delete
+    // the character via the edit operation, instead of letting the native
+    // editor handle the input
+    if (!this.isShowingIndex(pos)) {
       this.editor.applyChanges([
         {
-          from: pos - 1,
-          to: pos,
+          from: pos,
+          to: pos + 1,
           insert: "",
-          selectionRange: [pos - 1, pos - 1],
+          selectionRange: [pos, pos],
         },
       ]);
       return true;
@@ -357,5 +364,11 @@ export class BaseShard extends HTMLElement {
       yield* mine(replacement.range[1]);
     }
     yield* mine(this.range[1]);
+  }
+
+  simulateKeyStroke(key) {
+    const event = new KeyboardEvent("keydown", { key });
+    this.dispatchEvent(event);
+    return event.defaultPrevented;
   }
 }

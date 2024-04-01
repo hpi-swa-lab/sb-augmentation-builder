@@ -8,6 +8,14 @@
   <body>
     <scm-editor
       text='
+class A {
+
+  constructor() {
+    this.a = 1;
+  }
+
+  test() {}
+}
 function StickyShard({ node, ...props }) {
   useEffect(() => {
     const editor = node.editor;
@@ -37,7 +45,16 @@ export const icon = (name) =>
       language="javascript"
     ></scm-editor>
     <sb-editor
-      text="(1);
+      text="
+class A {
+
+  constructor() {
+    this.a = 1;
+  }
+
+  test() {}
+}
+      (1);
       import { a, b, c } from '/sandblocks/editor/editor.js';
       import {} from '/codemirror6/editor.js';
       import {} from '/test.js';
@@ -45,7 +62,7 @@ export const icon = (name) =>
       [[1], [2]]
       "
       language="javascript"
-      extensions="javascript:base javascript:table watch:javascript base:base base:identifierSuggestions"
+      extensions="javascript:base javascript:table browser:javascript watch:javascript base:base base:identifierSuggestions"
     ></sb-editor>
     <script type="module">
       import {} from "/sandblocks/editor/editor.js";

@@ -1,5 +1,5 @@
 import { Extension } from "../core/extension.js";
-import { StickyShard, StickyShardList } from "../core/replacement.js";
+import { SelectionInteraction, StickyShardList } from "../core/replacement.js";
 import { useEffect, useMemo, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
 import { h } from "../view/widgets.js";
@@ -15,14 +15,33 @@ function takeBackwardWhile(list, start, condition) {
 }
 
 const removeIndent = new Extension().registerReplacement({
-  query: [(x) => x.isText && x.text[0] === "\n" && x.text.length > 2],
+  query: [(x) => x.isText && x.text.includes("\n") && x.text.length > 2],
   queryDepth: 1,
-  component: ({ node, replacement }) => h("span", {}, "WWW"),
+  selection: SelectionInteraction.Point,
+  component: ({ node, replacement }) => {
+    const root = replacement.shard.node;
+    let minIndent = Infinity;
+    for (const child of root.allNodes())
+      if (child.isText && child.text.includes("\n"))
+        minIndent = Math.min(
+          minIndent,
+          child.text.match(/\n\s*/)?.[0].length ?? 0,
+        );
+
+    const [prefix, suffix] = node.text.split("\n", 2);
+    return h(
+      "span",
+      { style: { fontFamily: "monospace" } },
+      prefix + "\n" + (suffix ?? "").slice(minIndent - 1),
+    );
+  },
+  name: "remove-indent",
 });
 
 export const javascript = new Extension().registerReplacement({
   query: [(x) => x.type === "program"],
   queryDepth: 1,
+  rerender: () => true,
   component: ({ node, replacement }) => {
     const symbols = node.childBlocks;
     const [selectedSymbol, setSelectedSymbol] = useState(symbols[0]);
@@ -33,15 +52,14 @@ export const javascript = new Extension().registerReplacement({
     if (selectedBody?.type === "class_declaration")
       selectedBody = selectedBody.atField("body");
 
-    const members = useMemo(
-      () =>
-        (["class_body"].includes(selectedBody?.type)
-          ? selectedBody?.childBlocks
-          : null) ?? [],
-      [selectedBody],
-    );
+    const members =
+      (["class_body"].includes(selectedBody?.type)
+        ? selectedBody?.childBlocks
+        : null) ?? [];
 
-    const [selectedMember, setSelectedMember] = useState(members[0]);
+    let [selectedMember, setSelectedMember] = useState(members[0]);
+    // if we have become disconnected while selected, choose a fallback
+    if (!selectedMember.connected) selectedMember = members[0];
     useEffect(() => {
       setSelectedMember(members[0]);
     }, [selectedSymbol]);
@@ -147,8 +165,7 @@ export const javascript = new Extension().registerReplacement({
           h(StickyShardList, {
             list: shownSymbolList,
             extensions: function () {
-              console.log(this);
-              return [this.parentShard?.extensions(), removeIndent];
+              return [...this.parentShard?.extensions(), removeIndent];
             },
             style: { display: "inline-block", width: "100%" },
           }),
