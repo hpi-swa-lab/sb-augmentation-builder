@@ -4,7 +4,6 @@ import { BaseShard } from "../core/shard.js";
 import {
   EditorView,
   basicSetup,
-  minimalSetup,
   RangeSet,
   StateField,
   Prec,
@@ -15,6 +14,30 @@ import {
   javascript,
   autocompletion,
   startCompletion,
+  highlightSpecialChars,
+  history,
+  drawSelection,
+  dropCursor,
+  EditorState,
+  indentOnInput,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  bracketMatching,
+  closeBrackets,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+  highlightSelectionMatches,
+  closeBracketsKeymap,
+  defaultKeymap,
+  searchKeymap,
+  historyKeymap,
+  foldKeymap,
+  completionKeymap,
+  lintKeymap,
+  lineNumbers,
+  highlightActiveLineGutter,
+  foldGutter,
 } from "./external/codemirror.bundle.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
@@ -45,6 +68,37 @@ export class CodeMirrorEditor extends BaseEditor {
   clearSuggestions() {}
 }
 
+const baseCMExtensions = [
+  highlightSpecialChars(),
+  history(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
+const extraCMExtensionsForRoot = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  foldGutter(),
+];
+
 // TODO moving cursor up/down, then left/right
 class CodeMirrorShard extends BaseShard {
   replacementsMap = new Map();
@@ -73,7 +127,8 @@ class CodeMirrorShard extends BaseShard {
     this.cm = new EditorView({
       doc: "",
       extensions: [
-        this.node.isRoot ? basicSetup : minimalSetup,
+        ...baseCMExtensions,
+        ...(this.node.isRoot ? extraCMExtensionsForRoot : []),
         Prec.highest(
           keymap.of([
             {
@@ -105,8 +160,14 @@ class CodeMirrorShard extends BaseShard {
         autocompletion({
           override: [
             (context) => {
+              if (
+                !this.suggestionAnchor ||
+                !this.node?.connected ||
+                !this.isShowing(this.suggestionAnchor)
+              )
+                return null;
               return {
-                from: this.suggestionAnchor.range[0],
+                from: this.suggestionAnchor.range[0] - this.range[0],
                 options: this.suggestionList.map((i) => ({
                   label: i.label ?? i.insertText,
                   detail: i.detail,
@@ -168,6 +229,23 @@ class CodeMirrorShard extends BaseShard {
         this.range[0],
       );
       this.onTextChanges(changes);
+
+      if (
+        this.node.connected &&
+        this.editor.pendingChanges.value.length === 0 &&
+        this.node.sourceString !== this.cm.state.doc.toString()
+      ) {
+        this.cm.dispatch({
+          changes: [
+            {
+              from: 0,
+              to: this.cm.state.doc.length,
+              insert: this.node.sourceString,
+            },
+          ],
+          userEvent: "sync",
+        });
+      }
     }
   }
 
@@ -324,6 +402,10 @@ class CodeMirrorShard extends BaseShard {
     });
   }
 
+  scrollToShow(range) {
+    // TODO
+  }
+
   positionAtBoundary(fromPosition, forward) {
     const replacement = orParentThat(
       fromPosition.element,
@@ -355,6 +437,13 @@ class CodeMirrorShard extends BaseShard {
       pos.right - pos.left,
       pos.bottom - pos.top,
     );
+  }
+
+  simulateKeyStroke(key) {
+    if (key === "Backspace")
+      this.cm.inputState.handleEvent(new KeyboardEvent("keydown", { key }));
+    else document.execCommand("inserttext", false, key);
+    this.cm.observer.forceFlush();
   }
 }
 

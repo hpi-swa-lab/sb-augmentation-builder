@@ -1,12 +1,12 @@
-"enable sandblocks";
-
-let a = 12;
-
 class MyCls {
   test() {
     console.log("a");
   }
 }
+
+("enable sandblocks");
+
+let a = 12;
 
 function hello(b) {
   () => ({ sbExample: "example1", args: [123], self: null });

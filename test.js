@@ -1,16 +1,43 @@
 import { CodeMirrorEditor } from "./codemirror6/editor.js";
+import { Extension } from "./core/extension.js";
+import {
+  SBReplacement,
+  SelectionInteraction,
+  useValidator,
+} from "./core/replacement.js";
+import { matchingParentheses } from "./extensions/base.js";
+import { h } from "./external/preact.mjs";
 import { SandblocksEditor } from "./sandblocks/editor/editor.js";
+import { markInputEditable, shard, shardList } from "./view/widgets.js";
 
 const tests = [];
 const configStack = [{}];
+let viewTest;
+async function run() {
+  if (viewTest) viewTest();
+  else for (const test of tests) await test();
+}
 function test(name, cb) {
   const config = [...configStack];
   tests.push(async () => {
-    for (const c of config) for (const b of c.before ?? []) b();
-    await cb();
-    for (const c of config) for (const b of c.after ?? []) b();
+    try {
+      for (const c of config) for (const b of c.before ?? []) b();
+      await cb();
+    } finally {
+      for (const c of config) for (const b of c.after ?? []) b();
+    }
   });
 }
+test.skip = () => {};
+test.view = (name, cb) => {
+  if (viewTest) throw new Error("multiple tests designated for viewing");
+  const config = [...configStack];
+  viewTest = async () => {
+    for (const c of config) for (const b of c.before ?? []) b();
+    await cb();
+    // skip cleanup, as it would close the view
+  };
+};
 function describe(name, cb) {
   configStack.push({});
   cb();
@@ -22,21 +49,31 @@ function beforeEach(cb) {
 function afterEach(cb) {
   (configStack[configStack.length - 1].after ??= []).push(cb);
 }
-function assertEq(a, b) {
+function assertTrue(a) {
+  if (!a) throw new Error(`expected ${a} to be true`);
+}
+function assertEq(a, b, contains = false) {
+  if (a === b) return true;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) throw new Error(`expected ${a} to equal ${b}`);
-    for (let i = 0; i < a.length; i++) assertEq(a[i], b[i]);
+    for (let i = 0; i < a.length; i++) assertEq(a[i], b[i], contains);
     return;
   }
   if (typeof a === "object" && typeof b === "object") {
-    for (const k in a) assertEq(a[k], b[k]);
-    for (const k in b) assertEq(a[k], b[k]);
+    if (!contains) for (const k in a) assertEq(a[k], b[k], contains);
+    for (const k in b) assertEq(a[k], b[k], contains);
     return;
   }
   if (a !== b) throw new Error(`expected ${a} to equal ${b}`);
 }
+function assertContains(a, b) {
+  return assertEq(a, b, true);
+}
+function tick() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
-describe("codemirror", () => {
+describe("codemirror offscreen", () => {
   test("range shift complex", () => {
     const editor = new CodeMirrorEditor();
     editor.pendingChanges.value = [
@@ -97,6 +134,114 @@ describe("codemirror", () => {
   });
 });
 
+describe("codemirror", () => {
+  let editor;
+  beforeEach(() => {
+    editor = new CodeMirrorEditor();
+    document.body.appendChild(editor);
+  });
+  afterEach(() => {
+    editor.remove();
+  });
+
+  test("delete", async () => {
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([4, 4]);
+    editor.simulateKeyStroke("Backspace");
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+\n");
+  });
+
+  test("delete into replacement", async () => {
+    const extension = new Extension().registerReplacement({
+      name: "test-hiding-replacement",
+      query: [(x) => x.type === "number"],
+      queryDepth: 1,
+      rerender: () => true,
+      component: ({ node }) =>
+        h("span", { style: { "background-color": "red" } }, node.text),
+    });
+    editor.inlineExtensions = [extension];
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([4, 4]);
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+1\n");
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+\n");
+  });
+
+  test("selection in nested shard", async () => {
+    const extension = new Extension().registerReplacement({
+      name: "test-program-replacement",
+      query: [(x) => x.type === "program"],
+      queryDepth: 1,
+      component: ({ node }) =>
+        h("span", {}, "[[", shard(node.children[0]), "]]"),
+    });
+    editor.inlineExtensions = [extension];
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([4, 4]);
+    assertEq(editor.selection.head.element.node, editor.node.children[0]);
+    assertEq(editor.selectedShard, editor.selection.head.element);
+  });
+
+  test("delete into replacement inside shard", async () => {
+    const extension = new Extension()
+      .registerReplacement({
+        name: "test-hiding-replacement",
+        query: [(x) => x.type === "number"],
+        queryDepth: 1,
+        rerender: () => true,
+        component: ({ node }) =>
+          h("span", { style: { "background-color": "red" } }, node.text),
+      })
+      .registerReplacement({
+        name: "test-program-replacement",
+        query: [(x) => x.type === "program"],
+        queryDepth: 1,
+        rerender: () => true,
+        component: ({ node }) =>
+          h("span", {}, "[[", shard(node.children[0]), "]]"),
+      });
+    editor.inlineExtensions = [extension];
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([4, 4]);
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+1\n");
+    editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+\n");
+    editor.simulateKeyStroke("a");
+    await tick();
+    assertEq(editor.sourceString, "b+a\n");
+  });
+
+  test("insert parentheses pair in nested shard", async () => {
+    const extension = new Extension().registerReplacement({
+      name: "test-program-replacement",
+      query: [(x) => x.type === "program"],
+      queryDepth: 1,
+      rerender: () => true,
+      component: ({ node }) =>
+        h("span", {}, "[[", shardList(node.children), "]]"),
+    });
+    if (editor instanceof SandblocksEditor)
+      editor.inlineExtensions = [extension, matchingParentheses];
+    else editor.inlineExtensions = [extension];
+
+    await editor.setText("a", "javascript");
+    editor.selectAndFocus([1, 1]);
+    editor.simulateKeyStroke("(");
+    assertEq(editor.selection.head.index, 2);
+    assertEq(editor.sourceString, "a()\n");
+    editor.simulateKeyStroke(")");
+    assertEq(editor.selection.head.index, 3);
+    assertEq(editor.sourceString, "a()\n");
+    editor.simulateKeyStroke("b");
+    assertEq(editor.selection.head.index, 4);
+    assertEq(editor.sourceString, "a()b\n");
+  });
+});
+
 describe("sandblocks", () => {
   let editor;
   beforeEach(() => {
@@ -116,4 +261,91 @@ describe("sandblocks", () => {
   });
 });
 
-tests.forEach((t) => t());
+describe("replacement", () => {
+  let editor;
+  beforeEach(() => {
+    editor = new SandblocksEditor();
+    document.body.appendChild(editor);
+  });
+  afterEach(() => {
+    editor.remove();
+  });
+
+  test("cursor positions for point selection", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "test",
+      query: [(x) => x.type === "number"],
+      queryDepth: 1,
+      selection: SelectionInteraction.Point,
+      component: ({ node }) => h("span", {}, node.text),
+    });
+    editor.inlineExtensions = [ext];
+    await editor.setText(";12", "javascript");
+
+    const c = [...editor.rootShard.cursorPositions()];
+    assertEq(editor.rootShard.replacements[0].range, [1, 3]);
+    // ;  --> 0-1
+    // 12 --> 1-3
+    // \n --> 3-4
+    assertEq(c.length, 5);
+    assertTrue(c[2].element instanceof SBReplacement);
+  });
+
+  test("cursor positions for start and end selection", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "test",
+      query: [(x) => x.type === "number"],
+      queryDepth: 1,
+      selection: SelectionInteraction.StartAndEnd,
+      component: () => h("input", { ref: markInputEditable, value: "ab" }),
+    });
+    editor.inlineExtensions = [ext];
+    await editor.setText(";12", "javascript");
+
+    const c = [...editor.rootShard.cursorPositions()];
+    assertEq(editor.rootShard.replacements[0].range, [1, 3]);
+    assertEq(c.length, 9);
+    assertTrue(c[2].element instanceof SBReplacement);
+    assertTrue(c[3].element instanceof HTMLInputElement);
+    assertTrue(c[4].element instanceof HTMLInputElement);
+    assertTrue(c[5].element instanceof HTMLInputElement);
+    assertTrue(c[6].element instanceof SBReplacement);
+  });
+});
+
+describe("pending changes", () => {
+  let editor;
+  beforeEach(() => {
+    editor = new CodeMirrorEditor();
+    document.body.appendChild(editor);
+  });
+  afterEach(() => {
+    editor.remove();
+  });
+
+  test("are buffered correctly when parentheses are entered", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "validator-test",
+      query: [(x) => x.type === "program"],
+      queryDepth: 1,
+      component: ({ node }) => {
+        useValidator(() => false, []);
+        return shard(node);
+      },
+    });
+    editor.inlineExtensions = [ext];
+    await editor.setText("a", "javascript");
+    assertEq(editor.validators.size, 1);
+    editor.selectAndFocus([1, 1]);
+    editor.simulateKeyStroke("(");
+    editor.simulateKeyStroke(")");
+    assertContains(editor.pendingChanges.value, [
+      { from: 1, to: 1, insert: "()" },
+      { from: 2, to: 3, insert: ")" },
+    ]);
+    editor.applyPendingChanges();
+    assertEq(editor.sourceString, "a()\n");
+  });
+});
+
+run();

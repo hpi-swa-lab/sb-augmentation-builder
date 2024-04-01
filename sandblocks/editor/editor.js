@@ -13,7 +13,10 @@ import {
   ToggleableMutationObserver,
   findChange,
   lastDeepChild,
+  lastDeepChildNode,
   orParentThat,
+  rangeContains,
+  undoableMutation,
 } from "../../utils.js";
 import { Block } from "./elements.js";
 import {} from "./suggestions.js";
@@ -125,31 +128,9 @@ class SandblocksShard extends BaseShard {
   constructor() {
     super();
 
-    this.observer = new ToggleableMutationObserver(this, (mutations) => {
-      mutations = [...mutations, ...this.observer.takeRecords()];
-      if (mutations.some((m) => m.type === "attributes")) return;
-      if (!mutations.some((m) => this.isMyMutation(m))) return;
-
-      ToggleableMutationObserver.ignoreMutation(() => {
-        const { selectionRange, sourceString } =
-          this._extractSourceStringAndSelectionRangeAfterMutation();
-        ToggleableMutationObserver.undoMutations(mutations);
-
-        const change = findChange(
-          this.actualSourceString,
-          sourceString,
-          this.editor.selectionRange[1] - this.range[0],
-        );
-        if (!change) return;
-
-        change.from += this.range[0];
-        change.to += this.range[0];
-        change.selectionRange = selectionRange;
-
-        this.actualSourceString = sourceString;
-        this.onTextChanges([change]);
-      });
-    });
+    this.observer = new ToggleableMutationObserver(this, (m) =>
+      this.onMutations(m),
+    );
 
     this.addEventListener("keydown", (e) => this.onKeyDown(e));
 
@@ -231,6 +212,12 @@ class SandblocksShard extends BaseShard {
   }
 
   applyChanges(editBuffer, changes) {
+    ToggleableMutationObserver.ignoreMutation(() =>
+      this._applyChanges(editBuffer, changes),
+    );
+  }
+
+  _applyChanges(editBuffer, changes) {
     const removed = new Set(
       editBuffer.negBuf
         .filter((op) => op instanceof RemoveOp)
@@ -408,6 +395,32 @@ class SandblocksShard extends BaseShard {
     if (this.onShortcut(e)) return handle();
   }
 
+  onMutations(mutations) {
+    mutations = [...mutations, ...this.observer.takeRecords()];
+    if (mutations.some((m) => m.type === "attributes")) return;
+    if (!mutations.some((m) => this.isMyMutation(m))) return;
+
+    ToggleableMutationObserver.ignoreMutation(() => {
+      const { selectionRange, sourceString } =
+        this._extractSourceStringAndSelectionRangeAfterMutation();
+      ToggleableMutationObserver.undoMutations(mutations);
+
+      const change = findChange(
+        this.actualSourceString,
+        sourceString,
+        this.editor.selectionRange[1] - this.range[0],
+      );
+      if (!change) return;
+
+      change.from += this.range[0];
+      change.to += this.range[0];
+      change.selectionRange = selectionRange;
+
+      this.actualSourceString = sourceString;
+      this.onTextChanges([change]);
+    });
+  }
+
   handleDeleteAtBoundary(forward) {
     let ret = false;
     ToggleableMutationObserver.ignoreMutation(
@@ -457,18 +470,22 @@ class SandblocksShard extends BaseShard {
         offset -= length;
 
         const range = document.createRange();
-        nextNodePreOrderThat(start ? lastDeepChildNode(start) : this, (n) => {
-          if (n.nodeType === Node.TEXT_NODE) {
-            offset += n.textContent.length;
-            if (range.startContainer === document && offset >= from)
-              range.setStart(n, from - (offset - n.textContent.length));
-            if (offset >= to) {
-              range.setEnd(n, to - (offset - n.textContent.length));
-              return true;
+        followingElementThat(
+          start ? lastDeepChildNode(start) : this,
+          1,
+          (n) => {
+            if (n.nodeType === Node.TEXT_NODE) {
+              offset += n.textContent.length;
+              if (range.startContainer === document && offset >= from)
+                range.setStart(n, from - (offset - n.textContent.length));
+              if (offset >= to) {
+                range.setEnd(n, to - (offset - n.textContent.length));
+                return true;
+              }
             }
-          }
-          return false;
-        });
+            return false;
+          },
+        );
 
         const undo = undoableMutation(this, () => {
           range.deleteContents();
@@ -606,12 +623,24 @@ class SandblocksShard extends BaseShard {
     const elementOffset =
       index === this.range[0]
         ? [this, 0]
-        : this.views.get(this.node).findTextForCursor(index).rangeParams(index);
+        : index === this.range[1]
+          ? [this, 1]
+          : this.views
+              .get(this.node)
+              .findTextForCursor(index)
+              .rangeParams(index);
     return {
       element: this,
       elementOffset,
       index,
     };
+  }
+
+  simulateKeyStroke(key) {
+    if (key === "Backspace")
+      this.dispatchEvent(new KeyboardEvent("keydown", { key }));
+    else document.execCommand("inserttext", false, key);
+    this.onMutations(this.observer.takeRecords());
   }
 }
 
