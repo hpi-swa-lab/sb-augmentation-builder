@@ -361,7 +361,7 @@ const GraphProvider = ({ spec }) => {
     ];
 };
 
-const SpecPicker = () => {
+const SpecPicker = ({ specUrl }) => {
     const [spec, setSpec] = useLocalState("tla-spec");
 
     const loadSpec = (e) => {
@@ -372,6 +372,10 @@ const SpecPicker = () => {
         };
         reader.readAsText(e.target.files[0]);
     };
+
+    useEffect(() => {
+        if (specUrl) fetch(specUrl).then((r) => r.json()).then(setSpec);
+    }, [specUrl])
 
     return html`
     <div style=${{ display: "flex" }}>
@@ -389,7 +393,7 @@ const SpecPicker = () => {
   `;
 };
 
-export const TlaStateExplorer = () => {
+export const TlaStateExplorer = ({ specUrl }) => {
     return [
         html`
       <style>
@@ -412,7 +416,7 @@ export const TlaStateExplorer = () => {
     `,
         html`
         <div style=${{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <${SpecPicker} />
+            <${SpecPicker} specUrl=${specUrl} />
         </div>`
     ];
 };

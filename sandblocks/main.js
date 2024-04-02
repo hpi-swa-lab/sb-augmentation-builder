@@ -90,16 +90,12 @@ const startUpOptions = {
     );
   },
   tla: async (options) => {
-    openComponentInWindow(
-      await tla(),
-      {},
-      {
-        doNotStartAttached: true,
-        initialPosition: { x: 10, y: 10 },
-        initialSize: { x: 1000, y: 800 },
-        ...options,
-      },
-    );
+    openComponentInWindow(await tla(), options, {
+      doNotStartAttached: true,
+      initialPosition: { x: 10, y: 10 },
+      initialSize: { x: 1000, y: 800 },
+      ...options,
+    });
   },
   queryBuilder: async (options) => {
     openComponentInWindow(
@@ -135,6 +131,7 @@ function Sandblocks() {
     } else if (location.search) {
       const params = new URLSearchParams(location.search);
       startUpOptions[params.get("open")]?.({
+        ...Object.fromEntries(params.entries()),
         fullscreen: params.get("fullscreen") !== null,
       });
     }
