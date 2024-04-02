@@ -2,7 +2,7 @@ import htm from "../../external/htm.mjs";
 import { useContext, useEffect, useRef, useState } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { shard, editor } from "../../view/widgets.js";
-import { DiagramConfig } from "./state-explorer.js";
+import { DiagramConfig, TaskContext } from "./state-explorer.js";
 import { EdgePickers, apply, jsonToTLAString, nestedKeys } from "./utils.js";
 const html = htm.bind(h);
 
@@ -68,7 +68,7 @@ const tableHeaderStyle = {
     verticalAlign: "middle",
 };
 
-function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, highlightIdentifier }) {
+function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, currentTask, setActionLog }) {
     const config = useContext(DiagramConfig);
     const constants = config.mcConfig.CONSTANTS;
     const source = config.source;
@@ -120,7 +120,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
                                 <th style=${tableHeaderStyle}></th>
                                 ${edges.map(edge => html`
                                 <th>
-                                    <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge }} 
+                                    <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge, setActionLog, representationKey: "spec-text", currentTask }} 
                                         filterFn=${e => e === edge} />
                                 </th>`)}
                             </tr>
@@ -159,7 +159,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             // in preact that disallows nesting render calls?
             queueMicrotask(() => r.render());
         }
-    }, [refresh, currNode]);
+    }, [refresh, currNode, currentTask]);
 
     return editor({
         editorRef,
@@ -196,7 +196,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
     });
 }
 
-export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge }) => {
+export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, setActionLog, currentTask }) => {
     return html`
     <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
     <div  style=${{
@@ -205,7 +205,9 @@ export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEd
             flexDirection: "column",
             flex: "1 1 0px"
         }}>
-        <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} />
+        <${SpecEditor} currNode=${currNode} setCurrNode=${setCurrNode} graph=${graph} setPrevEdges=${setPrevEdges} setPreviewEdge=${setPreviewEdge} 
+            setActionLog=${setActionLog} currentTask=${currentTask}
+        />
     </div>
     `
 }

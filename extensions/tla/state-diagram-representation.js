@@ -150,7 +150,7 @@ export const StateDiagramRepresentation = (props) => {
         <h3 style=${{ display: "inline-block" }}>State Diagram of</h3>
         <${ActorSelector} />
     </div>
-    <${EdgePickers} ...${props} filterFn=${e => edgeToVizData(e).actor === selectedActor} />
+    <${EdgePickers} ...${props} representationKey="state" filterFn=${e => edgeToVizData(e).actor === selectedActor} />
     <${StateDiagram}
         actor=${selectedActor}
         currentState=${currNode}

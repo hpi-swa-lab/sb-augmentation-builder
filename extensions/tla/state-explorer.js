@@ -79,11 +79,18 @@ const RepresentationsLayout = (props) => {
     `
 }
 
-const RepresentationsPicker = ({ representations, setRepresentations }) => {
+const RepresentationsPicker = ({ representations, setRepresentations,
+    actionLog, setActionLog,
+    currentTask, setCurrentTask }) => {
     const onChange = (/** @type {string} */ value) =>
-        setRepresentations((representations) => representations.includes(value)
-            ? representations.filter((r) => r !== value)
-            : [...representations, value])
+        setRepresentations((representations) => {
+            const newRepresentations = representations.includes(value)
+                ? representations.filter((r) => r !== value)
+                : [...representations, value]
+
+            setActionLog(actionLog => [...actionLog, [(new Date()).toISOString(), currentTask, "representationsToggle", newRepresentations]])
+            return newRepresentations
+        })
 
     return html`
     <div>
@@ -92,7 +99,29 @@ const RepresentationsPicker = ({ representations, setRepresentations }) => {
             margin-right: 8px;
           }
         </style>
-        <h2>Representations</h2>
+        <div style=${{ display: "flex", flexDirection: "row" }}>
+            <h2>Representations</h2>
+            <!-- save log to clipboard button -->
+            <button
+                style=${{ height: "min-content", margin: "2px", padding: "2px" }}
+                onClick=${() => navigator.clipboard.writeText(JSON.stringify(actionLog))}
+            >
+                Copy Action Log to Clipboard
+            </button>
+            <!-- radio buttons to select current task -->
+            <div style=${{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
+                <input type="radio" id="task1" name="task" value="1" checked=${currentTask === "1"} onChange=${() => setCurrentTask("1")} />
+                <label for="task1">Task 1</label>
+                <input type="radio" id="task2" name="task" value="2" checked=${currentTask === "2"} onChange=${() => setCurrentTask("2")} />
+                <label for="task2">Task 2</label>
+                <input type="radio" id="task3" name="task" value="3" checked=${currentTask === "3"} onChange=${() => setCurrentTask("3")} />
+                <label for="task3">Task 3</label>
+                <input type="radio" id="task4" name="task" value="4" checked=${currentTask === "4"} onChange=${() => setCurrentTask("4")} />
+                <label for="task4">Task 4</label>
+                <input type="radio" id="task5" name="task" value="5" checked=${currentTask === "5"} onChange=${() => setCurrentTask("5")} />
+                <label for="task5">Task 5</label>
+            </div>
+        </div>
         <div style=${{ display: "flex", flexDirection: "row" }}>
           <div class="checkbox-btn">
             <input
@@ -127,6 +156,8 @@ const RepresentationsPicker = ({ representations, setRepresentations }) => {
     </div>`
 }
 
+export const TaskContext = createContext();
+
 const State = ({ graph, initNodes }) => {
     const config = useContext(DiagramConfig);
     const [currNode, setCurrNode] = useState(graph.nodes.get(initNodes[0].id));
@@ -138,6 +169,20 @@ const State = ({ graph, initNodes }) => {
     const [showMessagePayload, setShowMessagePayload] = useState(false);
     const [heightIncreaseFactor, setHeightIncreaseFactor] = useState(1);
     const [representations, setRepresentations] = useState(["sequence", "state", "table", "text"]);
+    const [actionLog, setActionLog] = useState([]);
+    const [currentTask, setCurrentTask] = useState("1");
+
+    useEffect(() => {
+        const log = localStorage.getItem("tla-action-log");
+        if (log) {
+            setActionLog(JSON.parse(log));
+        }
+    }, [])
+
+    useEffect(() => {
+        localStorage.setItem("tla-action-log", JSON.stringify(actionLog));
+        console.table(actionLog)
+    }, [actionLog]);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;
     const vizData = edges.map(edgeToVizData);
@@ -150,7 +195,8 @@ const State = ({ graph, initNodes }) => {
         vizData,
         selectedActor, setSelectedActor,
         showMessagePayload, setShowMessagePayload,
-        heightIncreaseFactor, setHeightIncreaseFactor
+        heightIncreaseFactor, setHeightIncreaseFactor,
+        setActionLog, currentTask
     };
 
     const InitStateSelection = () => {
@@ -178,6 +224,7 @@ const State = ({ graph, initNodes }) => {
                 if (prevEdges.length > 0) {
                     setCurrNode(graph.nodes.get(prevEdges[prevEdges.length - 1].from));
                     setPrevEdges((prevEdges) => prevEdges.slice(0, prevEdges.length - 1));
+                    setActionLog(actionLog => [...actionLog, [(new Date()).toISOString(), currentTask, "global", "undo"]])
                 }
             }}
     >
@@ -186,19 +233,23 @@ const State = ({ graph, initNodes }) => {
     };
 
     return html`
-    <div style=${{
+    <${TaskContext.Provider} value=${currentTask}>
+        <div style=${{
             display: "flex",
             flexDirection: "column",
             flex: "1 1 0px",
             overflowY: "clip"
         }}>
-      <${RepresentationsPicker} representations=${representations} setRepresentations=${setRepresentations} />
-      <div style=${{ display: "flex", justifyContent: "space-between", margin: "8px" }}>
-        <${InitStateSelection} />
-        <${UndoButton} />
-      </div>
-      <${RepresentationsLayout} ...${props} representations=${representations} />
-    </div>
+          <${RepresentationsPicker} actionLog=${actionLog} setActionLog=${setActionLog} 
+            representations=${representations} setRepresentations=${setRepresentations} 
+            currentTask=${currentTask} setCurrentTask=${setCurrentTask} />
+          <div style=${{ display: "flex", justifyContent: "space-between", margin: "8px" }}>
+            <${InitStateSelection} />
+            <${UndoButton} />
+          </div>
+          <${RepresentationsLayout} ...${props} representations=${representations} />
+        </div>
+    </${TaskContext.Provider}>
   `;
 };
 

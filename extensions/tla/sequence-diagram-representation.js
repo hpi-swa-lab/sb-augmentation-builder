@@ -411,6 +411,7 @@ const Topbar = ({
   setCurrNode,
   setPrevEdges,
   setShowMessagePayload,
+  setActionLog
 }) => {
   const { actors, varToActor } = useContext(DiagramConfig);
 
@@ -442,7 +443,7 @@ const Topbar = ({
         flexDirection: "column",
       }}
             >
-              <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge }} 
+              <${EdgePickers} ...${{ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge, setActionLog, representationKey: "sequence" }} 
                 filterFn=${e => edgeToVizData(e).actor === actor} />
             </div>
           `,

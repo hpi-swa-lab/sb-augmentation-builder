@@ -101,7 +101,7 @@ export const TableRepresentation = (props) => {
     </style>
     <h3 style=${{ display: "block" }}>Table Values</h3>
     <div style=${{ display: "inline-block" }}>
-        <${EdgePickers} ...${props} filterFn=${_ => true} />
+        <${EdgePickers} representationKey="table" ...${props} filterFn=${_ => true} />
     </div>
     <div id="table-representation" style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
         <table style=${{ width: "100%" }}>

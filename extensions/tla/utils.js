@@ -1,6 +1,7 @@
 import htm from "../../external/htm.mjs";
-import { useEffect } from "../../external/preact-hooks.mjs";
+import { useContext, useEffect } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
+import { TaskContext } from "./state-explorer.js";
 const html = htm.bind(h);
 
 /** succesively applies the list of keys to obj. If the any intermediate result is a string, it is returned.
@@ -114,13 +115,17 @@ const EdgePickerButton = (props) => {
 /** returns buttons to pick next edge. Considers all possible enabled actions but applies
  * filterFn to filter out some of them. 
  */
-export const EdgePickers = ({ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge, filterFn }) => {
+export const EdgePickers = ({ graph, currNode, setCurrNode, setPrevEdges, setPreviewEdge, filterFn, representationKey, setActionLog, currentTask }) => {
     const enabledEdges = graph.outgoingEdges.get(currNode.id);
     const enabledEdgesOfSelectedActor = enabledEdges.filter(filterFn)
+
+    const currentTaskCtx = useContext(TaskContext); // is null in editor
 
     const selectNode = (e) => {
         setCurrNode(graph.nodes.get(e.to));
         setPrevEdges(prevEdges => [...prevEdges, e]);
+        const task = currentTask ? currentTask : currentTaskCtx;
+        setActionLog(actionLog => [...actionLog, [(new Date()).toISOString(), task, representationKey, e.label + e.parameters]]);
     }
 
     return enabledEdgesOfSelectedActor.map(e => html`
