@@ -1,6 +1,6 @@
 import { useContext } from "../../external/preact-hooks.mjs";
-import { DiagramConfig } from "./state-explorer.js";
-import { EdgePickers, apply, jsonToTLAString, nestedKeys } from "./utils.js";
+import { DiagramConfig, TaskContext } from "./state-explorer.js";
+import { EdgePickers, apply, jsonToTLAString, nestedKeys, useDebounce } from "./utils.js";
 import htm from "../../external/htm.mjs";
 import { h } from "../../external/preact.mjs";
 const html = htm.bind(h);
@@ -58,7 +58,16 @@ const TableHeader = ({ columnsKeys }) => {
 }
 
 export const TableRepresentation = (props) => {
-    const { currNode, graph, prevEdges, previewEdge } = props;
+    const { currNode, graph, prevEdges, previewEdge, setActionLog } = props;
+    const currentTask = useContext(TaskContext);
+
+    const debounced = useDebounce((newEntry) =>
+        setActionLog((log) => [...log, newEntry]), 3000)
+
+    const handler = () => {
+        const scrollEntry = [(new Date()).toISOString(), currentTask, "table", "-"]
+        debounced(scrollEntry)
+    };
 
     /** @type {string[][]} */
     const columnsKeys = nestedKeys(currNode.vars).toSorted((a, b) => a.join("").localeCompare(b.join("")))
@@ -103,7 +112,7 @@ export const TableRepresentation = (props) => {
     <div style=${{ display: "inline-block" }}>
         <${EdgePickers} representationKey="table" ...${props} filterFn=${_ => true} />
     </div>
-    <div id="table-representation" style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
+    <div onScroll=${handler} id="table-representation" style=${{ padding: "0.5em", flex: "1 1 0px", overflow: "scroll" }}>
         <table style=${{ width: "100%" }}>
             <${TableHeader}  columnsKeys=${columnsKeys}/>
             ${values.map((rowValues, r_i) => html`

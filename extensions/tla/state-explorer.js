@@ -181,7 +181,6 @@ const State = ({ graph, initNodes }) => {
 
     useEffect(() => {
         localStorage.setItem("tla-action-log", JSON.stringify(actionLog));
-        console.table(actionLog)
     }, [actionLog]);
 
     const edges = previewEdge ? [...prevEdges, previewEdge] : prevEdges;

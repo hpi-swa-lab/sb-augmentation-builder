@@ -1,5 +1,5 @@
-import { EdgePickers } from "./utils.js";
-import { DiagramConfig } from "./state-explorer.js";
+import { EdgePickers, useDebounce } from "./utils.js";
+import { DiagramConfig, TaskContext } from "./state-explorer.js";
 import { Component, createRef } from "../../external/preact.mjs";
 import {
   useState,
@@ -337,13 +337,24 @@ const SequenceDiagram = ({
   showMessagePayload,
   heightIncreaseFactor,
   previewEdge,
-  representations
+  representations,
+  setActionLog
 }) => {
   const { a2c, actors } = useContext(DiagramConfig);
+  const currentTask = useContext(TaskContext);
+
+  const debounced = useDebounce((newEntry) =>
+    setActionLog((log) => [...log, newEntry]), 3000)
+
+  const handler = () => {
+    const scrollEntry = [(new Date()).toISOString(), currentTask, "sequence", "-"]
+    debounced(scrollEntry)
+  };
 
   return html`
     <div style=${{ display: "flex", flexDirection: "column", flex: "1 0 0" }}>
       <div
+        onScroll=${handler}
         style=${{
       padding: "16px 32px 16px 16px",
       display: "flex",

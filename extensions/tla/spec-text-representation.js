@@ -1,9 +1,9 @@
 import htm from "../../external/htm.mjs";
-import { useContext, useEffect, useRef, useState } from "../../external/preact-hooks.mjs";
+import { useCallback, useContext, useEffect, useRef, useState } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { shard, editor } from "../../view/widgets.js";
 import { DiagramConfig, TaskContext } from "./state-explorer.js";
-import { EdgePickers, apply, jsonToTLAString, nestedKeys } from "./utils.js";
+import { EdgePickers, apply, jsonToTLAString, nestedKeys, useDebounce } from "./utils.js";
 const html = htm.bind(h);
 
 
@@ -197,9 +197,18 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
 }
 
 export const SpecTextRepresentation = ({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge, setActionLog, currentTask }) => {
+
+    const debounced = useDebounce((newEntry) =>
+        setActionLog((log) => [...log, newEntry]), 3000)
+
+    const handler = () => {
+        const scrollEntry = [(new Date()).toISOString(), currentTask, "spec-text", "-"]
+        debounced(scrollEntry)
+    };
+
     return html`
     <h3 style=${{ display: "inline-block" }}>Specification Source Code</h3>
-    <div  style=${{
+    <div onScroll=${handler}  style=${{
             padding: "0 16px 0 0",
             overflow: "scroll",
             flexDirection: "column",

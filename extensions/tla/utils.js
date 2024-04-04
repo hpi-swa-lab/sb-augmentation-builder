@@ -1,5 +1,5 @@
 import htm from "../../external/htm.mjs";
-import { useContext, useEffect } from "../../external/preact-hooks.mjs";
+import { useContext, useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { TaskContext } from "./state-explorer.js";
 const html = htm.bind(h);
@@ -138,3 +138,28 @@ export const EdgePickers = ({ graph, currNode, setCurrNode, setPrevEdges, setPre
             </${EdgePickerButton}>
         `)
 }
+
+// https://designtechworld.medium.com/create-a-custom-debounce-hook-in-react-114f3f245260
+export const useDebounce = (callback, delay) => {
+    const ref = useRef(null);
+
+    useEffect(() => {
+        return () => {
+            if (ref.current) {
+                clearTimeout(ref.current);
+            }
+        };
+    }, []);
+
+    const debouncedCallback = (...args) => {
+        if (ref.current) {
+            clearTimeout(ref.current);
+        }
+
+        ref.current = setTimeout(() => {
+            callback(...args);
+        }, delay);
+    };
+
+    return debouncedCallback;
+};
