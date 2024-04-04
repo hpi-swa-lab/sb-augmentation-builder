@@ -41,10 +41,10 @@ export function hotReload(app, rootPath, io) {
     const tree = parser.parse(content);
     const components = [
       ...tree.rootNode.children.filter(
-        (n) => n.type === "function_declaration" && name(n)[0].match(/^[A-Z]/)
+        (n) => n.type === "function_declaration" && name(n)[0].match(/^[A-Z]/),
       ),
       ...tree.rootNode.children.filter(
-        (n) => n.type === "lexical_declaration" && name(n)[0].match(/^[A-Z]/)
+        (n) => n.type === "lexical_declaration" && name(n)[0].match(/^[A-Z]/),
       ),
     ];
     if (!components.length) return send(content);

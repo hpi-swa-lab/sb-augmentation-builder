@@ -12,6 +12,7 @@ body {
 
 .sb-file-list {
   margin-left: 0.5rem;
+  max-width: 300px;
 }
 
 .sb-file-name {

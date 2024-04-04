@@ -30,7 +30,7 @@ options.diffed = (vnode) => {
     if (matchingDom.length > 1)
       vnodes.splice(
         vnodes.findIndex((p) => p === matchingDom[0]),
-        1
+        1,
       );
   }
   oldDiffed?.(vnode);
