@@ -63,7 +63,8 @@ const exportToHTML = (keys, ...varsList) => {
 
 const tableHeaderStyle = {
     textAlign: "left",
-    fontWeight: "bold",
+    // normal font weight
+    fontWeight: "normal",
     wordBreak: "break-word",
     verticalAlign: "middle",
 };
@@ -107,12 +108,13 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
 
                 return html`
                 <div >
-                    <div style=${{ backgroundColor }}>
+                    <div style=${{ backgroundColor, marginTop: "0px" }}>
+                        <h4 style=${{ display: "inline-block", margin: "0", paddingBottom: "4px" }}>State at ${actionName}</h4>
                         <table>
                           <thead>
                             <tr>
-                              <th style=${tableHeaderStyle}>Scope</th>
-                              <th style=${tableHeaderStyle}>Before</th>
+                              <th style=${tableHeaderStyle}>Scope:</th>
+                              <th style=${tableHeaderStyle}>Before:</th>
                               <th style=${{ ...tableHeaderStyle, colSpan: edges.length }}>After action:</th>
                             </tr>
                             <tr>
