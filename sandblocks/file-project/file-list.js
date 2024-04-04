@@ -11,7 +11,7 @@ export function FileTree({ project }) {
       path: project.path,
       isRoot: true,
       onOpen: (path) => openComponentInWindow(FileEditor, { project, path }),
-    })
+    }),
   );
 }
 
@@ -25,7 +25,7 @@ function File({ file, onOpen, path, isRoot }) {
         onclick: () => (isFolder ? setOpen((o) => !o) : onOpen(path)),
         class: "sb-file-name",
       },
-      `${isFolder ? (open ? "▼ " : "▶ ") : ""}${file.name}`
+      `${isFolder ? (open ? "▼ " : "▶ ") : ""}${file.name}`,
     ),
     open &&
       isFolder &&
@@ -35,15 +35,15 @@ function File({ file, onOpen, path, isRoot }) {
           .sort((a, b) =>
             !!a.children === !!b.children
               ? a.name.localeCompare(b.name)
-              : !!b.children - !!a.children
+              : !!b.children - !!a.children,
           )
           .map((child) =>
             h(File, {
               file: child,
               onOpen,
               path: path + "/" + child.name,
-            })
-          )
+            }),
+          ),
       ),
   ]);
 }
