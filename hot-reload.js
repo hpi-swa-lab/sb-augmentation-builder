@@ -50,6 +50,8 @@ export function updateExtension(extension, baseUrl, name) {
     baseUrl.replace("/extensions/", "").replace(/\.js$/, "") + ":" + name;
   const current = Extension.extensionRegistry.get(id);
 
+  // TODO update to new API
+  return;
   for (const editor of document.querySelectorAll("sb-editor")) {
     let didChange = false;
     for (const instance of editor.extensionInstances) {

@@ -10,14 +10,19 @@ body {
   line-height: 1.3;
 }
 
+.sb-file-tree {
+  max-width: 300px;
+}
 .sb-file-list {
   margin-left: 0.5rem;
-  max-width: 300px;
 }
 
 .sb-file-name {
   cursor: pointer;
   padding: 0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .sb-file-name:hover {
   background-color: #eee;

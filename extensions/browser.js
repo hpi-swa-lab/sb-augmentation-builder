@@ -75,14 +75,16 @@ export const javascript = new Extension().registerReplacement({
     }, []);
 
     const shownSymbol = selectedMember ?? selectedSymbol;
-    const shownSymbolList = [
-      ...takeBackwardWhile(
-        shownSymbol.parent.children,
-        shownSymbol,
-        (n) => n.type === "comment" || n.isWhitespace(),
-      ),
-      shownSymbol,
-    ];
+    const shownSymbolList = shownSymbol
+      ? [
+          ...takeBackwardWhile(
+            shownSymbol.parent.children,
+            shownSymbol,
+            (n) => n.type === "comment" || n.isWhitespace(),
+          ),
+          shownSymbol,
+        ]
+      : [];
 
     const listStyles = {
       flex: 1,
@@ -166,7 +168,7 @@ export const javascript = new Extension().registerReplacement({
             margin: "0 -2px -2px -2px",
           },
         },
-        shownSymbol.editor &&
+        shownSymbol?.editor &&
           h(StickyShardList, {
             list: shownSymbolList,
             extensions: function () {
