@@ -88,15 +88,34 @@ export class Process {
     return new Uint8Array(
       await (
         await fetch("data:application/octet-binary;base64," + base64)
-      ).arrayBuffer()
+      ).arrayBuffer(),
     );
   }
 
   _emit(cb, data) {
     if (cb) {
-      if (this.binary) this._base64ToArray(data).then((data) => cb(data));
+      if (this.binary) this._emitBinary(cb, data);
       else cb(data);
     }
+  }
+
+  _binaryQueue = [];
+
+  _emitBinary(cb, data) {
+    this._binaryQueue.push([cb, this._base64ToArray(data)]);
+
+    if (!this._isProcessing) {
+      this._processBinaryQueue();
+    }
+  }
+
+  async _processBinaryQueue() {
+    this._isProcessing = true;
+    while (this._binaryQueue.length > 0) {
+      const [cb, promise] = this._binaryQueue.shift();
+      cb(await promise);
+    }
+    this._isProcessing = false;
   }
 
   async close() {

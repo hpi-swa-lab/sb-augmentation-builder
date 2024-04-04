@@ -318,7 +318,7 @@ export class StdioTransport extends Transport {
   _processBuffer() {
     const headerEnd = this.buffer.indexOf(13); // \r for \r\n\r\n sequence
     const prefix = new TextDecoder().decode(this.buffer.slice(0, headerEnd));
-    const size = prefix?.match(/Content-Length: (\d+)/i)?.[1];
+    const size = prefix?.match(/^Content-Length: (\d+)/i)?.[1];
 
     if (size) {
       const length = parseInt(size, 10);
