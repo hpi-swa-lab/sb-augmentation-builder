@@ -195,6 +195,8 @@ export class SBReplacement extends HTMLElement {
   }
 
   handleDelete(pos) {
+    if (this.editor.readonly) return;
+
     switch (this.deletion) {
       case DeletionInteraction.Character:
         this.editor.applyChanges([

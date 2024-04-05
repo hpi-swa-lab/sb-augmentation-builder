@@ -141,6 +141,10 @@ export class BaseEditor extends HTMLElement {
     return preferences;
   }
 
+  get readonly() {
+    return this.hasAttribute("readonly");
+  }
+
   constructor() {
     super();
 

@@ -61,7 +61,7 @@ export class BaseShard extends HTMLElement {
   }
 
   onTextChanges(changes) {
-    if (this.editor.hasAttribute("readonly")) return;
+    if (this.editor.readonly) return;
 
     for (const extension of this.extensions()) {
       for (const filter of extension.changeFilter) {
