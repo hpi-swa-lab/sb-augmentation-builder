@@ -251,6 +251,17 @@ export class BaseEditor extends HTMLElement {
   }
 
   applyChanges(changes, forceApply = false) {
+    if (this.activeTransactionList) {
+      this.activeTransactionList.push(
+        ...changes.map((c) => ({
+          ...c,
+          from: this.adjustIndex(c.from, false, this.activeTransactionList),
+          to: this.adjustIndex(c.to, true, this.activeTransactionList),
+        })),
+      );
+      return;
+    }
+
     const oldSelection = this.selectionRange;
     const oldSource = this.node.sourceString;
     let newSource = oldSource;
@@ -309,23 +320,38 @@ export class BaseEditor extends HTMLElement {
     for (const shard of this.shards) shard.onPendingChangesReverted();
   }
 
+  activeTransactionList = null;
+  transaction(cb) {
+    if (this.activeTransactionList)
+      throw new Error("Nested transactions not supported right now");
+    this.activeTransactionList = [];
+    cb();
+    const list = this.activeTransactionList;
+    this.activeTransactionList = null;
+    this.applyChanges(list);
+  }
+
   applyPendingChanges() {
     this.applyChanges([], true);
   }
 
   adjustRange(range, preferGrow) {
-    return range.map((index) => {
-      for (const change of this.pendingChanges.value) {
-        if (
-          (!preferGrow && index >= change.from) ||
-          (preferGrow && index > change.from)
-        )
-          index +=
-            change.insert.length -
-            (clamp(index, change.from, change.to) - change.from);
-      }
-      return index;
-    });
+    return range.map((index) =>
+      this.adjustIndex(index, preferGrow, this.pendingChanges.value),
+    );
+  }
+
+  adjustIndex(index, preferGrow, changesList) {
+    for (const change of changesList) {
+      if (
+        (!preferGrow && index >= change.from) ||
+        (preferGrow && index > change.from)
+      )
+        index +=
+          change.insert.length -
+          (clamp(index, change.from, change.to) - change.from);
+    }
+    return index;
   }
 
   get selectionRange() {

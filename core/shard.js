@@ -252,7 +252,8 @@ export class BaseShard extends HTMLElement {
   }
 
   mayReplace(node, extension) {
-    if (this.getReplacementFor(node)) return false;
+    // FIXME can go?
+    // if (this.getReplacementFor(node)) return false;
     if (!node?.exec(...extension.query)) return false;
     if (this.parentShard?.replacements.some((r) => r.node === node))
       return false;

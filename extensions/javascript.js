@@ -2,6 +2,7 @@ import { Extension } from "../core/extension.js";
 import { Shard, Slot } from "../core/replacement.js";
 import { h } from "../external/preact.mjs";
 import { html } from "../view/widgets.js";
+import { AddButton } from "../view/widgets/shard-array.js";
 
 export const table = new Extension().registerReplacement({
   queryDepth: 3,
@@ -17,20 +18,55 @@ export const table = new Extension().registerReplacement({
           ea.childBlocks.length === x.childBlocks[0].childBlocks.length,
       ),
   ],
-  component: ({ node }) =>
-    html`<table style="display: inline-block; border: 1px solid red">
+  component: ({ node }) => {
+    const add = (index, column) => {
+      node.editor.transaction(() => {
+        if (column)
+          for (const row of node.childBlocks) {
+            row.insert(PLACEHOLDER, "expression", index);
+          }
+        else
+          node.insert(
+            "[" +
+              (PLACEHOLDER + ",").repeat(
+                node.childBlocks[0].childBlocks.length,
+              ) +
+              "]",
+            "expression",
+            index,
+          );
+      });
+    };
+    return html`<table
+      style="display: inline-block"
+      class="sb-insert-button-container"
+    >
+      <tr>
+        ${node.childBlocks[0].childBlocks.map((_, i) => {
+          const last = i === node.childBlocks[0].childBlocks.length - 1;
+          const addCol = (last) => add(last ? i + 1 : i, true);
+          return html`<td>
+            <${AddButton} onClick=${() => addCol(false)} />
+            ${last &&
+            html`<${AddButton} right onClick=${() => addCol(true)} />`}
+          </td>`;
+        })}
+      </tr>
       ${node.childBlocks.map(
-        (array) =>
+        (array, i) =>
           html`<tr>
             ${array.childBlocks.map(
-              (ea) =>
-                html`<td style="border: 1px solid red">
-                  <${Slot} node="${ea}" />
+              (ea, first) =>
+                html`<td>
+                  ${first === 0 &&
+                  html`<${AddButton} onClick=${() => add(i, false)} />`}
+                  <${Slot} node=${ea} />
                 </td>`,
             )}
           </tr>`,
       )}
-    </table>`,
+    </table>`;
+  },
 });
 
 export const testValueShow = new Extension().registerReplacement({
@@ -80,7 +116,27 @@ function toggle(e) {
   node.replaceWith(node.type === "true" ? "false" : "true");
 }
 
+export const PLACEHOLDER = "__sb_placeholder";
 export const base = new Extension()
+  .registerReplacement({
+    query: [(x) => x.type === "identifier" && x.text === PLACEHOLDER],
+    name: "sb-js-placeholder",
+    queryDepth: 1,
+    component: ({ node }) =>
+      h("input", {
+        style: {
+          cursor: "pointer",
+          border: "2px dashed #999",
+          width: "22px",
+          textAlign: "center",
+        },
+        oninput: (e) => {
+          console.log(e.target.value);
+          return node.replaceWith(e.target.value);
+        },
+      }),
+  })
+
   .registerMarker({
     query: [(x) => x.type === "true" || x.type === "false"],
     name: "sb-js-boolean",

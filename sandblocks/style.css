@@ -69,8 +69,8 @@ sb-window {
 .sb-delete-button {
   display: none;
   position: absolute;
-  top: -8px;
-  left: -8px;
+  top: -15px;
+  left: -15px;
 }
 .sb-deletable-shard:not(:has(.sb-deletable-shard:hover)):hover
   .sb-delete-button {
@@ -85,8 +85,8 @@ sb-window {
   height: 100%;
 }
 
-.sb-insert-button-container:not(:has(.sb-insert-button-container:hover)):hover
-  > .sb-insert-button-anchor
+.sb-insert-button-container:hover /*:not(:has(.sb-insert-button-container:hover)):hover >*/
+  .sb-insert-button-anchor
   .sb-insert-button {
   display: block;
 }
@@ -95,12 +95,17 @@ sb-window {
   left: 50%;
   top: 50%;
   margin-top: -0.5rem;
-  margin-left: -0.5rem;
+  margin-left: -1rem;
   z-index: 1;
   position: absolute;
   background: #eee;
   border-radius: 6px;
-  padding: 0 0.5rem;
+  padding: 0 0.15rem;
+}
+.sb-insert-button.right {
+  margin-right: -1rem;
+  margin-left: auto;
+  left: 100%;
 }
 
 .sb-row {
