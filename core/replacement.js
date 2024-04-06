@@ -1,12 +1,8 @@
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
-import { orParentThat, takeWhile } from "../utils.js";
-import { shard, shardList } from "../view/widgets.js";
-import { BaseShard } from "./shard.js";
+import { takeWhile } from "../utils.js";
+import { SBList } from "./model.js";
 
-export function useStickyNodeValidator(node) {
-  useValidator(() => node.connected, [node]);
-}
 export function useStickyReplacementValidator(replacement) {
   useValidator(
     () =>
@@ -14,6 +10,7 @@ export function useStickyReplacementValidator(replacement) {
     [replacement.node, replacement.query],
   );
 }
+
 export function useValidator(func, deps) {
   if (deps === undefined)
     throw new Error("no dependencies for useValidator provided");
@@ -36,16 +33,33 @@ export const DeletionInteraction = {
 };
 
 const ShardContext = createContext(null);
-export function StickyShard({ node, ...props }) {
-  useStickyNodeValidator(node);
-  return shard(node, props);
+
+export function Shard({ node, sticky, ...props }) {
+  if (!node.editor) throw new Error("node has become disconnected");
+
+  useValidator(() => (sticky ? node.connected : true), [node, sticky]);
+
+  return h(node.editor.constructor.shardTag, {
+    node,
+    key: node.id,
+    editor: node.editor,
+    ...props,
+  });
 }
-export function StickyShardList({ list, ...props }) {
-  useValidator(() => list.every((n) => n.connected), list);
-  return shardList(list, props);
+
+export function ShardList({ list, sticky, ...props }) {
+  const node = useMemo(() => new SBList(list), list);
+
+  useValidator(
+    () => (sticky ? all.every((n) => n.connected) : true),
+    [...list, sticky],
+  );
+
+  return h(Shard, { node, ...props });
 }
-export function StickySlot({ node, ...props }) {
-  const all = [
+
+export function Slot({ node, ...props }) {
+  const list = [
     ...takeWhile(
       node.parent.children.slice(0, node.siblingIndex).reverse(),
       (c) => c.isWhitespace(),
@@ -56,20 +70,8 @@ export function StickySlot({ node, ...props }) {
     ),
   ];
 
-  useValidator(() => all.every((n) => n.connected), all);
-
-  return shardList(all, props);
+  return h(ShardList, { list, ...props });
 }
-
-export const Shard = ({ node, ...props }) => {
-  if (!node.editor) throw new Error("node has become disconnected");
-  return h(node.editor.constructor.shardTag, {
-    node,
-    key: node.id,
-    editor: node.editor,
-    ...props,
-  });
-};
 
 export class SBReplacement extends HTMLElement {
   editor = null;
@@ -108,6 +110,7 @@ export class SBReplacement extends HTMLElement {
   }
 
   onKeyDown(e) {
+    if (e.target !== this) return;
     if (this._selectionInteraction === SelectionInteraction.Skip) return;
 
     if (e.key === "ArrowLeft") {

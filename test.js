@@ -4,12 +4,14 @@ import {
   DeletionInteraction,
   SBReplacement,
   SelectionInteraction,
+  Shard,
+  ShardList,
   useValidator,
 } from "./core/replacement.js";
 import { matchingParentheses } from "./extensions/base.js";
 import { h } from "./external/preact.mjs";
 import { SandblocksEditor } from "./sandblocks/editor/editor.js";
-import { markInputEditable, shard, shardList } from "./view/widgets.js";
+import { markInputEditable } from "./view/widgets.js";
 
 const tests = [];
 const configStack = [{}];
@@ -138,32 +140,43 @@ describe("range shift pending changes", () => {
 describe("codemirror", () => {
   let editor;
   beforeEach(() => {
-    editor = new CodeMirrorEditor();
+    editor = new SandblocksEditor();
     document.body.appendChild(editor);
   });
   afterEach(() => {
     editor.remove();
   });
 
-  test("delete", async () => {
+  test("backspace", async () => {
     await editor.setText("b+12", "javascript");
     editor.selectAndFocus([4, 4]);
     editor.simulateKeyStroke("Backspace");
+    assertEq(editor.sourceString, "b+1\n");
     editor.simulateKeyStroke("Backspace");
     assertEq(editor.sourceString, "b+\n");
   });
 
-  test("delete at boundary", async () => {
+  test("delete", async () => {
+    await editor.setText("b+12", "javascript");
+    editor.selectAndFocus([2, 2]);
+    editor.simulateKeyStroke("Delete");
+    assertEq(editor.sourceString, "b+2\n");
+    editor.simulateKeyStroke("Delete");
+    assertEq(editor.sourceString, "b+\n");
+  });
+
+  test("backspace at boundary", async () => {
     await editor.setText("b+12", "javascript");
     editor.selectAndFocus([0, 0]);
     editor.simulateKeyStroke("Backspace");
     assertEq(editor.sourceString, "b+12\n");
   });
 
-  test("delete into replacement", async () => {
+  test("backspace into replacement", async () => {
     const extension = new Extension().registerReplacement({
       name: "test-hiding-replacement",
       query: [(x) => x.type === "number"],
+      deletion: DeletionInteraction.Character,
       queryDepth: 1,
       rerender: () => true,
       component: ({ node }) =>
@@ -184,7 +197,7 @@ describe("codemirror", () => {
       query: [(x) => x.type === "program"],
       queryDepth: 1,
       component: ({ node }) =>
-        h("span", {}, "[[", shard(node.children[0]), "]]"),
+        h("span", {}, "[[", h(Shard, { node: node.children[0] }), "]]"),
     });
     editor.inlineExtensions = [extension];
     await editor.setText("b+12", "javascript");
@@ -211,15 +224,18 @@ describe("codemirror", () => {
         queryDepth: 1,
         rerender: () => true,
         component: ({ node }) =>
-          h("span", {}, "[[", shard(node.children[0]), "]]"),
+          h("span", {}, "[[", h(Shard, { node: node.children[0] }), "]]"),
       });
     editor.inlineExtensions = [extension];
     await editor.setText("b+12", "javascript");
     editor.selectAndFocus([4, 4]);
+
     editor.simulateKeyStroke("Backspace");
     assertEq(editor.sourceString, "b+1\n");
     editor.simulateKeyStroke("Backspace");
     assertEq(editor.sourceString, "b+\n");
+    // FIXME not sure why this is necessary
+    editor.selectedShard.focus();
     editor.simulateKeyStroke("a");
     await tick();
     assertEq(editor.sourceString, "b+a\n");
@@ -232,7 +248,7 @@ describe("codemirror", () => {
       queryDepth: 1,
       rerender: () => true,
       component: ({ node }) =>
-        h("span", {}, "[[", shardList(node.children), "]]"),
+        h("span", {}, "[[", h(ShardList, { list: node.children }), "]]"),
     });
     if (editor instanceof SandblocksEditor)
       editor.inlineExtensions = [extension, matchingParentheses];
@@ -401,12 +417,12 @@ describe("pending changes", () => {
       queryDepth: 1,
       component: ({ node }) => {
         useValidator(() => false, []);
-        return shard(node);
+        return h(Shard, { node });
       },
     });
     editor.inlineExtensions = [ext];
     await editor.setText("a", "javascript");
-    assertEq(editor.validators.size, 1);
+    assertEq(editor.validators.size, 2);
     editor.selectAndFocus([1, 1]);
     editor.simulateKeyStroke("(");
     editor.simulateKeyStroke(")");

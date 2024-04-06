@@ -1,6 +1,6 @@
 import { Extension } from "../core/extension.js";
 import { h } from "../external/preact.mjs";
-import { shard } from "../view/widgets.js";
+import { Shard } from "../core/replacement.js";
 
 const createUnicodeReplacement = (sbNodeType, unicodeSymbol, explanation) => {
   return new Extension().registerReplacement({
@@ -112,7 +112,7 @@ export const except = new Extension().registerReplacement({
         title:
           'EXCEPT is used to modify a function by changing the value of one or more of its arguments, while copying all except the changed ones.\n\nFor example, if we define f == [x \\in {1, 2} |-> "init"], which would represent a function like {1 |-> "init", 2 |-> "init"}, we can then use EXCEPT to change the value of 1 to "changed" and copying the rest by writing [f EXCEPT ![1] = "changed"].',
       },
-      shard(node),
+      h(Shard, { node }),
     ),
   name: "tla-except",
 });
@@ -127,7 +127,7 @@ export const unchanged = new Extension().registerReplacement({
         title:
           "UCHANGED is used to assert that a variable does not change its value.\n\nFor example, UCHANGED x asserts that the value of x does not change after running this action.",
       },
-      shard(node),
+      h(Shard, { node }),
     ),
   name: "tla-unchanged",
 });

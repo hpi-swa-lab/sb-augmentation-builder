@@ -1,4 +1,4 @@
-import { editor, h, shard, useLocalState } from "../../view/widgets.js";
+import { editor, h, useLocalState } from "../../view/widgets.js";
 import {
     useCallback,
     useEffect,

@@ -2,7 +2,8 @@ import { Extension } from "../core/extension.js";
 import { languageFor } from "../core/languages.js";
 import { asyncEval } from "../utils.js";
 import { preferences } from "../core/preferences.js";
-import { button, createWidgetPreact, h, icon, shard } from "../view/widgets.js";
+import { button, h, icon } from "../view/widgets.js";
+import { Shard } from "../core/replacement.js";
 import { FileEditor } from "./file-project/file-editor.js";
 import { localStorageProject } from "./local-project.js";
 import { openComponentInWindow } from "./window.js";
@@ -105,7 +106,7 @@ const preferencesExtension = new Extension()
                 " ",
                 field.childBlock(0).sourceString,
               ),
-              h("td", {}, shard(value)),
+              h("td", {}, h(Shard, { value })),
             ),
           ),
         props,

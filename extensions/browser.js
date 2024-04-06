@@ -2,7 +2,7 @@ import { Extension } from "../core/extension.js";
 import {
   DeletionInteraction,
   SelectionInteraction,
-  StickyShardList,
+  ShardList,
 } from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
@@ -169,7 +169,8 @@ export const javascript = new Extension().registerReplacement({
           },
         },
         shownSymbol?.editor &&
-          h(StickyShardList, {
+          h(ShardList, {
+            sticky: true,
             list: shownSymbolList,
             extensions: function () {
               return [...(this.parentShard?.extensions() ?? []), removeIndent];

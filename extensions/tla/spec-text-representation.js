@@ -1,7 +1,8 @@
 import htm from "../../external/htm.mjs";
 import { useCallback, useContext, useEffect, useRef, useState } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
-import { shard, editor } from "../../view/widgets.js";
+import { editor } from "../../view/widgets.js";
+import { Shard } from "../../core/replacement.js";
 import { DiagramConfig, TaskContext } from "./state-explorer.js";
 import { EdgePickers, apply, jsonToTLAString, nestedKeys, useDebounce } from "./utils.js";
 const html = htm.bind(h);
@@ -91,7 +92,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
 
                 if (edges.length === 0 || !enabledEdgesNames.includes(actionName)) {
                     // this action is disabled
-                    return shard(node, { style: { opacity: "60%" } })
+                    return h(Shard, { node, style: { opacity: "60%" } })
                 }
 
                 const allReadKeys = edges.flatMap(e => nestedKeys(e.reads));
@@ -132,7 +133,7 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
                           </tbody>
                         </table>
                     </div>
-                    ${shard(node, { style: { display: "block", backgroundColor } })}
+                    <${Shard} node=${node} style=${{ display: "block", backgroundColor }} />
                 </div>`
             };
             // FIXME not sure why this has to be in a micro task, is there global state
@@ -144,14 +145,14 @@ function SpecEditor({ currNode, setCurrNode, graph, setPrevEdges, setPreviewEdge
             "sb-replacement[name=tla-constants-display]",
         )) {
             r.props.renderContent = ({ node }) => {
-                if (node.type !== "identifier") return shard(node);
+                if (node.type !== "identifier") return h(Shard, { node });
                 const identifierBlock = node;
                 const tlaValue = Array.isArray(constants)
                     ? `{${constants.map(jsonToTLAString).join(", ")}}`
                     : jsonToTLAString(constants);
                 return html`
                 <div style=${{ display: "inline-block" }}>
-                    ${shard(identifierBlock)}
+                    <${Shard} node=${identifierBlock} />
                     <span> = </span>
                     <span>${tlaValue}</span>
                 </div>

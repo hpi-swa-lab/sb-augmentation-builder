@@ -23,29 +23,6 @@ export const button = (label, onclick, autofocus) =>
   h("button", { onclick, autofocus }, label);
 export const tr = (...children) => h("tr", {}, ...children);
 export const td = (...children) => h("td", {}, ...children);
-export const shard = (node, props = {}) => {
-  if (!node.editor) throw new Error("node has become disconnected");
-  return h(node.editor.constructor.shardTag, {
-    node,
-    key: node.id,
-    editor: node.editor,
-    ...props,
-  });
-};
-function StickyShard({ node, ...props }) {
-  useEffect(() => {
-    const editor = node.editor;
-    editor.markSticky(node, true);
-    return () => editor.markSticky(node, false);
-  }, [node]);
-  return shard(node, props);
-}
-export const stickyShard = (node, props = {}) =>
-  h(StickyShard, { node, ...props });
-export const shardList = (list, props = {}) => {
-  const node = useMemo(() => new SBList(list), list);
-  return shard(node, props);
-};
 export const icon = (name) =>
   h(
     "span",

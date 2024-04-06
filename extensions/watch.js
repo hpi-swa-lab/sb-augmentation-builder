@@ -1,13 +1,9 @@
 import { Extension } from "../core/extension.js";
-import {
-  StickySlot,
-  useStickyReplacementValidator,
-  useValidator,
-} from "../core/replacement.js";
+import { Slot, useStickyReplacementValidator } from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { socket } from "../sandblocks/host.js";
 import { randomId } from "../utils.js";
-import { h, html, shard } from "../view/widgets.js";
+import { html } from "../view/widgets.js";
 
 function makeWatchExtension(config) {
   return new Extension()
@@ -23,7 +19,7 @@ function makeWatchExtension(config) {
 
       if (current?.matches(config.query)) {
         current.viewsDo(
-          (view) => view.tagName === "SB-WATCH" && (view.sticky = false)
+          (view) => view.tagName === "SB-WATCH" && (view.sticky = false),
         );
         current.replaceWith(x.sourceString);
       } else {
@@ -86,7 +82,8 @@ function Watch({ replacement }) {
       borderRadius: "4px",
     }}
   >
-    <${StickySlot}
+    <${Slot}
+      sticky=${true}
       node=${expr}
       style=${{
         padding: "0.1rem",

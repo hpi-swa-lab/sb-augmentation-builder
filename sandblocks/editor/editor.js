@@ -377,6 +377,7 @@ class SandblocksShard extends BaseShard {
   }
 
   onKeyDown(e) {
+    if (e.target !== this) return;
     const handle = (cb) => {
       if (cb && !cb?.()) return;
       e.preventDefault();
@@ -641,9 +642,16 @@ class SandblocksShard extends BaseShard {
   }
 
   simulateKeyStroke(key) {
-    if (key === "Backspace")
-      this.dispatchEvent(new KeyboardEvent("keydown", { key }));
-    else document.execCommand("inserttext", false, key);
+    if (key === "Backspace" || key === "Delete") {
+      const e = new KeyboardEvent("keydown", { key, cancelable: true });
+      this.dispatchEvent(e);
+      if (!e.defaultPrevented)
+        document.execCommand(
+          key === "Backspace" ? "delete" : "forwardDelete",
+          false,
+          null,
+        );
+    } else document.execCommand("inserttext", false, key);
     this.onMutations(this.observer.takeRecords());
   }
 }

@@ -451,7 +451,7 @@ class CodeMirrorShard extends BaseShard {
   }
 
   simulateKeyStroke(key) {
-    if (key === "Backspace")
+    if (key === "Backspace" || key === "Delete")
       this.cm.inputState.handleEvent(new KeyboardEvent("keydown", { key }));
     else document.execCommand("inserttext", false, key);
     this.cm.observer.forceFlush();

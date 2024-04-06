@@ -1,10 +1,12 @@
 import { Extension } from "../core/extension.js";
-import { Shard } from "../core/replacement.js";
+import { Shard, Slot } from "../core/replacement.js";
 import { h } from "../external/preact.mjs";
+import { html } from "../view/widgets.js";
 
 export const table = new Extension().registerReplacement({
   queryDepth: 3,
   name: "sb-js-table",
+  rerender: () => true,
   query: [
     (x) => x.type === "array",
     (x) => x.childBlocks.length > 0,
@@ -16,23 +18,19 @@ export const table = new Extension().registerReplacement({
       ),
   ],
   component: ({ node }) =>
-    h(
-      "table",
-      {
-        style: `
-            display: inline-block;
-            border: 1px solid red`,
-      },
-      node.childBlocks.map((array) =>
-        h(
-          "tr",
-          { style: "border: 2px solid blue" },
-          array.childBlocks.map((ea) =>
-            h("td", { style: "border: 1px solid red" }, h(Shard, { node: ea })),
-          ),
-        ),
-      ),
-    ),
+    html`<table style="display: inline-block; border: 1px solid red">
+      ${node.childBlocks.map(
+        (array) =>
+          html`<tr>
+            ${array.childBlocks.map(
+              (ea) =>
+                html`<td style="border: 1px solid red">
+                  <${Slot} node="${ea}" />
+                </td>`,
+            )}
+          </tr>`,
+      )}
+    </table>`,
 });
 
 export const testValueShow = new Extension().registerReplacement({
