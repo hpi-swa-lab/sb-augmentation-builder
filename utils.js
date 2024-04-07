@@ -352,7 +352,12 @@ function _isEmptyObject(obj) {
 export function rangeEqual(a, b) {
   console.assert(Array.isArray(a));
   console.assert(Array.isArray(b));
-  return a[0] === b[0] && a[1] === b[1];
+
+  let [a0, a1] = a;
+  if (a0 > a1) [a0, a1] = [a1, a0];
+  let [b0, b1] = b;
+  if (b0 > b1) [b0, b1] = [b1, b0];
+  return a0 === b0 && a1 === b1;
 }
 
 export function rangeContains(a, b) {

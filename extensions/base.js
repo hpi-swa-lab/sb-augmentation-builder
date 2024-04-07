@@ -145,20 +145,26 @@ export const base = new Extension()
   .registerShortcut(
     "selectNodeUp",
     (x, view, e) => {
+      const editor = x.editor;
       let target = x;
+
+      if (!x.isFullySelected) {
+        editor.setData("selectionDownRange", editor.selectionRange);
+        editor.data("selectionDownList", () => []).push(target);
+        target.select(view);
+        return;
+      }
+
       while (target.parent && rangeEqual(target.range, target.parent.range))
         target = target.parent;
-      if (!target.parent) return;
-      target.editor.data("selectionDownList", () => []).push(target);
 
-      if (view.isFullySelected()) {
-        if (!target.isRoot) {
-          target.parent.select(view);
-        }
-      } else {
-        target.editor.setData("selectionDownRange", x.editor.selectionRange);
-        target.select(view);
-      }
+      let parent = target.parent;
+      while (parent && !editor.isShowing(parent)) parent = parent.parent;
+
+      if (!parent) return;
+      editor.data("selectionDownList", () => []).push(parent);
+
+      parent.select(view);
     },
     [(x) => x.editor.selectedNode],
   )
@@ -166,25 +172,24 @@ export const base = new Extension()
     "selectNodeDown",
     (x, view, e) => {
       if (!view) return;
-      const list = x.editor.data("selectionDownList");
-      const target = list?.pop();
-      if (list.length === 0) {
-        view.shard.selectRange(x.editor.data("selectionDownRange"));
+      const list = x.editor.data("selectionDownList", () => []);
+      list.pop();
+      if (list.length <= 1) {
+        view.editor.selectRange(x.editor.data("selectionDownRange"));
       } else {
+        const target = list[list.length - 1];
         (target ?? x.childBlock(0) ?? x.childNode(0))?.select(view);
       }
     },
     [(x) => x.editor.selectedNode],
   )
   .registerSelection((node, view, editor) => {
+    const list = editor.data("selectionDownList", () => []);
     if (
-      // if we just walked up, we don't want to clear the list
-      !node.children.some((c) =>
-        editor.data("selectionDownList")?.includes(c),
-      ) &&
+      list[list.length - 1] !== node
       // in particular, if we are triggering multiple times for the same
       // range, we want to ignore anything but the first time
-      (!node.children[0] || !rangeEqual(node.range, node.children[0].range))
+      // (!node.children[0] || !rangeEqual(node.range, node.children[0].range))
     ) {
       editor.setData("selectionDownList", []);
     }

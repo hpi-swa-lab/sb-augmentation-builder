@@ -44,12 +44,6 @@ class _EditableElement extends HTMLElement {
     return this.node.range;
   }
 
-  isFullySelected() {
-    const [a, b] = this.getRange();
-    const [c, d] = this.editor.selectionRange;
-    return a === c && b === d;
-  }
-
   select() {
     this.editor.selectRange(...this.range);
   }

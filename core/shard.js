@@ -1,4 +1,10 @@
-import { clamp, orParentThat, rangeContains, rangeDistance } from "../utils.js";
+import {
+  clamp,
+  orParentThat,
+  rangeContains,
+  rangeDistance,
+  rangeEqual,
+} from "../utils.js";
 import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
 export class BaseShard extends HTMLElement {
@@ -292,6 +298,10 @@ export class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
+  select(selection) {
+    throw "subclass responsibility";
+  }
+
   handleDeleteAtBoundary(forward) {
     const pos = this.editor.selection.head.index + (forward ? 1 : -1);
     if (pos < 0 || pos >= this.editor.sourceString.length) return false;
@@ -318,12 +328,18 @@ export class BaseShard extends HTMLElement {
     this.editor.onSelectionChange(s);
   }
 
-  candidatePositionForIndex(index) {
+  candidatePositionForIndex(index, other) {
     if (!this.node || !this.isConnected)
       return { position: null, distance: Infinity };
 
     if (index < this.range[0] || index > this.range[1])
       return { position: null, distance: Infinity };
+
+    const replacement = this.replacements.find((r) =>
+      rangeEqual([index, other], r.range),
+    );
+    if (replacement && replacement.selectable)
+      return replacement.candidatePositionForIndex(index, other);
 
     let bestDistance = Infinity;
     let bestIndex = null;

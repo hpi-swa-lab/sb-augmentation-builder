@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
-import { takeWhile } from "../utils.js";
+import { rangeEqual, takeWhile } from "../utils.js";
 import { SBList } from "./model.js";
 
 export function useStickyReplacementValidator(replacement) {
@@ -93,6 +93,10 @@ export class SBReplacement extends HTMLElement {
     }
   }
 
+  get selectable() {
+    return this._selectionInteraction !== SelectionInteraction.Skip;
+  }
+
   get range() {
     return this.editor.adjustRange(this.node.range, false);
   }
@@ -136,6 +140,12 @@ export class SBReplacement extends HTMLElement {
           selectionRange: [this.range[0], this.range[0]],
         },
       ]);
+      return;
+    }
+
+    if (this.shard.onShortcut(e)) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   }
 
@@ -196,6 +206,21 @@ export class SBReplacement extends HTMLElement {
         return;
     }
   }
+
+  candidatePositionForIndex(index, other) {
+    if (rangeEqual(this.range, [index, other]))
+      return {
+        distance: 0,
+        position: {
+          element: this,
+          elementOffset: index === this.range[0],
+          index,
+        },
+      };
+    else return { position: null, distance: Infinity };
+  }
+
+  scrollToShow() {}
 
   handleDelete(pos) {
     if (this.editor.readonly) return;

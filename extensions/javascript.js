@@ -1,11 +1,12 @@
 import { Extension } from "../core/extension.js";
-import { Shard, Slot } from "../core/replacement.js";
+import { SelectionInteraction, Shard, Slot } from "../core/replacement.js";
 import { h } from "../external/preact.mjs";
 import { html } from "../view/widgets.js";
 import { AddButton } from "../view/widgets/shard-array.js";
 
 export const table = new Extension().registerReplacement({
   queryDepth: 3,
+  selection: SelectionInteraction.StartAndEnd,
   name: "sb-js-table",
   rerender: () => true,
   query: [

@@ -1,4 +1,4 @@
-import { WeakArray, exec, last } from "../utils.js";
+import { WeakArray, exec, last, rangeEqual } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 import { OffscreenEditor } from "./editor.js";
 
@@ -532,21 +532,16 @@ class SBNode {
   }
 
   select(adjacentView) {
-    let shard = adjacentView?.shard;
-    if (!shard?.isShowing(this)) {
-      for (const s of this.editor) {
-        if (s.isShowing(this)) {
-          shard = s;
-          break;
-        }
-      }
-    }
-
-    if (shard) shard.selectRange(this.range);
+    // TODO consider view
+    this.editor.selectRange(this.range);
   }
 
   get isSelected() {
     return this.editor.selected?.node === this;
+  }
+
+  get isFullySelected() {
+    return rangeEqual(this.range, this.editor.selectionRange);
   }
 
   cleanDiffData() {

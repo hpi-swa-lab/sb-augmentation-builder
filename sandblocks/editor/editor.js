@@ -16,6 +16,7 @@ import {
   lastDeepChildNode,
   orParentThat,
   rangeContains,
+  rangeEqual,
   undoableMutation,
 } from "../../utils.js";
 import { Block } from "./elements.js";
@@ -614,14 +615,20 @@ class SandblocksShard extends BaseShard {
   select({
     head: {
       elementOffset: [focusNode, focusOffset],
+      index: from,
     },
     anchor: {
       elementOffset: [anchorNode, anchorOffset],
+      index: to,
     },
   }) {
     ShardSelection.change((s) =>
       s.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset),
     );
+  }
+
+  deselect() {
+    ShardSelection.change((s) => s.removeAllRanges());
   }
 
   positionForIndex(index) {

@@ -1,7 +1,7 @@
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import { languageFor } from "./languages.js";
-import { clamp, last, sequenceMatch } from "../utils.js";
+import { clamp, last, rangeEqual, sequenceMatch } from "../utils.js";
 import {
   Text,
   Block,
@@ -205,6 +205,10 @@ export class BaseEditor extends HTMLElement {
   onSuccessfulChange() {}
 
   onSelectionChange(selection) {
+    if (this._selection?.head.element !== selection.head.element) {
+      this._selection.head.element?.deselect?.();
+    }
+
     this._selection = selection;
 
     for (const shard of this.shards) {
@@ -365,11 +369,13 @@ export class BaseEditor extends HTMLElement {
   }
 
   selectRange([from, to], scrollIntoView = false) {
-    let bestCandidate =
-      this.selection.head.element.candidatePositionForIndex?.(from);
+    let bestCandidate = this.selection.head.element.candidatePositionForIndex?.(
+      from,
+      to,
+    );
     if (bestCandidate && bestCandidate.distance > 0) {
       for (const shard of this.shards) {
-        const candidate = shard.candidatePositionForIndex(from);
+        const candidate = shard.candidatePositionForIndex(from, to);
         if (candidate.distance < bestCandidate.distance)
           bestCandidate = candidate;
       }
@@ -378,7 +384,7 @@ export class BaseEditor extends HTMLElement {
       this.onSelectionChange({
         head: bestCandidate.position,
         anchor:
-          bestCandidate.position.element.candidatePositionForIndex(to)
+          bestCandidate.position.element.candidatePositionForIndex(to, from)
             ?.position ?? bestCandidate.position,
       });
       bestCandidate.position.element.select(this.selection);
@@ -407,6 +413,10 @@ export class BaseEditor extends HTMLElement {
       return true;
     }
     return false;
+  }
+
+  isShowing(node) {
+    return [...this.shards].some((shard) => shard.isShowing(node));
   }
 
   nextPosition(a) {
