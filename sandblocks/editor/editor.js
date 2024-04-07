@@ -348,7 +348,7 @@ class SandblocksShard extends BaseShard {
       view.node = node;
     }
 
-    if (recursive) {
+    if (recursive && !(view instanceof SBReplacement)) {
       for (const child of node.children) {
         view.appendChild(this.buildOrRecall(child, editBuffer, true));
       }
