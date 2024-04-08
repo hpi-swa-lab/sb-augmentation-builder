@@ -4,6 +4,7 @@ import {
   SelectionInteraction,
   Shard,
   Slot,
+  useStickyReplacementValidator,
 } from "../core/replacement.js";
 import { h } from "../external/preact.mjs";
 import { html, markInputEditable } from "../view/widgets.js";
@@ -24,7 +25,8 @@ export const table = new Extension().registerReplacement({
           ea.childBlocks.length === x.childBlocks[0].childBlocks.length,
       ),
   ],
-  component: ({ node }) => {
+  component: ({ node, replacement }) => {
+    // useStickyReplacementValidator(replacement);
     const add = (index, column) => {
       node.editor.transaction(() => {
         if (column)

@@ -27,32 +27,32 @@ function parent(node) {
 }
 
 function lastChild(node) {
-  if (node.shadowRoot) return node.shadowRoot.lastElementChild;
-  else return node.lastElementChild;
+  if (node.shadowRoot) return node.shadowRoot.lastChild;
+  else return node.lastChild;
 }
 
 function nextNodePreOrder(node) {
-  if (node.shadowRoot) return node.shadowRoot.firstElementChild;
-  if (node.firstElementChild) return node.firstElementChild;
-  if (node.nextElementSibling) return node.nextElementSibling;
+  if (node.shadowRoot) return node.shadowRoot.firstChild;
+  if (node.firstChild) return node.firstChild;
+  if (node.nextSibling) return node.nextSibling;
 
   let current = node;
   while ((current = parent(current))) {
-    if (current.nextElementSibling) return current.nextElementSibling;
+    if (current.nextSibling) return current.nextSibling;
   }
   return null;
 }
 
 function previousNodePreOrder(node) {
-  if (node.previousElementSibling) {
-    let current = node.previousElementSibling;
+  if (node.previousSibling) {
+    let current = node.previousSibling;
     while (lastChild(current)) current = lastChild(current);
     return current;
   }
   return parent(node);
 }
 
-function followingElementThat(node, direction, predicate) {
+function followingNodeThat(node, direction, predicate) {
   do {
     node = direction > 0 ? nextNodePreOrder(node) : previousNodePreOrder(node);
     if (node && predicate(node)) return node;
@@ -101,7 +101,7 @@ export class SandblocksEditor extends BaseEditor {
   }
 
   addSuggestions(node, list) {
-    const view = this.selection.head.element.viewFor(node);
+    const view = this.selection.head.element.viewFor?.(node);
     if (view) this.suggestions.add(view, list);
   }
 
@@ -213,7 +213,7 @@ class SandblocksShard extends BaseShard {
   }
 
   onPendingChangesReverted() {
-    this.actualSourceString = this.node.sourceString;
+    if (this.node.connected) this.actualSourceString = this.node.sourceString;
   }
 
   applyChanges(editBuffer, changes) {
@@ -459,7 +459,7 @@ class SandblocksShard extends BaseShard {
     if (!rangeContains(this.range, [from, from])) return null;
 
     let start = null;
-    let offset = 0;
+    let offset = this.range[0];
     const nestedElements = this._getNestedContentElements();
     for (const nested of [...nestedElements, null]) {
       const range = document.createRange();
@@ -477,22 +477,18 @@ class SandblocksShard extends BaseShard {
         offset -= length;
 
         const range = document.createRange();
-        followingElementThat(
-          start ? lastDeepChildNode(start) : this,
-          1,
-          (n) => {
-            if (n.nodeType === Node.TEXT_NODE) {
-              offset += n.textContent.length;
-              if (range.startContainer === document && offset >= from)
-                range.setStart(n, from - (offset - n.textContent.length));
-              if (offset >= to) {
-                range.setEnd(n, to - (offset - n.textContent.length));
-                return true;
-              }
+        followingNodeThat(start ? lastDeepChildNode(start) : this, 1, (n) => {
+          if (n.nodeType === Node.TEXT_NODE) {
+            offset += n.textContent.length;
+            if (range.startContainer === document && offset >= from)
+              range.setStart(n, from - (offset - n.textContent.length));
+            if (offset >= to) {
+              range.setEnd(n, to - (offset - n.textContent.length));
+              return true;
             }
-            return false;
-          },
-        );
+          }
+          return false;
+        });
 
         const undo = undoableMutation(this, () => {
           range.deleteContents();
@@ -506,7 +502,8 @@ class SandblocksShard extends BaseShard {
       }
 
       if (nested) offset += nested.sourceString?.length ?? 0;
-      console.assert(offset <= from, "insert position was found in nested");
+      // insert position is in nested --> we don't need to display it
+      if (offset > from) return null;
       start = nested;
     }
     console.assert(false, "insert position was not found");
@@ -596,7 +593,7 @@ class SandblocksShard extends BaseShard {
 
     const parent = ref.range
       ? ref
-      : followingElementThat(ref, -1, (n) => !!n.range);
+      : followingNodeThat(ref, -1, (n) => !!n.range);
     if (node.parentElement === parent && node instanceof window.Text)
       return parent.range[0] + offset;
     else return parent.range[offset >= node.childNodes.length ? 1 : 0];

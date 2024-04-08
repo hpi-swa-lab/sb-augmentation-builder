@@ -352,7 +352,7 @@ export class BaseEditor extends HTMLElement {
         (preferGrow && index > change.from)
       )
         index +=
-          change.insert.length -
+          (change.insert ?? "").length -
           (clamp(index, change.from, change.to) - change.from);
     }
     return index;
@@ -373,10 +373,10 @@ export class BaseEditor extends HTMLElement {
       from,
       to,
     );
-    if (bestCandidate && bestCandidate.distance > 0) {
+    if (!bestCandidate || bestCandidate.distance > 0) {
       for (const shard of this.shards) {
         const candidate = shard.candidatePositionForIndex(from, to);
-        if (candidate.distance < bestCandidate.distance)
+        if (!bestCandidate || candidate.distance < bestCandidate.distance)
           bestCandidate = candidate;
       }
     }

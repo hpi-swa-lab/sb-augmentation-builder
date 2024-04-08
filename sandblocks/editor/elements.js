@@ -36,10 +36,6 @@ class _EditableElement extends HTMLElement {
     }
   }
 
-  getRange() {
-    return this.node.range;
-  }
-
   get range() {
     return this.node.range;
   }
@@ -176,7 +172,7 @@ export class Text extends _EditableElement {
   rangeParams(offset) {
     if (this.childNodes.length === 0)
       this.appendChild(document.createTextNode(""));
-    return [this.childNodes[0], offset - this.getRange()[0]];
+    return [this.childNodes[0], offset - this.range[0]];
   }
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === "text") {
@@ -190,7 +186,11 @@ export class Text extends _EditableElement {
   }
 }
 
-export class Placeholder extends _EditableElement {}
+export class Placeholder extends _EditableElement {
+  get range() {
+    return null;
+  }
+}
 
 export class ViewList extends _EditableElement {
   insertNode(node, index) {
