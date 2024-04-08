@@ -1,7 +1,12 @@
 import { Extension } from "../core/extension.js";
-import { SelectionInteraction, Shard, Slot } from "../core/replacement.js";
+import {
+  DeletionInteraction,
+  SelectionInteraction,
+  Shard,
+  Slot,
+} from "../core/replacement.js";
 import { h } from "../external/preact.mjs";
-import { html } from "../view/widgets.js";
+import { html, markInputEditable } from "../view/widgets.js";
 import { AddButton } from "../view/widgets/shard-array.js";
 
 export const table = new Extension().registerReplacement({
@@ -122,19 +127,19 @@ export const base = new Extension()
   .registerReplacement({
     query: [(x) => x.type === "identifier" && x.text === PLACEHOLDER],
     name: "sb-js-placeholder",
+    deletion: DeletionInteraction.Full,
     queryDepth: 1,
     component: ({ node }) =>
       h("input", {
+        ref: markInputEditable,
         style: {
           cursor: "pointer",
           border: "2px dashed #999",
           width: "22px",
           textAlign: "center",
         },
-        oninput: (e) => {
-          console.log(e.target.value);
-          return node.replaceWith(e.target.value);
-        },
+        oninput: (e) => node.replaceWith(e.target.value),
+        onkeydown: (e) => e.key === "Backspace" && node.removeFull(),
       }),
   })
 

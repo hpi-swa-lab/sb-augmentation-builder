@@ -243,8 +243,7 @@ export class BaseShard extends HTMLElement {
     }
 
     // check for new replacements
-    for (const op of editBuffer.posBuf) {
-      const root = op.node;
+    for (const root of changedNodes) {
       for (const extension of this.extensionReplacements) {
         let node = root;
         for (let i = 0; i <= extension.queryDepth; i++) {
@@ -266,8 +265,12 @@ export class BaseShard extends HTMLElement {
   }
 
   updateMarkers(editBuffer) {
-    for (const op of editBuffer.posBuf) {
-      const root = op.node;
+    for (const root of [
+      ...editBuffer.posBuf.map((op) => op.node),
+      ...editBuffer.changedViews
+        .filter((v) => v.node.connected)
+        .flatMap((v) => [...v.node.allNodes()]),
+    ]) {
       for (const extension of this.extensionMarkers) {
         let node = root;
         for (let i = 0; i <= extension.queryDepth; i++) {

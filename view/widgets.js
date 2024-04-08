@@ -106,7 +106,7 @@ export function markInputEditable(input) {
   if (input.hasAttribute("sb-editable")) return;
 
   // codemirror sets css that hides the caret
-  input.style.cssText = "caret-color: black !important";
+  input.style.cssText += "caret-color: black !important";
   function update() {
     nextEditor(input).onSelectionChange({
       head: { element: input, elementOffset: input.selectionStart },

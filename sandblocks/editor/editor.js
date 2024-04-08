@@ -308,6 +308,7 @@ class SandblocksShard extends BaseShard {
     const view = this.buildOrRecall(node, editBuffer, true);
     replacement.replaceWith(view);
     this.views.set(node, view);
+    editBuffer.changedViews.push(view);
   }
 
   installReplacement(node, extension) {

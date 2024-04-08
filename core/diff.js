@@ -451,6 +451,7 @@ export class EditBuffer {
     this.shardBuffer = new Map();
     this.detachedRootShards = new Set();
     this.rememberViews = new Map();
+    this.changedViews = [];
 
     this.pendingDetached = [];
     this.pendingLoaded = [];
