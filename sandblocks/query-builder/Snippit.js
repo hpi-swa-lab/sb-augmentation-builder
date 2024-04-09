@@ -73,22 +73,17 @@ export default function Snippit({ code, tree, selectedNodes, nodeClicked }) {
     }
   };
 
-  /*const nodeClicked = (id) => {
-    console.log("Clicked: " + id);
-    if (selectedNodes.has(id)) {
-      //setSelectedNodes((prev) => new Set([...prev].filter((x) => x !== id)));
-      selectedNodes = new Set([...selectedNodes].filter((x) => x !== id));
-    } else {
-      //setSelectedNodes((prev) => new Set([...prev, id]));
-      selectedNodes = new Set([...selectedNodes, id]);
-    }
-    console.log("SelectedNodes: " + Array.from(selectedNodes).join(" "));
-  };
-  */
-
   return html`
-    <textarea id="input" name="input" rows="10" cols="70" value=${code} />
-    <div class="row">
+    <textarea
+      id="input"
+      name="input"
+      rows="10"
+      cols="70"
+      value=${code}
+      readonly
+    />
+    <h1>CST</h1>
+    <div style=${{ overflow: "auto", "max-height": "300px" }}>
       <${TreeRepresentation}
         tree=${tree}
         nodeClicked=${nodeClicked}
