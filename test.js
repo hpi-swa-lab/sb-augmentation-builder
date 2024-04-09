@@ -11,7 +11,10 @@ import {
 } from "./core/replacement.js";
 import { matchingParentheses } from "./extensions/base.js";
 import { h } from "./external/preact.mjs";
-import { SandblocksEditor } from "./sandblocks/editor/editor.js";
+import {
+  SandblocksEditor,
+  ShardSelection,
+} from "./sandblocks/editor/editor.js";
 import { rangeEqual } from "./utils.js";
 import { markInputEditable } from "./view/widgets.js";
 
@@ -79,6 +82,10 @@ function assertContains(a, b) {
 function tick() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+afterEach(() => {
+  ShardSelection.reset();
+});
 
 describe("determine side affinity", () => {
   test("left", async () => {
@@ -368,7 +375,7 @@ describe("replacement", () => {
       assertTrue(c[6].element instanceof SBReplacement);
     });
 
-    test.view("after edit after a replacement", async () => {
+    test("after edit after a replacement", async () => {
       const ext = new Extension().registerReplacement({
         name: "test",
         query: [(x) => x.type === "array"],

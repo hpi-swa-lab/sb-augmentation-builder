@@ -630,7 +630,7 @@ class SandblocksShard extends BaseShard {
   }
 
   deselect() {
-    ShardSelection.change((s) => s.removeAllRanges());
+    if (this.hasFocus) ShardSelection.deselect();
   }
 
   positionForIndex(index) {
@@ -711,6 +711,10 @@ class _ShardSelection {
     return shard.positionForIndex(index);
   }
 
+  reset() {
+    this._ignoreCounter = 0;
+  }
+
   onSelectionChange() {
     if (this._ignoreCounter > 0) {
       this._ignoreCounter--;
@@ -733,6 +737,11 @@ class _ShardSelection {
     this.shard.editor.onSelectionChange(this.selection);
   }
 
+  deselect() {
+    this._ignoreCounter++;
+    getSelection().removeAllRanges();
+  }
+
   change(cb) {
     const s = getSelection();
     this._ignoreCounter += 2;
@@ -741,7 +750,7 @@ class _ShardSelection {
   }
 }
 
-const ShardSelection = new _ShardSelection();
+export const ShardSelection = new _ShardSelection();
 
 customElements.define("sb-editor", SandblocksEditor);
 customElements.define("sb-shard", SandblocksShard);
