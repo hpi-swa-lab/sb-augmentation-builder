@@ -209,6 +209,8 @@ export class SBReplacement extends HTMLElement {
 
   *shardCursorPositions(state) {
     state.index += this.range[1] - this.range[0] - 1;
+    yield [this.parentNode, [...this.parentNode.childNodes].indexOf(this) + 1];
+    state.index++;
   }
 
   candidatePositionForIndex(index, other) {

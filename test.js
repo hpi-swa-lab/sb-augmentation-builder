@@ -1,5 +1,6 @@
 import { CodeMirrorEditor } from "./codemirror6/editor.js";
 import { Extension } from "./core/extension.js";
+import { languageFor } from "./core/languages.js";
 import {
   DeletionInteraction,
   SBReplacement,
@@ -79,16 +80,39 @@ function tick() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+describe("determine side affinity", () => {
+  test("left", async () => {
+    const root = await languageFor("javascript").initModelAndView("23+4");
+    const changes = [{ from: 1, to: 1, insert: "3" }];
+    new SandblocksEditor().determineSideAffinity(root, changes);
+    assertEq(changes[0].sideAffinity, -1);
+  });
+
+  test("right", async () => {
+    const root = await languageFor("javascript").initModelAndView("2+34");
+    const changes = [{ from: 2, to: 2, insert: "3" }];
+    new SandblocksEditor().determineSideAffinity(root, changes);
+    assertEq(changes[0].sideAffinity, 1);
+  });
+
+  test("none", async () => {
+    const root = await languageFor("javascript").initModelAndView("245+4");
+    const changes = [{ from: 1, to: 1, insert: "4" }];
+    new SandblocksEditor().determineSideAffinity(root, changes);
+    assertEq(changes[0].sideAffinity, 0);
+  });
+});
+
 describe("range shift pending changes", () => {
   test("simple", () => {
     const editor = new testWithEditor();
     editor.pendingChanges.value = [
-      { from: 3, to: 3, insert: "a" },
-      { from: 7, to: 10, insert: "" },
+      { from: 3, to: 3, insert: "a", sideAffinity: -1 },
+      { from: 7, to: 10, insert: "", sideAffinity: -1 },
     ];
-    assertEq(editor.adjustRange([0, 1], false), [0, 1]);
-    assertEq(editor.adjustRange([3, 4], false), [4, 5]);
-    assertEq(editor.adjustRange([7, 10], false), [7, 8]);
+    assertEq(editor.adjustRange([0, 1]), [0, 1]);
+    assertEq(editor.adjustRange([3, 4]), [3, 5]);
+    assertEq(editor.adjustRange([7, 10]), [7, 8]);
   });
 
   test("complex", () => {
@@ -123,7 +147,9 @@ describe("range shift pending changes", () => {
       },
     ]);
 
-    assertEq(editor.pendingChanges.value, [{ from: 0, to: 0, insert: "c" }]);
+    assertEq(editor.pendingChanges.value, [
+      { from: 0, to: 0, insert: "c", sideAffinity: 1 },
+    ]);
 
     editor.applyChanges([
       {
@@ -134,8 +160,8 @@ describe("range shift pending changes", () => {
     ]);
 
     assertEq(editor.pendingChanges.value, [
-      { from: 0, to: 0, insert: "c" },
-      { from: 5, to: 5, insert: "d" },
+      { from: 0, to: 0, insert: "c", sideAffinity: 1 },
+      { from: 5, to: 5, insert: "d", sideAffinity: 1 },
     ]);
   });
 });
@@ -341,6 +367,23 @@ describe("replacement", () => {
       assertTrue(c[5].element instanceof HTMLInputElement);
       assertTrue(c[6].element instanceof SBReplacement);
     });
+
+    test.view("after edit after a replacement", async () => {
+      const ext = new Extension().registerReplacement({
+        name: "test",
+        query: [(x) => x.type === "array"],
+        queryDepth: 1,
+        component: ({ node }) => [h(Shard, { node: node.childBlock(0) })],
+      });
+      editor.inlineExtensions = [ext];
+      await editor.setText("2+[12]+3", "javascript");
+
+      editor.selectAndFocus([7, 7]);
+      assertEq(editor.selection.head.index, 7);
+      editor.simulateKeyStroke("4");
+      assertEq(editor.sourceString, "2+[12]+43\n");
+      assertEq(editor.selection.head.index, 8);
+    });
   });
 
   describe("deletion", () => {
@@ -397,6 +440,8 @@ describe("replacement", () => {
       await tick();
       editor.simulateKeyStroke("Backspace");
       assertEq(editor.sourceString, "\n");
+      // FIXME not sure why this is necessary
+      editor.rootShard.focus();
       editor.simulateKeyStroke("a");
       assertEq(editor.sourceString, "a\n");
     });
@@ -459,6 +504,29 @@ describe("pending changes", () => {
     ]);
     editor.applyPendingChanges();
     assertEq(editor.sourceString, "a()\n");
+  });
+
+  test("place the cursor correctly in a shard", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "test",
+      query: [(x) => x.type === "array"],
+      queryDepth: 1,
+      component: ({ node }) => [
+        h(Shard, { node: node.childBlock(0) }),
+        h(Shard, { node: node.childBlock(0) }),
+      ],
+    });
+    editor.registerValidator(() => false);
+    editor.inlineExtensions = [ext];
+    await editor.setText("2+[12]+3", "javascript");
+
+    editor.selectAndFocus([5, 5]);
+    editor.simulateKeyStroke("3");
+    assertEq(editor.selection.head.index, 6);
+    editor.simulateKeyStroke("4");
+    assertEq(editor.selection.head.index, 7);
+    editor.simulateKeyStroke("+");
+    assertEq(editor.selection.head.index, 8);
   });
 });
 

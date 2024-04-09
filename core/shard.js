@@ -44,7 +44,7 @@ export class BaseShard extends HTMLElement {
     // FIXME both node and editor are set by Preact as props,
     // we can't guarantee the order in which they are set
     return this.editor
-      ? this.editor.adjustRange(this.node.range, true)
+      ? this.editor.adjustRange(this.node.range, false)
       : this.node.range;
   }
 

@@ -342,10 +342,13 @@ class SBNode {
     return null;
   }
 
-  leafForPosition(pos) {
-    if (this.range[0] <= pos && this.range[1] >= pos) {
+  leafForPosition(pos, excludeEnd) {
+    if (
+      this.range[0] <= pos &&
+      (excludeEnd ? this.range[1] > pos : this.range[1] >= pos)
+    ) {
       for (const child of this.children) {
-        const match = child.leafForPosition(pos);
+        const match = child.leafForPosition(pos, excludeEnd);
         if (match) return match;
       }
       return this;

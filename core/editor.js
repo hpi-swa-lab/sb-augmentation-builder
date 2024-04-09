@@ -259,8 +259,8 @@ export class BaseEditor extends HTMLElement {
       this.activeTransactionList.push(
         ...changes.map((c) => ({
           ...c,
-          from: this.adjustIndex(c.from, false, this.activeTransactionList),
-          to: this.adjustIndex(c.to, true, this.activeTransactionList),
+          from: this.adjustIndex(c.from, this.activeTransactionList),
+          to: this.adjustIndex(c.to, this.activeTransactionList),
         })),
       );
       return;
@@ -282,6 +282,8 @@ export class BaseEditor extends HTMLElement {
     if (!forceApply) {
       for (const validator of this.validators) {
         if (!validator(root, diff, allChanges)) {
+          this.determineSideAffinity(root, allChanges);
+
           tx.rollback();
           this.node = oldRoot;
           this.pendingChanges.value = [
@@ -319,6 +321,27 @@ export class BaseEditor extends HTMLElement {
     }
   }
 
+  // if we have a pending change, we need to figure out to which node it contributed to.
+  // For example, if we have an expression like `1+3` and an insertion of `2` at index 1,
+  // we want the side affinity to be -1 to indicate that the `2` is part of the `1` node.
+  // This is relevant for shards to include or exclude pending changes.
+  //
+  // Note that a text inserted in a shard will automatically set its affinity based on the
+  // shard boundaries, so this function will only be used to set the affinity for changes
+  // that are caused independent of views.
+  determineSideAffinity(root, changes) {
+    for (const change of changes) {
+      if (change.sideAffinity !== undefined) continue;
+      const leaf = root.leafForPosition(change.from, true);
+      change.sideAffinity =
+        leaf.range[0] === change.from
+          ? 1
+          : leaf.range[1] - change.insert.length === change.from
+            ? -1
+            : 0;
+    }
+  }
+
   revertPendingChanges() {
     if (this.pendingChanges.value.length == 0) return;
     for (const change of this.revertChanges.reverse()) change();
@@ -342,17 +365,18 @@ export class BaseEditor extends HTMLElement {
     this.applyChanges([], true);
   }
 
-  adjustRange(range, preferGrow) {
-    return range.map((index) =>
-      this.adjustIndex(index, preferGrow, this.pendingChanges.value),
-    );
+  adjustRange(range) {
+    return [
+      this.adjustIndex(range[0], this.pendingChanges.value, 1),
+      this.adjustIndex(range[1], this.pendingChanges.value, -1),
+    ];
   }
 
-  adjustIndex(index, preferGrow, changesList) {
+  adjustIndex(index, changesList, sideAffinity) {
     for (const change of changesList) {
       if (
-        (!preferGrow && index >= change.from) ||
-        (preferGrow && index > change.from)
+        (change.sideAffinity === sideAffinity && index >= change.from) ||
+        (change.sideAffinity !== sideAffinity && index > change.from)
       )
         index +=
           (change.insert ?? "").length -

@@ -422,6 +422,7 @@ class SandblocksShard extends BaseShard {
       change.from += this.range[0];
       change.to += this.range[0];
       change.selectionRange = selectionRange;
+      change.sideAffinity = this.range[0] === change.from ? 1 : -1;
 
       this.actualSourceString = sourceString;
       this.onTextChanges([change]);
@@ -653,6 +654,15 @@ class SandblocksShard extends BaseShard {
     yield* this.viewFor(this.node).shardCursorPositions(state);
     yield [this, 1];
     state.index++;
+  }
+
+  debugShardCursorPositions() {
+    const state = { index: this.range[0] };
+    const out = [];
+    for (const pos of this.shardCursorPositions(state)) {
+      out.push([...pos, state.index]);
+    }
+    return out;
   }
 
   simulateKeyStroke(key) {
