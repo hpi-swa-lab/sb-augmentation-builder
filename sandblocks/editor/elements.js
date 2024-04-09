@@ -78,6 +78,12 @@ class _EditableElement extends HTMLElement {
     return null;
   }
 
+  *shardCursorPositions(state) {
+    for (const child of this.children) {
+      if (child.shardCursorPositions) yield* child.shardCursorPositions(state);
+    }
+  }
+
   anyTextForCursor() {
     const recurse = (n) => {
       for (const child of n.shadowRoot?.children ?? n.children) {
@@ -184,11 +190,40 @@ export class Text extends _EditableElement {
     if (start <= cursor && end >= cursor) return this;
     else return null;
   }
+
+  *shardCursorPositions(state) {
+    if (this.childNodes.length === 0)
+      this.appendChild(document.createTextNode(""));
+
+    for (const child of this.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        for (let i = 1; i <= child.textContent.length; i++) {
+          yield [child, i];
+          state.index++;
+        }
+      } else if (child.shardCursorPositions) {
+        yield* child.shardCursorPositions(state);
+      }
+    }
+  }
 }
 
 export class Placeholder extends _EditableElement {
   get range() {
     return null;
+  }
+
+  *shardCursorPositions(state) {
+    for (const child of this.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        for (let i = 1; i <= child.textContent.length; i++) {
+          yield [child, i];
+          state.index++;
+        }
+      } else if (child.shardCursorPositions) {
+        yield* child.shardCursorPositions(state);
+      }
+    }
   }
 }
 

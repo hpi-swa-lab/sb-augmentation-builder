@@ -11,7 +11,10 @@ import {
 import { matchingParentheses } from "./extensions/base.js";
 import { h } from "./external/preact.mjs";
 import { SandblocksEditor } from "./sandblocks/editor/editor.js";
+import { rangeEqual } from "./utils.js";
 import { markInputEditable } from "./view/widgets.js";
+
+const testWithEditor = true ? SandblocksEditor : CodeMirrorEditor;
 
 const tests = [];
 const configStack = [{}];
@@ -78,7 +81,7 @@ function tick() {
 
 describe("range shift pending changes", () => {
   test("simple", () => {
-    const editor = new CodeMirrorEditor();
+    const editor = new testWithEditor();
     editor.pendingChanges.value = [
       { from: 3, to: 3, insert: "a" },
       { from: 7, to: 10, insert: "" },
@@ -89,7 +92,7 @@ describe("range shift pending changes", () => {
   });
 
   test("complex", () => {
-    const editor = new CodeMirrorEditor();
+    const editor = new testWithEditor();
     editor.pendingChanges.value = [
       { from: 5, to: 5, insert: "3" },
       { from: 6, to: 6, insert: "2" },
@@ -101,13 +104,13 @@ describe("range shift pending changes", () => {
   });
 
   test("root", () => {
-    const editor = new CodeMirrorEditor();
+    const editor = new testWithEditor();
     editor.pendingChanges.value = [{ from: 0, to: 0, insert: "a" }];
     assertEq(editor.adjustRange([0, 10], true), [0, 11]);
   });
 
   test("edit", async () => {
-    const editor = new CodeMirrorEditor();
+    const editor = new testWithEditor();
     await editor.setText("a + b", "javascript");
 
     editor.registerValidator(() => false);
@@ -140,7 +143,7 @@ describe("range shift pending changes", () => {
 describe("codemirror", () => {
   let editor;
   beforeEach(() => {
-    editor = new SandblocksEditor();
+    editor = new testWithEditor();
     document.body.appendChild(editor);
   });
   afterEach(() => {
@@ -290,7 +293,7 @@ describe("sandblocks", () => {
 describe("replacement", () => {
   let editor;
   beforeEach(() => {
-    editor = new CodeMirrorEditor();
+    editor = new testWithEditor();
     document.body.appendChild(editor);
   });
   afterEach(() => {
@@ -403,11 +406,31 @@ describe("replacement", () => {
 describe("pending changes", () => {
   let editor;
   beforeEach(() => {
-    editor = new CodeMirrorEditor();
+    editor = new testWithEditor();
     document.body.appendChild(editor);
   });
   afterEach(() => {
     editor.remove();
+  });
+
+  test("adjust the visible ranges of a shard", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "test",
+      query: [(x) => x.type === "array"],
+      queryDepth: 1,
+      component: ({ node }) => [
+        h(Shard, { node: node.childBlock(0) }),
+        h(Shard, { node: node.childBlock(0) }),
+      ],
+    });
+    editor.registerValidator(() => false);
+    editor.inlineExtensions = [ext];
+    await editor.setText("[12]", "javascript");
+
+    editor.selectAndFocus([2, 2]);
+    editor.simulateKeyStroke("3");
+    const ranges = [...editor.shards].map((s) => [...s.iterVisibleRanges()]);
+    assertEq(ranges.filter((r) => rangeEqual(r[0], [1, 4])).length, 2);
   });
 
   test("are buffered correctly when parentheses are entered", async () => {
@@ -427,8 +450,12 @@ describe("pending changes", () => {
     editor.simulateKeyStroke("(");
     editor.simulateKeyStroke(")");
     assertContains(editor.pendingChanges.value, [
-      { from: 1, to: 1, insert: "()" },
-      { from: 2, to: 3, insert: ")" },
+      {
+        from: 1,
+        to: 1,
+        insert: editor instanceof SandblocksEditor ? "(" : "()",
+      },
+      { from: 2, to: editor instanceof SandblocksEditor ? 2 : 3, insert: ")" },
     ]);
     editor.applyPendingChanges();
     assertEq(editor.sourceString, "a()\n");

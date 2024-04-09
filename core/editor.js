@@ -290,6 +290,9 @@ export class BaseEditor extends HTMLElement {
           ];
           for (const shard of this.shards)
             this.revertChanges.push(...shard.applyRejectedDiff(diff, changes));
+          this.selectRange(
+            last(allChanges).selectionRange ?? this.selectionRange,
+          );
           return false;
         }
       }

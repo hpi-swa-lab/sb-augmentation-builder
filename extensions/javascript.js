@@ -26,7 +26,7 @@ export const table = new Extension().registerReplacement({
       ),
   ],
   component: ({ node, replacement }) => {
-    // useStickyReplacementValidator(replacement);
+    useStickyReplacementValidator(replacement);
     const add = (index, column) => {
       node.editor.transaction(() => {
         if (column)

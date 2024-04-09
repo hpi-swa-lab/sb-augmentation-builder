@@ -51,7 +51,7 @@ export function ShardList({ list, sticky, ...props }) {
   const node = useMemo(() => new SBList(list), list);
 
   useValidator(
-    () => (sticky ? all.every((n) => n.connected) : true),
+    () => (sticky ? list.every((n) => n.connected) : true),
     [...list, sticky],
   );
 
@@ -205,6 +205,10 @@ export class SBReplacement extends HTMLElement {
         yield* super.cursorPositions();
         return;
     }
+  }
+
+  *shardCursorPositions(state) {
+    state.index += this.range[1] - this.range[0] - 1;
   }
 
   candidatePositionForIndex(index, other) {

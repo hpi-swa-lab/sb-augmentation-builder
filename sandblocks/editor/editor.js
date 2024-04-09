@@ -456,7 +456,10 @@ class SandblocksShard extends BaseShard {
   }
 
   applyRejectedChange({ from, to, insert }) {
-    if (!rangeContains(this.range, [from, from])) return null;
+    if (
+      ![...this.iterVisibleRanges()].some((r) => rangeContains(r, [from, from]))
+    )
+      return null;
 
     let start = null;
     let offset = this.range[0];
@@ -630,20 +633,26 @@ class SandblocksShard extends BaseShard {
   }
 
   positionForIndex(index) {
-    const elementOffset =
-      index === this.range[0]
-        ? [this, 0]
-        : index === this.range[1]
-          ? [this, 1]
-          : this.views
-              .get(this.node)
-              .findTextForCursor(index)
-              .rangeParams(index);
-    return {
-      element: this,
-      elementOffset,
-      index,
-    };
+    const state = { index: this.range[0] };
+    for (const pos of this.shardCursorPositions(state)) {
+      if (state.index >= index) {
+        console.assert(state.index === index);
+        return {
+          element: this,
+          elementOffset: pos,
+          index,
+        };
+      }
+    }
+    console.assert(false, "position not found");
+  }
+
+  *shardCursorPositions(state) {
+    yield [this, 0];
+    state.index++;
+    yield* this.viewFor(this.node).shardCursorPositions(state);
+    yield [this, 1];
+    state.index++;
   }
 
   simulateKeyStroke(key) {
