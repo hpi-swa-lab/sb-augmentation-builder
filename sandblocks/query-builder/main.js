@@ -94,7 +94,7 @@ export function QueryBuilder() {
   const [pos, setPos] = useState(-1);
   const [snippits, setSnippits] = useState([]);
   const [query, setQuery] = useState("tree");
-  const [design, setDesign] = useState("<div>test</div>");
+  const [design, setDesign] = useState("");
 
   useAsyncEffect(async () => {
     await typescript.ready();
