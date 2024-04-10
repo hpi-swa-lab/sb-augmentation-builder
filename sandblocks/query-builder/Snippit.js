@@ -11,18 +11,10 @@ import { h } from "../../external/preact.mjs";
 const html = htm.bind(h);
 
 export default function Snippit({ code, tree, selectedNodes, nodeClicked }) {
-  //const [tree, setTree] = useState();
-
-  //useEffect(() => {
-  //  setTree(grammar.parse(code));
-  //  console.log("set tree");
-  //}, []);
-
   const TreeNode = ({ node, depth, nodeClicked, selectedNodes }) => {
     const margin = depth == 0 ? "0px" : "30px";
     const bg_color = selectedNodes.has(node._id) ? "coral" : "white";
 
-    //console.log("margin: " + margin + " | bg_color: " + bg_color  + " | node_type: " + node._type)
     if (node._children != null) {
       return html` <div
         style=${{
@@ -59,8 +51,6 @@ export default function Snippit({ code, tree, selectedNodes, nodeClicked }) {
   const TreeRepresentation = ({ tree, nodeClicked, selectedNodes }) => {
     if (tree != null) {
       return html` ${tree._children.map((child) => {
-        //console.log("SelectedNodes: " + Array.from(selectedNodes).join(" "));
-        //console.log("_id: " + child._id);
         return html`<${TreeNode}
           node=${child}
           depth=${0}
@@ -74,14 +64,12 @@ export default function Snippit({ code, tree, selectedNodes, nodeClicked }) {
   };
 
   return html`
-    <textarea
-      id="input"
-      name="input"
-      rows="10"
-      cols="70"
-      value=${code}
-      readonly
-    />
+    <div>
+      ${code.split(/\r?\n/).map((line) => {
+        console.log(line);
+        return html`<pre><mark>${line}</mark></pre>`;
+      })}
+    </div>
     <h1>CST</h1>
     <div style=${{ overflow: "auto", "max-height": "300px" }}>
       <${TreeRepresentation}

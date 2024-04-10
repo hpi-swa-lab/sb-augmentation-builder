@@ -9,28 +9,25 @@ import {
 } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { useAsyncEffect } from "../../view/widgets.js";
+import Query from "./Query.js";
 import Snippit from "./Snippit.js";
+import Design from "./Design.js";
+import Preview from "./Preview.js";
 
 const html = htm.bind(h);
 
 const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked }) => {
-  console.log("pos: " + pos);
-  console.log("sinppits.length: " + snippits.length);
-
   const [addNew, setAddNew] = useState(pos == -1);
   const [newCode, setNewCode] = useState("");
 
   const prevButtonClick = () => {
     setAddNew(false);
-    if (pos != 0) {
+    if (pos > 0) {
       setPos(pos - 1);
     }
   };
 
   const nextButtonClick = () => {
-    debugger;
-    console.log("pos: " + pos);
-    console.log("length: " + snippits.length);
     if (addNew) {
       addSnippit(newCode);
       setAddNew(false);
@@ -46,7 +43,7 @@ const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked }) => {
   };
 
   const prevButton =
-    pos <= 0
+    pos <= 0 && !addNew
       ? html`<button onClick=${prevButtonClick} disabled>⬅️</button>`
       : html`<button onClick=${prevButtonClick}>⬅️</button>`;
 
@@ -96,17 +93,16 @@ export function QueryBuilder() {
   const typescript = languageFor("typescript");
   const [pos, setPos] = useState(-1);
   const [snippits, setSnippits] = useState([]);
+  const [query, setQuery] = useState("tree");
+  const [design, setDesign] = useState("<div>test</div>");
 
   useAsyncEffect(async () => {
     await typescript.ready();
   }, []);
 
   const nodeClicked = (id) => {
-    console.log("NodeClicked with id: " + id);
     setSnippits((snippits) =>
       snippits.map((snippit, index) => {
-        console.log("index: " + index);
-        console.log(snippit);
         if (index == pos) {
           if (snippit.selectedNodes.has(id)) {
             snippit.selectedNodes = new Set(
@@ -116,12 +112,10 @@ export function QueryBuilder() {
             snippit.selectedNodes = new Set([...snippit.selectedNodes, id]);
           }
         }
-        console.log(snippit);
         return snippit;
       }),
     );
   };
-  //const nodeClicked = (id) => console.log("id: " + id + " clicked");
 
   const addSnippit = (code) => {
     //const tree = typescript.parse(code);
@@ -138,14 +132,69 @@ export function QueryBuilder() {
 
   return html`
     <body>
-      <div style="display: flex">
-        <${CodeCST}
-          pos=${pos}
-          setPos=${setPos}
-          snippits=${snippits}
-          addSnippit=${addSnippit}
-          nodeClicked=${nodeClicked}
-        />
+      <div
+        style=${{
+          display: "flex",
+          "column-gap": "20px",
+        }}
+      >
+        <div
+          style=${{
+            "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
+            resize: "both",
+            overflow: "auto",
+            padding: "16px 16px",
+            border: "2px solid black",
+            "border-radius": "25px",
+          }}
+        >
+          <${CodeCST}
+            pos=${pos}
+            setPos=${setPos}
+            snippits=${snippits}
+            addSnippit=${addSnippit}
+            nodeClicked=${nodeClicked}
+          />
+        </div>
+        <div
+          style=${{
+            "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
+            resize: "both",
+
+            overflow: "auto",
+            padding: "16px 16px",
+            border: "2px solid black",
+            "border-radius": "25px",
+          }}
+        >
+          <${Query} query=${query} setQuery=${setQuery} />
+        </div>
+        <div
+          style=${{
+            "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
+            resize: "both",
+
+            overflow: "auto",
+            padding: "16px 16px",
+            border: "2px solid black",
+            "border-radius": "25px",
+          }}
+        >
+          <${Design} design=${design} setDesign=${setDesign} />
+        </div>
+        <div
+          style=${{
+            "box-shadow": "0 4px 8px 0 rgba(0,0,0,0.2)",
+            resize: "both",
+
+            overflow: "auto",
+            padding: "16px 16px",
+            border: "2px solid black",
+            "border-radius": "25px",
+          }}
+        >
+          <${Preview} previewCode=${design} />
+        </div>
       </div>
     </body>
   `;
