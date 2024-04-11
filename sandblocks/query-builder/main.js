@@ -16,7 +16,7 @@ import Preview from "./Preview.js";
 
 const html = htm.bind(h);
 
-const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked }) => {
+const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked, query }) => {
   const [addNew, setAddNew] = useState(pos == -1);
   const [newCode, setNewCode] = useState("");
 
@@ -81,6 +81,7 @@ const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked }) => {
                   grammar=${snippit.grammar}
                   selectedNodes=${snippit.selectedNodes}
                   nodeClicked=${nodeClicked}
+                  query=${query}
                 />`;
               }
             })}
@@ -95,6 +96,13 @@ export function QueryBuilder() {
   const [snippits, setSnippits] = useState([]);
   const [query, setQuery] = useState("tree");
   const [design, setDesign] = useState("");
+
+  const queryUpdate = (query) => {
+    snippits.forEach((snippit) => {
+      snippit.selectedNodes = new Set();
+    });
+    setQuery(query);
+  };
 
   useAsyncEffect(async () => {
     await typescript.ready();
@@ -154,6 +162,7 @@ export function QueryBuilder() {
             snippits=${snippits}
             addSnippit=${addSnippit}
             nodeClicked=${nodeClicked}
+            query=${query}
           />
         </div>
         <div
@@ -167,7 +176,7 @@ export function QueryBuilder() {
             "border-radius": "25px",
           }}
         >
-          <${Query} query=${query} setQuery=${setQuery} />
+          <${Query} query=${query} setQuery=${queryUpdate} />
         </div>
         <div
           style=${{
