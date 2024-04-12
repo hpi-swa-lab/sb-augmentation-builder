@@ -19,7 +19,7 @@ import {
   rangeEqual,
   undoableMutation,
 } from "../../utils.js";
-import { Block } from "./elements.js";
+import { Block, Text, ViewList } from "./elements.js";
 import {} from "./suggestions.js";
 
 function parent(node) {
@@ -583,7 +583,7 @@ class SandblocksShard extends BaseShard {
         cursorElements,
         child,
         list,
-        insideBlocks && child instanceof Block,
+        insideBlocks && (child instanceof Block || child instanceof ViewList),
       );
     }
     return list;
