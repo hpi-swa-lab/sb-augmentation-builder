@@ -15,8 +15,11 @@ export default function Preview({ previewCode, selectedNodes }) {
   const selectedNodesList = [...selectedNodes];
   const [pos, setPos] = useState(-1);
 
+  if (pos >= selectedNodesList.length) {
+    setPos(selectedNodesList.length - 1);
+  }
+
   const updatePos = (step) => {
-    debugger;
     if (step > 0) {
       setPos((pos) => Math.min(selectedNodesList.length - 1, pos + step));
     } else {
