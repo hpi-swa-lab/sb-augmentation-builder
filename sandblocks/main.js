@@ -104,7 +104,7 @@ const startUpOptions = {
       {
         doNotStartAttached: true,
         initialPosition: { x: 10, y: 10 },
-        initialSize: { x: 500, y: 500 },
+        initialSize: { x: 1200, y: 600 },
         ...options,
       },
     );

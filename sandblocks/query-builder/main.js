@@ -8,7 +8,7 @@ import {
   useContext,
 } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
-import { useAsyncEffect } from "../../view/widgets.js";
+import { editor, useAsyncEffect, useLocalState } from "../../view/widgets.js";
 import Query from "./Query.js";
 import Snippit from "./Snippit.js";
 import Design from "./Design.js";
@@ -66,6 +66,14 @@ const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked, query }) => {
       ${addNew
         ? html`<div>
             <h2>Add new Snippit</h2>
+            ${editor({
+              sourceString: newCode,
+              language: "javascript",
+              extensions: ["base:base", "javascript:base"],
+              onChange: (e) => {
+                return setNewCode(e);
+              },
+            })}
             <textarea
               rows="10"
               cols="50"

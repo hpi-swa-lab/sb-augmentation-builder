@@ -1,7 +1,7 @@
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
 import { languageFor } from "./languages.js";
-import { clamp, last, rangeEqual, sequenceMatch } from "../utils.js";
+import { clamp, last, sequenceMatch } from "../utils.js";
 import {
   Text,
   Block,
@@ -12,7 +12,6 @@ import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
 import { preferences } from "./preferences.js";
 import { setConfig } from "./config.js";
-import { BaseShard } from "./shard.js";
 
 preferences
   // .registerDefaultShortcut("nextSuggestion", "ArrowDown")
@@ -119,7 +118,8 @@ export class BaseEditor extends HTMLElement {
   }
 
   static observedAttributes = ["text", "language", "extensions"];
-  async attributeChangedCallback() {
+  async attributeChangedCallback(attr, _oldValue, newValue) {
+    if (attr === "text" && newValue === this.node?.sourceString) return;
     this._queueUpdate();
   }
 
@@ -319,6 +319,10 @@ export class BaseEditor extends HTMLElement {
       for (const func of extension.changesApplied)
         func(changes, oldSource, newSource, this.node, diff, oldSelection);
     }
+
+    this.dispatchEvent(
+      new CustomEvent("change", { detail: this.sourceString }),
+    );
   }
 
   // if we have a pending change, we need to figure out to which node it contributed to.
