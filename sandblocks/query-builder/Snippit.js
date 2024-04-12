@@ -11,7 +11,7 @@ import { h } from "../../external/preact.mjs";
 const html = htm.bind(h);
 
 function findMatchingNodes(root, nodeClicked, type) {
-  console.log(root._type + " == " + type);
+  //console.log(root._type + " == " + type);
   if (root != null && Object.hasOwn(root, "_type") && root._type == type) {
     nodeClicked(root._id);
   }
@@ -31,7 +31,7 @@ export default function Snippit({
   query,
 }) {
   useEffect(() => {
-    console.log("Search for: " + query);
+    //console.log("Search for: " + query);
     findMatchingNodes(tree, nodeClicked, query);
   }, [tree, query]);
 
@@ -40,7 +40,7 @@ export default function Snippit({
 
     return html`<div
       style=${{ display: "flex", "background-color": bg_color }}
-      onClick=${() => nodeClicked(node._id)}
+      onClick=${() => {}}
     >
       <p
         style=${{
@@ -116,7 +116,7 @@ export default function Snippit({
     <div>
       ${code.split(/\r?\n/).map((line) => {
         console.log(line);
-        return html`<pre><mark>${line}</mark></pre>`;
+        return html`<pre>${line}</pre>`;
       })}
     </div>
     <h1>CST</h1>

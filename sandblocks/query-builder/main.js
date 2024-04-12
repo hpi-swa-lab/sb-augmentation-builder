@@ -25,6 +25,7 @@ const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked, query }) => {
     if (pos > 0) {
       setPos(pos - 1);
     }
+    console.log(snippits[pos]);
   };
 
   const nextButtonClick = () => {
@@ -40,6 +41,7 @@ const CodeCST = ({ pos, setPos, snippits, addSnippit, nodeClicked, query }) => {
         setPos(pos + 1);
       }
     }
+    console.log(snippits[pos]);
   };
 
   const prevButton =
@@ -94,7 +96,7 @@ export function QueryBuilder() {
   const typescript = languageFor("typescript");
   const [pos, setPos] = useState(-1);
   const [snippits, setSnippits] = useState([]);
-  const [query, setQuery] = useState("tree");
+  const [query, setQuery] = useState("string");
   const [design, setDesign] = useState("");
 
   const queryUpdate = (query) => {
@@ -112,13 +114,7 @@ export function QueryBuilder() {
     setSnippits((snippits) =>
       snippits.map((snippit, index) => {
         if (index == pos) {
-          if (snippit.selectedNodes.has(id)) {
-            snippit.selectedNodes = new Set(
-              [...snippit.selectedNodes].filter((x) => x !== id),
-            );
-          } else {
-            snippit.selectedNodes = new Set([...snippit.selectedNodes, id]);
-          }
+          snippit.selectedNodes = new Set([...snippit.selectedNodes, id]);
         }
         return snippit;
       }),
@@ -202,7 +198,12 @@ export function QueryBuilder() {
             "border-radius": "25px",
           }}
         >
-          <${Preview} previewCode=${design} />
+          <${Preview}
+            previewCode=${design}
+            selectedNodes=${snippits[pos] === undefined
+              ? []
+              : snippits[pos].selectedNodes}
+          />
         </div>
       </div>
     </body>

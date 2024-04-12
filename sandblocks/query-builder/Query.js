@@ -10,7 +10,7 @@ export default function Query({ query, setQuery }) {
       <textarea
         width="100%"
         value=${query}
-        onChange=${(e) => setQuery(e.target.value)}
+        onkeyup=${(e) => setQuery(e.target.value)}
       >
       </textarea>
     </div>

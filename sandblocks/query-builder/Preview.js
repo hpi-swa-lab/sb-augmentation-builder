@@ -10,17 +10,38 @@ import {
 
 const html = htm.bind(h);
 
-export default function Preview({ previewCode }) {
+export default function Preview({ previewCode, selectedNodes }) {
   let evaledCode = null;
+  const selectedNodesList = [...selectedNodes];
+  const [pos, setPos] = useState(-1);
 
+  const updatePos = (step) => {
+    debugger;
+    if (step > 0) {
+      setPos((pos) => Math.min(selectedNodesList.length - 1, pos + step));
+    } else {
+      setPos((pos) => Math.max(0, pos + step));
+    }
+  };
+
+  let id = "no matches";
+  console.log("selectedNodes:");
+  console.log(selectedNodesList);
+
+  if (selectedNodesList.length > 0) {
+    id = selectedNodesList[pos];
+  }
+
+  console.log("id: " + id);
+  //const selectedNodesCopy = selectedNodes;
   //const test = eval(
   //  "function test() {\nconst x = 'test'\nreturn html`<div>${x}</div>`\n}\ntest()",
   //);
 
   try {
-    evaledCode = eval(previewCode);
+    evaledCode = eval("console.log(id)\nhtml`<div>" + previewCode + "</div>`");
   } catch (error) {
-    console.error(error);
+    console.info(error);
     evaledCode = eval(
       "function test() {return html`<div>Invalid Input</div>`\n}\ntest()",
     );
@@ -33,7 +54,16 @@ export default function Preview({ previewCode }) {
 
   return html`
     <div>
-      <h1>Preview</h1>
+      <div
+        style=${{
+          display: "flex",
+        }}
+      >
+        <h1>Preview</h1>
+        <button onClick=${() => updatePos(-1)}>⬅️</button>
+        <p>${pos + 1}/${selectedNodesList.length}</p>
+        <button onClick=${() => updatePos(1)}>➡️</button>
+      </div>
       <div>
         <div id="root"></div>
       </div>
