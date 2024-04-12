@@ -1,7 +1,9 @@
 import { useState } from "../../external/preact-hooks.mjs";
 import { mapSeparated } from "../../utils.js";
-import { h, shard } from "../widgets.js";
+import { h } from "../widgets.js";
+import { Shard } from "../../core/replacement.js";
 
+// Note: needs a parent with .sb-insert-button-container css class
 export function ShardArray({ elements, onInsert }) {
   let i = 0;
   const nextProps = () => {
@@ -13,22 +15,32 @@ export function ShardArray({ elements, onInsert }) {
     h(AddButton, nextProps()),
     mapSeparated(
       elements,
-      (c) => h(DeletableShard, { node: c, key: c?.id }),
-      () => h(AddButton, nextProps())
+      (c) => h(DeletableNode, { node: c, key: c?.id }, h(Shard, { node: c })),
+      () => h(AddButton, nextProps()),
     ),
     elements.length > 0 && h(AddButton, nextProps()),
   ];
 }
 
-function AddButton({ onClick }) {
+export function AddButton({ onClick, right }) {
   return h(
     "span",
     { class: "sb-insert-button-anchor" },
-    h("button", { onClick, class: "sb-insert-button" }, "+")
+    h(
+      "button",
+      { onClick, class: `sb-insert-button ${right ? "right" : ""}` },
+      "+",
+    ),
   );
 }
 
-function DeletableShard({ node }) {
+export function InsertList({ elements, view, onInsert }) {
+  return mapSeparated(elements, view, () =>
+    h(AddButton, { onClick: onInsert }),
+  );
+}
+
+export function DeletableNode({ node, children }) {
   const [hover, setHover] = useState(false);
   return h(
     "span",
@@ -37,7 +49,7 @@ function DeletableShard({ node }) {
       onmouseleave: () => setHover(false),
       class: "sb-deletable-shard",
     },
-    shard(node),
+    children,
     hover &&
       h(
         "button",
@@ -46,7 +58,7 @@ function DeletableShard({ node }) {
           onClick: () => node.removeFull(),
           title: "Delete",
         },
-        "x"
-      )
+        "x",
+      ),
   );
 }

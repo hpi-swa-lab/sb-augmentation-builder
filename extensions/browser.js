@@ -1,11 +1,53 @@
 import { Extension } from "../core/extension.js";
+import {
+  DeletionInteraction,
+  SelectionInteraction,
+  ShardList,
+} from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { List } from "../sandblocks/list.js";
-import { h, replacement, shard, stickyShard } from "../view/widgets.js";
+import { h } from "../view/widgets.js";
 
-export const javascript = new Extension().registerReplacement((e) => [
-  (x) => x.type === "program" && x.language.name === "javascript",
-  replacement(e, "sb-browser", ({ node, replacement }) => {
+function takeBackwardWhile(list, start, condition) {
+  let index = list.indexOf(start) - 1;
+
+  while (index >= 0 && condition(list[index])) {
+    index--;
+  }
+
+  return list.slice(index + 1, list.indexOf(start));
+}
+
+const removeIndent = new Extension().registerReplacement({
+  query: [(x) => x.isText && x.text.includes("\n") && x.text.length > 2],
+  queryDepth: 1,
+  selection: SelectionInteraction.Point,
+  deletion: DeletionInteraction.SelectThenFull,
+  component: ({ node, replacement }) => {
+    const root = replacement.shard.node;
+    let minIndent = Infinity;
+    for (const child of root.allNodes())
+      if (child.isText && child.text.includes("\n"))
+        minIndent = Math.min(
+          minIndent,
+          child.text.match(/\n\s*/)?.[0].length ?? 0,
+        );
+
+    const [prefix, suffix] = node.text.split("\n", 2);
+    return h(
+      "span",
+      { style: { fontFamily: "monospace" } },
+      prefix + "\n" + (suffix ?? "").slice(minIndent - 1),
+    );
+  },
+  name: "remove-indent",
+});
+
+export const javascript = new Extension().registerReplacement({
+  query: [(x) => x.type === "program"],
+  queryDepth: 1,
+  rerender: () => true,
+  component: ({ node, replacement }) => {
     const symbols = node.childBlocks;
     const [selectedSymbol, setSelectedSymbol] = useState(symbols[0]);
 
@@ -19,7 +61,10 @@ export const javascript = new Extension().registerReplacement((e) => [
       (["class_body"].includes(selectedBody?.type)
         ? selectedBody?.childBlocks
         : null) ?? [];
-    const [selectedMember, setSelectedMember] = useState(members[0]);
+
+    let [selectedMember, setSelectedMember] = useState(members[0]);
+    // if we have become disconnected while selected, choose a fallback
+    if (!selectedMember?.connected) selectedMember = members[0];
     useEffect(() => {
       setSelectedMember(members[0]);
     }, [selectedSymbol]);
@@ -30,6 +75,16 @@ export const javascript = new Extension().registerReplacement((e) => [
     }, []);
 
     const shownSymbol = selectedMember ?? selectedSymbol;
+    const shownSymbolList = shownSymbol
+      ? [
+          ...takeBackwardWhile(
+            shownSymbol.parent.children,
+            shownSymbol,
+            (n) => n.type === "comment" || n.isWhitespace(),
+          ),
+          shownSymbol,
+        ]
+      : [];
 
     const listStyles = {
       flex: 1,
@@ -66,7 +121,8 @@ export const javascript = new Extension().registerReplacement((e) => [
             }
             if (x.type === "import_statement") {
               label += "(imp) ";
-              label += x.atType("import_clause").sourceString;
+              label += (x.atType("import_clause") ?? x.childBlock(0))
+                .sourceString;
               return label;
             }
 
@@ -98,7 +154,7 @@ export const javascript = new Extension().registerReplacement((e) => [
               return "(val) " + x.atField("property").text;
             return x.sourceString.slice(0, 10);
           },
-        })
+        }),
       ),
 
       h(
@@ -112,11 +168,18 @@ export const javascript = new Extension().registerReplacement((e) => [
             margin: "0 -2px -2px -2px",
           },
         },
-        shownSymbol.editor &&
-          stickyShard(shownSymbol, {
+        shownSymbol?.editor &&
+          h(ShardList, {
+            sticky: true,
+            list: shownSymbolList,
+            extensions: function () {
+              return [...(this.parentShard?.extensions() ?? []), removeIndent];
+            },
             style: { display: "inline-block", width: "100%" },
-          })
-      )
+          }),
+      ),
     );
-  }),
-]);
+  },
+  name: "sb-browser",
+  sticky: true,
+});

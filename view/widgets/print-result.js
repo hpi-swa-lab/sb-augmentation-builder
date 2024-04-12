@@ -1,5 +1,5 @@
-import { ToggleableMutationObserver } from "../utils.js";
-import { Widget } from "./widgets.js";
+import { ToggleableMutationObserver } from "../../utils.js";
+import { Widget } from "../widgets.js";
 
 customElements.define(
   "sb-print-result",

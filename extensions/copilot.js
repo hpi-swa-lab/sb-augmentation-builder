@@ -1,6 +1,6 @@
 import { Extension } from "../core/extension.js";
 import { getPreferenceOrAsk } from "../sandblocks/preference-window.js";
-import { preferences } from "../view/preferences.js";
+import { preferences } from "../core/preferences.js";
 import {
   StdioTransport,
   indexToPosition,

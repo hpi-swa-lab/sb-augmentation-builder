@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "build": "node_modules/.bin/rollup codemirror.mjs -o codemirror.bundle.js -p @rollup/plugin-node-resolve"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "codemirror": "^6.0.1",
+    "rollup": "^4.12.0"
+  }
+}

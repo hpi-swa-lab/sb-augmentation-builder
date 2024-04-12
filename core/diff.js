@@ -118,7 +118,6 @@ export class TrueDiff {
 
     const tx = new Transaction();
     diff.apply(tx);
-    tx.onCommit = () => diff.applyView(tx);
     this.recurseParallel(b, root, (b, a) => {
       tx.set(a, "_range", b.range);
       if (a._field !== b._field) tx.set(a, "_field", b._field);
@@ -285,7 +284,7 @@ export class TrueDiff {
         aList.reverse(),
         bList.reverse(),
         a,
-        editBuffer
+        editBuffer,
       );
       zipOrNullDo(aList.reverse(), bList.reverse(), (aChild, bChild) => {
         if (aChild?.assigned && aChild.assigned === bChild) {
@@ -330,7 +329,7 @@ export class TrueDiff {
     }
   }
   updateLiterals(a, b, editBuffer) {
-    if (a.text !== b.text) editBuffer.update(a, b.text);
+    if (a.isText && b.isText && a.text !== b.text) editBuffer.update(a, b.text);
     for (let i = 0; i < a.children.length; i++) {
       this.updateLiterals(a.children[i], b.children[i], editBuffer);
     }
@@ -341,10 +340,10 @@ export class TrueDiff {
       a.assigned = null;
     } else {
       editBuffer.remove(a);
-      // FIXME do we need this?
-      // for (const child of a.children) {
-      //   this.unloadUnassigned(child, editBuffer);
-      // }
+      // FIXME recently enabled -- double check semantics
+      for (const child of a.children) {
+        this.unloadUnassigned(child, editBuffer);
+      }
     }
   }
   loadUnassigned(b, editBuffer) {
@@ -364,20 +363,6 @@ export class TrueDiff {
 }
 
 class DiffOp {
-  updateViews(node, cb) {
-    node.viewsDo((view) => {
-      const shard = view.shard;
-      if (shard) cb(view, shard);
-      else cb(view, null);
-    });
-  }
-  updateViewsRecurse(node, cb) {
-    this.updateViews(node, cb);
-    node.children.forEach((child) => {
-      this.updateViewsRecurse(child, cb);
-    });
-  }
-
   debugString() {
     let nodeString = "";
     if (this.node) {
@@ -400,33 +385,14 @@ export class DetachOp extends DiffOp {
   constructor(node) {
     super();
     this.node = node;
+    this.oldParent = node.parent;
   }
   get detachingFromRoot() {
-    return !this.node.parent;
+    return !this.oldParent;
   }
   apply(buffer, tx) {
     buffer.notePendingDetached(this.node);
-    if (!this.detachingFromRoot)
-      tx.removeNodeChild(this.node.parent, this.node);
-  }
-  applyView(buffer, tx) {
-    if (this.detachingFromRoot) {
-      this.node.viewsDo((view) => {
-        buffer.rememberDetached(view, view.shard);
-        buffer.rememberDetachedRootShard(view.shard);
-        view.remove();
-      });
-    } else {
-      this.updateViews(this.node, (view) => view.remove());
-      // recurse so that, if any parents are replaced but
-      // children are in shards, we still catch the children
-      this.updateViewsRecurse(this.node, (view, shard) => {
-        buffer.rememberDetached(view, shard);
-        // FIXME we used to recursively remove children from DOM
-        // but this breaks attaching re-attaching nodes. Do we
-        // break attaching to shards without?
-      });
-    }
+    if (!this.detachingFromRoot) tx.removeNodeChild(this.oldParent, this.node);
   }
 }
 
@@ -444,24 +410,6 @@ export class AttachOp extends DiffOp {
     buffer.forgetPendingDetached(this.node);
     if (this.parent) tx.insertNodeChild(this.parent, this.node, this.index);
   }
-  applyView(buffer, tx) {
-    // FIXME do we still need detachedRootShards?
-    if (this.attachingToRoot && buffer.detachedRootShards.size > 0) {
-      buffer.detachedRootShards.forEach((shard) => {
-        tx.set(shard, "source", this.node);
-        shard.appendChild(buffer.getDetachedOrConstruct(this.node, shard));
-      });
-    } else {
-      this.updateViews(this.parent, (parentView, shard) => {
-        // insertNode is overridden as a no-op for replacements --> they
-        // will insert nodes as needed when their shards update
-        parentView.insertNode(
-          buffer.getDetachedOrConstruct(this.node, shard),
-          this.index
-        );
-      });
-    }
-  }
 }
 
 export class UpdateOp extends DiffOp {
@@ -474,11 +422,6 @@ export class UpdateOp extends DiffOp {
   apply(_buffer, tx) {
     tx.updateNodeText(this.node, this.text);
   }
-  applyView(_buffer, tx) {
-    this.updateViews(this.node, (view) => {
-      view.setAttribute("text", this.text);
-    });
-  }
 }
 
 export class RemoveOp extends DiffOp {
@@ -489,7 +432,6 @@ export class RemoveOp extends DiffOp {
   apply(buffer) {
     buffer.forgetPendingDetached(this.node);
   }
-  applyView() {}
 }
 
 export class LoadOp extends DiffOp {
@@ -500,15 +442,16 @@ export class LoadOp extends DiffOp {
   apply(buffer) {
     buffer.notePendingLoaded(this.node);
   }
-  applyView() {}
 }
 
-class EditBuffer {
-  constructor() {
-    this.posBuf = [];
+export class EditBuffer {
+  constructor(posBuf = []) {
+    this.posBuf = posBuf;
     this.negBuf = [];
     this.shardBuffer = new Map();
     this.detachedRootShards = new Set();
+    this.rememberViews = new Map();
+    this.changedViews = [];
 
     this.pendingDetached = [];
     this.pendingLoaded = [];
@@ -528,6 +471,14 @@ class EditBuffer {
       // else console.log("forgetPendingDetached: node not detached", node);
     }
   }
+  rememberView(view) {
+    this.rememberViews.set(view.node, view);
+  }
+  recallView(node) {
+    const view = this.rememberViews.get(node);
+    if (view) this.rememberViews.delete(node);
+    return view;
+  }
   assertNoPendingDetached() {
     if (this.pendingDetached.length > 0) throw new Error("detached nodes left");
   }
@@ -541,9 +492,12 @@ class EditBuffer {
       this.printLabel(node),
       parent?.type ?? "root",
       link,
-      node.id
+      node.id,
     );
     this.posBuf.push(new AttachOp(node, parent, link));
+  }
+  get ops() {
+    return [...this.negBuf, ...this.posBuf];
   }
   detach(node) {
     this.log("detach", this.printLabel(node), node.id);
@@ -561,7 +515,7 @@ class EditBuffer {
     this.log(
       "update",
       this.printLabel(node),
-      `"${text.replace(/\n/g, "\\n")}"`
+      `"${text.replace(/\n/g, "\\n")}"`,
     );
     this.posBuf.push(new UpdateOp(node, text));
   }
@@ -572,10 +526,6 @@ class EditBuffer {
     this.negBuf.forEach((f) => f.apply(this, tx));
     this.posBuf.forEach((f) => f.apply(this, tx));
     this.assertNoPendingDetached();
-  }
-  applyView(tx) {
-    this.negBuf.forEach((f) => f.applyView(this, tx));
-    this.posBuf.forEach((f) => f.applyView(this, tx));
   }
   getDetachedOrConstruct(node, shard) {
     return (
@@ -602,10 +552,8 @@ class EditBuffer {
 
 class Transaction {
   undo = [];
-  onCommit = null;
 
   commit() {
-    this.onCommit();
     this.undo = null;
   }
   rollback() {
@@ -626,7 +574,7 @@ class Transaction {
     this.undo.push(() =>
       oldParent
         ? oldParent.insertChild(child, oldIndex)
-        : parent.removeChild(child)
+        : parent.removeChild(child),
     );
     parent.insertChild(child, index);
   }

@@ -69,34 +69,27 @@ const LSP_TEXT_DOCUMENT_SYNC_KIND = {
 };
 
 export function registerLsp(extension, id, createTransport) {
-  const sem = (x) => (hostAvailable() ? x.context?.project.data(id) : null);
+  const sem = (editor) =>
+    hostAvailable() ? editor.context?.project.data(id) : null;
+
   extension
-    .registerQuery("extensionConnected", (e) => [
-      (x) => x.isRoot,
-      (x) => !!x.context?.project,
-      (x) => hostAvailable(),
-      (x) =>
-        x.context.project.data(id, () => {
-          const c = new LanguageClient(
-            x.context.project,
-            createTransport(x.context.project)
-          );
-          c.start();
-          return c;
-        }),
-    ])
-    .registerQuery("extensionConnected", (e) => [
-      (x) => x.isRoot,
-      (x) => sem(x)?.didOpen(x),
-    ])
-    .registerQuery("extensionDisconnected", (e) => [
-      (x) => x.isRoot,
-      (x) => sem(x)?.didClose(x),
-    ])
-    .registerQuery("save", (e) => [(x) => x.isRoot, (x) => sem(x)?.didSave(x)])
-    .registerChangesApplied((changes, oldSource, newSource, root, _diff) => {
-      sem(root)?.didChange(root, oldSource, newSource, changes);
-    });
+    .registerExtensionConnected((x) => {
+      if (!x.context.project || !hostAvailable()) return;
+      return x.context.project.data(id, () => {
+        const c = new LanguageClient(
+          x.context.project,
+          createTransport(x.context.project),
+        );
+        c.start();
+        return c;
+      });
+    })
+    .registerExtensionConnected((editor) => sem(editor)?.didOpen(editor))
+    .registerExtensionDisconnected((editor) => sem(editor)?.didClose(editor))
+    .registerCustom("save", (editor) => sem(editor)?.didSave(editor))
+    .registerChangesApplied((changes, oldSource, newSource, root, _diff) =>
+      sem(root)?.didChange(root, oldSource, newSource, changes),
+    );
   return extension;
 }
 
@@ -108,39 +101,40 @@ function lspDo(x, filter, cb) {
   }
 }
 
-export const formatting = new Extension().registerPreSave((e) => [
-  (x) => x.isRoot,
-  (x) =>
-    lspDo(
-      x,
-      (sem) => !!sem.capabilities.documentFormattingProvider,
-      (sem) => sem.formatting(x)
-    ),
-]);
+export const formatting = new Extension().registerCustom("preSave", (x) =>
+  lspDo(
+    x,
+    (sem) => !!sem.capabilities.documentFormattingProvider,
+    (sem) => sem.formatting(x),
+  ),
+);
 
-export const suggestions = new Extension().registerType((e) => [
-  (x) =>
+export const suggestions = new Extension().registerChangesApplied(
+  (_changes, _oldSource, _newSource, { editor }) =>
     lspDo(
-      x,
+      editor,
       (sem) => !!sem.capabilities.completionProvider,
       async (sem) => {
         // always re-add our old suggestions while we wait for fresh ones
         // to come in, to prevent a brief flash during wait
-        const current = e.data("lsp-current-completion") ?? [];
-        e.addSuggestions(x, current);
+        const current = editor.data("lsp-current-completion") ?? [];
+        editor.addSuggestions(editor.selectedNode, current);
 
-        const promise = sem.completion(x);
-        e.setData("lsp-completion", promise);
+        const promise = sem.completion(editor);
+        editor.setData("lsp-completion", promise);
+
         const suggestions = await promise;
+
         // check that no other completion has been started since
-        if (e.data("lsp-completion") === promise) {
+        if (editor.data("lsp-completion") === promise) {
+          const node = editor.selectedNode;
           const list = suggestions
             .sort((a, b) => a.sortText.localeCompare(b.sortText))
             .filter((b) =>
               sequenceMatch(
-                b.filterText?.toLowerCase() ?? x.sourceString.toLowerCase(),
-                b.label.toLowerCase()
-              )
+                b.filterText?.toLowerCase() ?? node.sourceString.toLowerCase(),
+                b.label.toLowerCase(),
+              ),
             )
             .slice(0, 30)
             .map((b) => ({
@@ -149,7 +143,7 @@ export const suggestions = new Extension().registerType((e) => [
               icon: lspSymbolKindIcons[b.kind],
               fetchDetail: async () => {
                 // if we are no longer the active request, ignore
-                if (e.data("lsp-completion") !== promise) return null;
+                if (editor.data("lsp-completion") !== promise) return null;
                 const full = await sem.completionItemResolve(b);
                 // update our old item with all info
                 Object.assign(b, full);
@@ -158,13 +152,13 @@ export const suggestions = new Extension().registerType((e) => [
               use: (x) => {
                 x.replaceWith(b.insertText ?? b.label);
                 if (b.additionalTextEdits) {
-                  const selection = x.editor.selectionRange;
-                  const shard = x.editor.selectedShard;
+                  const selection = editor.selectionRange;
+                  const shard = editor.selectedShard;
 
                   const edits = b.additionalTextEdits.map((e) =>
-                    convertEdit(x, e)
+                    convertEdit(x, e),
                   );
-                  x.editor.applyChanges(edits);
+                  editor.applyChanges(edits);
 
                   // potentially shift selection to accommodate inserts before the cursor
                   for (const edit of edits) {
@@ -176,68 +170,64 @@ export const suggestions = new Extension().registerType((e) => [
                     }
                   }
 
-                  x.editor.selectRange(...selection, shard, false);
+                  shard.selectRange(selection);
                 }
               },
             }));
 
-          e.setData("lsp-current-completion", list);
-          x.editor.clearSuggestions();
-          e.addSuggestions(x, list);
+          editor.setData("lsp-current-completion", list);
+          editor.clearSuggestions();
+          editor.addSuggestions(node, list);
         }
-      }
+      },
     ),
-]);
+);
 
-export const browse = new Extension().registerShortcut("browseIt", (node) =>
+export const browse = new Extension().registerShortcut("browseIt", (node) => {
   lspDo(
     node,
     (sem) => !!sem.capabilities.workspaceSymbolProvider,
     async (sem) => {
-      const symbols = sem.workspaceSymbols(node.text);
+      const symbols = await sem.workspaceSymbols(node.text);
       const top = symbols
         .filter((sym) => sym.name === node.text)
         .sort((a, b) => a.kind - b.kind)[0];
 
       if (top) browseLocation(node.context.project, top.location);
-    }
-  )
-);
+    },
+  );
+});
 
-export const diagnostics = new Extension().registerQuery(
+export const diagnostics = new Extension().registerCustom(
   "lsp-diagnostics",
-  (e) => [
-    (x) => x.isRoot,
-    (x) =>
-      lspDo(
-        x,
-        (sem) => {
-          return !!sem.capabilities.publishDiagnostics;
-        },
-        (sem) => {
-          for (const diagnostic of sem(x)?.diagnosticsFor(x.context.path) ??
-            []) {
-            const target = x.childEncompassingRange(
-              rangeToIndices(x.sourceString, diagnostic.range)
-            );
-            const severity = ["", "error", "warning", "info", "hint"][
-              diagnostic.severity
-            ];
-            e.ensureClass(target, `diagnostic-${severity}`);
-            for (const tag of diagnostic.tags ?? []) {
-              const t = ["", "unnecessary", "deprecated"][tag];
-              e.ensureClass(target, `diagnostic-${t}`);
-            }
-            e.attachData(
-              target,
-              "diagnostic",
-              (v) => (v.title = diagnostic.message),
-              (v) => (v.title = null)
-            );
+  (x) =>
+    lspDo(
+      x,
+      (sem) => {
+        return !!sem.capabilities.publishDiagnostics;
+      },
+      (sem) => {
+        for (const diagnostic of sem(x)?.diagnosticsFor(x.context.path) ?? []) {
+          const target = x.childEncompassingRange(
+            rangeToIndices(x.sourceString, diagnostic.range),
+          );
+          const severity = ["", "error", "warning", "info", "hint"][
+            diagnostic.severity
+          ];
+          e.ensureClass(target, `diagnostic-${severity}`);
+          for (const tag of diagnostic.tags ?? []) {
+            const t = ["", "unnecessary", "deprecated"][tag];
+            e.ensureClass(target, `diagnostic-${t}`);
           }
+          e.attachData(
+            target,
+            "diagnostic",
+            (v) => (v.title = diagnostic.message),
+            (v) => (v.title = null),
+          );
         }
-      ),
-  ]
+      },
+    ),
 );
 
 function convertEdit(node, edit) {
@@ -328,7 +318,7 @@ export class StdioTransport extends Transport {
   _processBuffer() {
     const headerEnd = this.buffer.indexOf(13); // \r for \r\n\r\n sequence
     const prefix = new TextDecoder().decode(this.buffer.slice(0, headerEnd));
-    const size = prefix?.match(/Content-Length: (\d+)/i)?.[1];
+    const size = prefix?.match(/^Content-Length: (\d+)/i)?.[1];
 
     if (size) {
       const length = parseInt(size, 10);
@@ -366,6 +356,7 @@ export class LanguageClient {
     this.project = project;
     this.transport = transport;
     transport.onMessage = (message) => {
+      this.log("[message]", message);
       if (message.method) {
         this._handleServerMessage(message);
       } else {
@@ -379,11 +370,22 @@ export class LanguageClient {
       }
     };
     transport.onStderr = (data) => {
+      this.log("[stderr]", data);
       console.error(data);
     };
     transport.onClose = (code) => {
+      this.log("[closed]", code);
       console.log("process closed", code);
     };
+  }
+
+  log(...msg) {
+    if (false) console.log(...msg);
+  }
+
+  write(data) {
+    this.log("[write]", data);
+    this.transport.write(JSON.stringify(data));
   }
 
   async initialize() {
@@ -431,29 +433,31 @@ export class LanguageClient {
 
     this.initialized = true;
     for (const request of this.queuedRequests) {
-      await this.transport.write(JSON.stringify(request));
+      await this.write(request);
     }
   }
 
-  async didSave(node) {
+  async didSave(editor) {
     await this._notification("textDocument/didSave", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${editor.context.path}`,
       },
-      text: node.sourceString,
+      text: editor.sourceString,
     });
   }
 
-  async didOpen(node) {
-    this.textDocumentVersions.set(node.context, 1);
+  async didOpen(editor) {
+    this.textDocumentVersions.set(editor.context, 1);
 
     await this._notification("textDocument/didOpen", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${editor.context.path}`,
         languageId:
-          node.language.name === "tsx" ? "typescriptreact" : node.language.name,
+          editor.language.name === "tsx"
+            ? "typescriptreact"
+            : editor.language.name,
         version: 1,
-        text: node.sourceString,
+        text: editor.sourceString,
       },
     });
   }
@@ -507,19 +511,16 @@ export class LanguageClient {
     });
     node.editor.applyChanges(
       edits.map((e) => convertEdit(node, e)),
-      [0, 0]
+      [0, 0],
     );
   }
 
-  async completion(node) {
+  async completion(editor) {
     const res = await this._request("textDocument/completion", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${editor.context.path}`,
       },
-      position: indexToPosition(
-        node.root.sourceString,
-        node.editor.selectionRange[0]
-      ),
+      position: indexToPosition(editor.sourceString, editor.selectionRange[0]),
     });
     // TODO incomplete flag
     return res.items;
@@ -579,7 +580,7 @@ export class LanguageClient {
       case "textDocument/publishDiagnostics":
         this.diagnostics.set(
           message.params.uri.slice("file://".length),
-          message.params.diagnostics
+          message.params.diagnostics,
         );
         for (const [context] of this.textDocumentVersions.entries()) {
           if (context.path === message.params.uri.slice("file://".length)) {
@@ -603,7 +604,7 @@ export class LanguageClient {
   }
 
   async _response(id, result) {
-    await this.transport.write(JSON.stringify({ jsonrpc: "2.0", id, result }));
+    await this.write({ jsonrpc: "2.0", id, result });
   }
 
   _request(method, params) {
@@ -615,7 +616,7 @@ export class LanguageClient {
 
       if (!this.initialized && method !== "initialize")
         this.queuedRequests.push(payload);
-      else this.transport.write(JSON.stringify(payload));
+      else this.write(payload);
     });
   }
 
@@ -623,6 +624,6 @@ export class LanguageClient {
     const payload = { jsonrpc: "2.0", method, params };
     if (!this.initialized && method !== "initialized")
       this.queuedRequests.push(payload);
-    else this.transport.write(JSON.stringify(payload));
+    else this.write(payload);
   }
 }

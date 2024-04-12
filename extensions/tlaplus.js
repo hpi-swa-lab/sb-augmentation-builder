@@ -1,8 +1,165 @@
 import { Extension } from "../core/extension.js";
+import { h } from "../external/preact.mjs";
+import { Shard } from "../core/replacement.js";
+
+const createUnicodeReplacement = (sbNodeType, unicodeSymbol, explanation) => {
+  return new Extension().registerReplacement({
+    query: [(x) => x.type === sbNodeType],
+    queryDepth: 1,
+    component: () => h("span", { title: explanation }, unicodeSymbol),
+    name: `tla-latex-${sbNodeType}`,
+  });
+};
+
+export const cup = createUnicodeReplacement(
+  "cup",
+  "∪",
+  "Union combines two sets into one set.\n\nFor example, {1, 2} ∪ {2, 3} = {1, 2, 3}.",
+);
+export const bulletConj = createUnicodeReplacement(
+  "bullet_conj",
+  "∧",
+  "Conjunction combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.",
+);
+export const bulletDisj = createUnicodeReplacement(
+  "bullet_disj",
+  "∨",
+  "Disjunction combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.",
+);
+export const lor = createUnicodeReplacement(
+  "lor",
+  "∨",
+  "Logical OR combines two logical statements into one statement.\n\nFor example, P ∨ Q is true if and only if at least one of P and Q is true.",
+);
+export const land = createUnicodeReplacement(
+  "land",
+  "∧",
+  "Logical AND combines two logical statements into one statement.\n\nFor example, P ∧ Q is true if and only if both P and Q are true.",
+);
+export const always = createUnicodeReplacement(
+  "always",
+  "□",
+  "Always is a temporal operator that asserts that a property holds at all times.\n\nFor example, □P asserts that P is always true.",
+);
+export const diamond = createUnicodeReplacement(
+  "diamond",
+  "◇",
+  "Diamond is a temporal operator that asserts that a property holds at some time.\n\nFor example, ◇P asserts that P is true at some point in time.",
+);
+export const implies = createUnicodeReplacement(
+  "implies",
+  "⇒",
+  "Implies is a logical operator that asserts that if the left-hand side is true, then the right-hand side must also be true.\n\nFor example, P ⇒ Q asserts that if P is true, then Q must also be true. It is equivalent to ¬P ∨ Q.",
+);
+export const setIn = createUnicodeReplacement(
+  "set_in",
+  "∈",
+  "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.",
+);
+export const notin = createUnicodeReplacement(
+  "notin",
+  "∉",
+  "Not in asserts that an element is not a member of a set.\n\nFor example, 3 ∉ {1, 2} asserts that 3 is not an element of the set {1, 2}.",
+);
+export const setsubseteq = createUnicodeReplacement(
+  "subseteq",
+  "⊆",
+  "Subset or equal to asserts that one set is a subset of another set, including the case where the sets are equal.\n\nFor example, {1} ⊆ {1, 2} asserts that the set {1} is a subset of the set {1, 2}.",
+);
+export const setsubset = createUnicodeReplacement(
+  "subset",
+  "⊂",
+  "Subset asserts that one set is a subset of another set, excluding the case where the sets are equal.\n\nFor example, {1} ⊂ {1, 2} asserts that the set {1} is a proper subset of the set {1, 2}.",
+);
+export const mapsTo = createUnicodeReplacement(
+  "maps_to",
+  "→",
+  "This gives the set of all functions from one set to another.\n\nFor example, [{1, 2} → {3, 4}] is the set of all functions that map 1 to 3 or 4, and 2 to 3 or 4.",
+);
+export const allMapTo = createUnicodeReplacement(
+  "all_map_to",
+  "↦",
+  'This defines a function or record. The left-hand side is the domain. If it is a symbol, it is interpreted as a string.\n\nFor example, [x ∈ {1, 2}  ↦ x + 1] is the function that adds 1 to its input.\n\nThe other case is a record:\nFor example, [type ↦ "working"] is a record with the key "type", mapping to "working".',
+);
+export const defEq = createUnicodeReplacement(
+  "def_eq",
+  "≜",
+  "This is a definition. It asserts that the left-hand side is defined to be the right-hand side.\n\nFor example, x ≜ 1 asserts that x is defined to be 1.",
+);
+export const exists = createUnicodeReplacement(
+  "exists",
+  "∃",
+  "Exists asserts that there exists at least one element in a set that satisfies a property.\n\nFor example, ∃x ∈ {1, 2} : x > 1 asserts that there exists an element x in the set {1, 2} such that x is greater than 1.",
+);
+export const forall = createUnicodeReplacement(
+  "forall",
+  "∀",
+  "For all asserts that every element in a set satisfies a property.\n\nFor example, ∀x ∈ {1, 2} : x > 0 asserts that every element x in the set {1, 2} is greater than 0.",
+);
+export const tlain = createUnicodeReplacement(
+  "in",
+  "∈",
+  "In asserts that an element is a member of a set.\n\nFor example, 1 ∈ {1, 2} asserts that 1 is an element of the set {1, 2}.",
+);
+
+export const except = new Extension().registerReplacement({
+  query: [(x) => x.type === "except"],
+  queryDepth: 1,
+  component: ({ node }) =>
+    h(
+      "span",
+      {
+        title:
+          'EXCEPT is used to modify a function by changing the value of one or more of its arguments, while copying all except the changed ones.\n\nFor example, if we define f == [x \\in {1, 2} |-> "init"], which would represent a function like {1 |-> "init", 2 |-> "init"}, we can then use EXCEPT to change the value of 1 to "changed" and copying the rest by writing [f EXCEPT ![1] = "changed"].',
+      },
+      h(Shard, { node }),
+    ),
+  name: "tla-except",
+});
+
+export const unchanged = new Extension().registerReplacement({
+  query: [(x) => x.type === "unchanged"],
+  queryDepth: 1,
+  component: ({ node }) =>
+    h(
+      "span",
+      {
+        title:
+          "UCHANGED is used to assert that a variable does not change its value.\n\nFor example, UCHANGED x asserts that the value of x does not change after running this action.",
+      },
+      h(Shard, { node }),
+    ),
+  name: "tla-unchanged",
+});
+
+export const nextStateDisplay = new Extension().registerReplacement({
+  query: [
+    (x) => x.type === "operator_definition",
+    (x) =>
+      x.atField("name").text.startsWith("TP") ||
+      x.atField("name").text.startsWith("RM") ||
+      x.atField("name").text.startsWith("TM"),
+  ],
+  queryDepth: 2,
+  component: ({ node, renderContent }) => renderContent?.({ node }),
+  name: "tla-next-state-display",
+});
+
+export const constantsDisplay = new Extension().registerReplacement({
+  query: [
+    (x) => x?.parent?.type === "constant_declaration",
+  ],
+  queryDepth: 1,
+  component: ({ node, renderContent }) => renderContent?.({ node }),
+  name: "tla-constants-display",
+});
+
+const validType = (x) =>
+  ["identifier", "string", "identifier_ref"].includes(x.type);
 
 export const base = new Extension()
   // tla+ keywords
-  .registerAlways((e) => [
+  .registerSyntax("keyword", [
     (x) =>
       [
         "ASSUME",
@@ -38,9 +195,8 @@ export const base = new Extension()
         "WF_",
         "WITH",
       ].includes(x.text),
-    (x) => e.applySyntaxHighlighting(x, "keyword"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("keyword", [
     (x) =>
       [
         "address",
@@ -58,28 +214,24 @@ export const base = new Extension()
         "temporal_exists",
         "temporal_forall",
       ].includes(x.type),
-    (x) => e.applySyntaxHighlighting(x, "keyword"),
   ])
 
   // literals
-  .registerAlways((e) => [
+  .registerSyntax("keyword", [
     (x) =>
       x.type === "format" &&
       ["binary_number", "hex_number", "octal_number"].includes(x.parent?.type),
-    (x) => e.applySyntaxHighlighting(x, "keyword"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("number", [
     (x) =>
       x.type === "value" &&
       ["binary_number", "hex_number", "octal_number"].includes(x.parent?.type),
-    (x) => e.applySyntaxHighlighting(x, "number"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("number", [
     (x) =>
       ["boolean", "int_number", "nat_number", "real_number"].includes(x.type),
-    (x) => e.applySyntaxHighlighting(x, "number"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("type", [
     (x) =>
       [
         "boolean_set",
@@ -88,78 +240,83 @@ export const base = new Extension()
         "real_number_set",
         "string_set",
       ].includes(x.type),
-    (x) => e.applySyntaxHighlighting(x, "type"),
   ])
 
   // namespaces and includes
-  .registerAlways((e) => [
+  .registerSyntax("module", [
     (x) => x.type === "identifier_ref" && x.parent?.type === "extends",
-    (x) => e.applySyntaxHighlighting(x, "module"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("module", [
     (x) => x.type === "identifier_ref" && x.parent?.type === "instance",
-    (x) => e.applySyntaxHighlighting(x, "module"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("module", [
     (x) => x.parent?.type === "module" && x.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "module"),
   ])
 
   // constants and variables
-  .registerAlways((e) => [
+  .registerSyntax("constant", [
     (x) => x.type === "identifier" && x.parent?.type === "constant_declaration",
-    (x) => e.applySyntaxHighlighting(x, "constant"),
   ])
-  .registerAlways((e) => [
-    (x) =>
-      x.field === "name" &&
-      x.parent?.type === "operator_declaration" &&
-      x.parent?.parent?.type === "constant_declaration",
-    (x) => e.applySyntaxHighlighting(x, "constant"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "identifier" && x.previousSiblingNode?.text === ".",
-    (x) => e.applySyntaxHighlighting(x, "attribute"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "identifier" && x.parent?.type === "record_literal",
-    (x) => e.applySyntaxHighlighting(x, "attribute"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "identifier" && x.parent?.type === "set_of_records",
-    (x) => e.applySyntaxHighlighting(x, "attribute"),
-  ])
-  .registerAlways((e) => [
-    (x) => x.type === "identifier" && x.parent?.type === "variable_declaration",
-    (x) => e.applySyntaxHighlighting(x, "variable", "builtin"),
-  ])
+  .registerSyntax(
+    "constant",
+    [
+      (x) =>
+        x.field === "name" &&
+        x.parent?.type === "operator_declaration" &&
+        x.parent?.parent?.type === "constant_declaration",
+    ],
+    3,
+  )
+  .registerSyntax(
+    "attribute",
+    [(x) => x.type === "identifier" && x.previousSiblingNode?.text === "."],
+    2,
+  )
+  .registerSyntax(
+    "attribute",
+    [(x) => x.type === "identifier" && x.parent?.type === "record_literal"],
+    2,
+  )
+  .registerSyntax(
+    "attribute",
+    [(x) => x.type === "identifier" && x.parent?.type === "set_of_records"],
+    2,
+  )
+  .registerSyntax(
+    "variable builtin",
+    [
+      (x) =>
+        x.type === "identifier" && x.parent?.type === "variable_declaration",
+    ],
+    2,
+  )
 
   // parameters
   // (choose (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) => x.type === "identifier" && x.parent?.type === "choose",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (choose (tuple_of_identifiers (identifier) @variable.parameter))
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) => x.type === "identifier" && x.parent?.type === "tuple_of_identifiers",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (lambda (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) => x.type === "identifier" && x.parent?.type === "lambda",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (module_definition (operator_declaration name: (_) @variable.parameter))
-  .registerAlways((e) => [
-    (x) =>
-      x.field === "name" &&
-      x.parent?.type === "operator_declaration" &&
-      x.parent?.parent?.type === "module_definition",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
-  ])
+  .registerSyntax(
+    "variable parameter",
+    [
+      (x) =>
+        x.field === "name" &&
+        x.parent?.type === "operator_declaration" &&
+        x.parent?.parent?.type === "module_definition",
+    ],
+    2,
+  )
   // (module_definition parameter: (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "module_definition" &&
@@ -167,7 +324,7 @@ export const base = new Extension()
     (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (operator_definition (operator_declaration name: (_) @variable.parameter))
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.field === "name" &&
       x.parent.type === "operator_declaration" &&
@@ -175,7 +332,7 @@ export const base = new Extension()
     (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (operator_definition parameter: (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "operator_definition" &&
@@ -183,91 +340,83 @@ export const base = new Extension()
     (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (quantifier_bound (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) => x.type === "identifier" && x.parent.type === "quantifier_bound",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (quantifier_bound (tuple_of_identifiers (identifier) @variable.parameter))
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) => x.type === "identifier" && x.parent.type === "tuple_of_identifiers",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (unbounded_quantification (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.type === "identifier" && x.parent.type === "unbounded_quantification",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
 
   // Operators, functions, and macros
   // (function_definition name: (identifier) @function)
-  .registerAlways((e) => [
+  .registerSyntax("function", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "function_definition" &&
       x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "function"),
   ])
   // (module_definition name: (_) @module)
-  .registerAlways((e) => [
+  .registerSyntax("module", [
     (x) =>
       x.field === "name" &&
       x.parent.type === "module_definition" &&
       x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "module"),
   ])
   // (operator_definition name: (_) @operator)
-  .registerAlways((e) => [
+  .registerSyntax("operator", [
     (x) =>
       x.field === "name" &&
       x.parent.type === "operator_definition" &&
       x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "operator"),
   ])
   // (recursive_declaration (identifier) @operator)
-  .registerAlways((e) => [
+  .registerSyntax("operator", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "recursive_declaration" &&
       x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "operator"),
   ])
   // (recursive_declaration (operator_declaration name: (_) @operator))
-  .registerAlways((e) => [
-    (x) =>
-      x.field === "name" &&
-      x.parent.type === "operator_declaration" &&
-      x.parent?.parent?.type === "recursive_declaration",
-    (x) => e.applySyntaxHighlighting(x, "operator"),
-  ])
+  .registerSyntax(
+    "operator",
+    [
+      (x) =>
+        x.field === "name" &&
+        x.parent.type === "operator_declaration" &&
+        x.parent?.parent?.type === "recursive_declaration",
+    ],
+    2,
+  )
 
-  .registerAlways((e) => [
+  .registerSyntax("punctuation delimiter", [
     (x) => ["(", ")", "[", "]", "{", "}"].includes(x.text),
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("punctuation delimiter", [
     (x) =>
       ["langle_bracket", "rangle_bracket", "rangle_bracket_sub"].includes(
-        x.type
+        x.type,
       ),
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
   ])
 
-  .registerAlways((e) => [
+  .registerSyntax("punctuation delimiter", [
     (x) =>
       ["bullet_conj", "bullet_disj", "prev_func_val", "placeholder"].includes(
-        x.type
+        x.type,
       ),
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "delimiter"),
   ])
-  .registerAlways((e) => [
+  .registerSyntax("punctuation delimiter", [
     (x) => [",", ":", ".", "!", ";"].includes(x.text),
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "delimiter"),
   ])
 
   // ; Proofs
   // (assume_prove (new (identifier) @variable.parameter))
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "assume_prove" &&
@@ -275,72 +424,66 @@ export const base = new Extension()
     (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (assume_prove (new (operator_declaration name: (_) @variable.parameter)))
-  .registerAlways((e) => [
-    (x) =>
-      x.field === "name" &&
-      x.parent.type === "operator_declaration" &&
-      x.parent?.parent?.type === "assume_prove" &&
-      x.parent?.parent?.field === "new",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
-  ])
+  .registerSyntax(
+    "variable parameter",
+    [
+      (x) =>
+        x.field === "name" &&
+        x.parent.type === "operator_declaration" &&
+        x.parent?.parent?.type === "assume_prove" &&
+        x.parent?.parent?.field === "new",
+    ],
+    2,
+  )
   // (assumption name: (identifier) @constant)
-  .registerAlways((e) => [
-    (x) =>
-      x.field === "name" &&
-      x.parent.type === "assumption" &&
-      x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "constant"),
-  ])
+  .registerSyntax(
+    "constant",
+    [
+      (x) =>
+        x.field === "name" &&
+        x.parent.type === "assumption" &&
+        x.parent?.field === "name",
+    ],
+    2,
+  )
   // (pick_proof_step (identifier) @variable.parameter)
-  .registerAlways((e) => [
-    (x) =>
-      x.type === "identifier" &&
-      x.parent.type === "pick_proof_step" &&
-      x.parent?.field === "parameter",
-    (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
-  ])
+  .registerSyntax(
+    "variable parameter",
+    [
+      (x) =>
+        x.type === "identifier" &&
+        x.parent.type === "pick_proof_step" &&
+        x.parent?.field === "parameter",
+    ],
+    2,
+  )
   // (proof_step_id "<" @punctuation.bracket)
-  .registerAlways((e) => [
-    (x) => x.type === "proof_step_id",
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
-  ])
+  .registerSyntax("punctuation bracket", [(x) => x.type === "proof_step_id"])
   // (proof_step_id (level) @tag)
-  .registerAlways((e) => [
+  .registerSyntax("tag", [
     (x) => x.type === "proof_step_id" && x.field === "level",
-    (x) => e.applySyntaxHighlighting(x, "tag"),
   ])
   // (proof_step_id (name) @tag)
-  .registerAlways((e) => [
+  .registerSyntax("tag", [
     (x) => x.type === "proof_step_id" && x.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "tag"),
   ])
   // (proof_step_id ">" @punctuation.bracket)
-  .registerAlways((e) => [
-    (x) => x.type === "proof_step_id",
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
-  ])
+  .registerSyntax("punctuation bracket", [(x) => x.type === "proof_step_id"])
   // (proof_step_ref "<" @punctuation.bracket)
-  .registerAlways((e) => [
-    (x) => x.type === "proof_step_ref",
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
-  ])
+  .registerSyntax("punctuation bracket", [(x) => x.type === "proof_step_ref"])
   // (proof_step_ref (level) @tag)
-  .registerAlways((e) => [
+  .registerSyntax("tag", [
     (x) => x.type === "proof_step_ref" && x.field === "level",
-    (x) => e.applySyntaxHighlighting(x, "tag"),
   ])
   // (proof_step_ref (name) @tag)
-  .registerAlways((e) => [
+  .registerSyntax("tag", [
     (x) => x.type === "proof_step_ref" && x.field === "name",
     (x) => e.applySyntaxHighlighting(x, "tag"),
   ])
   // (proof_step_ref ">" @punctuation.bracket)
-  .registerAlways((e) => [
-    (x) => x.type === "proof_step_ref",
-    (x) => e.applySyntaxHighlighting(x, "punctuation", "bracket"),
-  ])
+  .registerSyntax("punctuation bracket", [(x) => x.type === "proof_step_ref"])
   // (take_proof_step (identifier) @variable.parameter)
-  .registerAlways((e) => [
+  .registerSyntax("variable parameter", [
     (x) =>
       x.type === "identifier" &&
       x.parent.type === "take_proof_step" &&
@@ -348,49 +491,37 @@ export const base = new Extension()
     (x) => e.applySyntaxHighlighting(x, "variable", "parameter"),
   ])
   // (theorem name: (identifier) @constant)
-  .registerAlways((e) => [
+  .registerSyntax("constant", [
     (x) =>
       x.field === "name" &&
       x.parent.type === "theorem" &&
       x.parent?.field === "name",
-    (x) => e.applySyntaxHighlighting(x, "constant"),
   ])
   // ; Comments and tags
   // (block_comment "(*" @comment)
-  .registerAlways((e) => [
+  .registerSyntax("comment", [
     (x) => x.parent?.type === "block_comment" && x.text === "(*",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
   ])
   // (block_comment "*)" @comment)
-  .registerAlways((e) => [
+  .registerSyntax("comment", [
     (x) => x.parent?.type === "block_comment" && x.text === "*)",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
   ])
   // (block_comment_text) @comment
-  .registerAlways((e) => [
-    (x) => x.type === "block_comment_text",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
-  ])
+  .registerSyntax("comment", [(x) => x.type === "block_comment_text"])
   // (comment) @comment
-  .registerAlways((e) => [
-    (x) => x.type === "comment",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
-  ])
+  .registerSyntax("comment", [(x) => x.type === "comment"])
   // (single_line) @comment
-  .registerAlways((e) => [
-    (x) => x.type === "single_line",
-    (x) => e.applySyntaxHighlighting(x, "comment"),
-  ])
+  .registerSyntax("comment", [(x) => x.type === "single_line"])
   // (_ label: (identifier) @tag)
-  .registerAlways((e) => [
+  .registerSyntax("tag", [
     (x) => x.type === "identifier" && x.field === "label",
-    (x) => e.applySyntaxHighlighting(x, "tag"),
   ])
   // (label name: (_) @tag)
-  .registerAlways((e) => [
-    (x) => x.field === "name" && x.parent.type === "label",
-    (x) => e.applySyntaxHighlighting(x, "tag"),
-  ]);
+  .registerSyntax(
+    "tag",
+    [(x) => x.field === "name" && x.parent.type === "label"],
+    2,
+  );
 
 // TODO
 // ; Put these last so they are overridden by everything else

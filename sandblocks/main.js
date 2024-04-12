@@ -1,8 +1,7 @@
-import { Editor } from "../view/editor.js";
+import { SandblocksEditor } from "./editor/editor.js";
 import { button, useAsyncEffect } from "../view/widgets.js";
 import { render, h } from "../view/widgets.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
-import { Workspace } from "./workspace.js";
 import { matchesKey, withDo } from "../utils.js";
 import { choose, openComponentInWindow } from "./window.js";
 import {} from "./file-project/search.js";
@@ -69,16 +68,16 @@ function projectEqual(a, b) {
   return true;
 }
 
-Editor.init();
+SandblocksEditor.init();
 
 const rag = async () => (await import("./oRAGle/ragPrototype.js")).RAGApp;
 const tla = async () =>
-  (await import("../extensions/tla/tlaSequenceDiagram.js")).SequenceDiagram;
+  (await import("../extensions/tla/state-explorer.js")).TlaStateExplorer;
 const queryBuilder = async () =>
   (await import("./query-builder/main.js")).QueryBuilder;
 
 const startUpOptions = {
-  rag: async () => {
+  rag: async (options) => {
     openComponentInWindow(
       await rag(),
       {},
@@ -86,21 +85,19 @@ const startUpOptions = {
         doNotStartAttached: true,
         initialPosition: { x: 10, y: 10 },
         initialSize: { x: 1000, y: 1000 },
+        ...options,
       },
     );
   },
-  tla: async () => {
-    openComponentInWindow(
-      await tla(),
-      {},
-      {
-        doNotStartAttached: true,
-        initialPosition: { x: 10, y: 10 },
-        initialSize: { x: 1000, y: 800 },
-      },
-    );
+  tla: async (options) => {
+    openComponentInWindow(await tla(), options, {
+      doNotStartAttached: true,
+      initialPosition: { x: 10, y: 10 },
+      initialSize: { x: 1000, y: 800 },
+      ...options,
+    });
   },
-  queryBuilder: async () => {
+  queryBuilder: async (options) => {
     openComponentInWindow(
       await queryBuilder(),
       {},
@@ -108,6 +105,7 @@ const startUpOptions = {
         doNotStartAttached: true,
         initialPosition: { x: 10, y: 10 },
         initialSize: { x: 500, y: 500 },
+        ...options,
       },
     );
   },
@@ -130,6 +128,12 @@ function Sandblocks() {
   useEffect(() => {
     if (location.hash) {
       startUpOptions[location.hash.slice(1)]?.();
+    } else if (location.search) {
+      const params = new URLSearchParams(location.search);
+      startUpOptions[params.get("open")]?.({
+        ...Object.fromEntries(params.entries()),
+        fullscreen: params.get("fullscreen") !== null,
+      });
     }
   }, []);
 
@@ -152,7 +156,7 @@ function Sandblocks() {
   useEffect(() => {
     const handler = (e) => {
       if (matchesKey(e, "Ctrl-g")) {
-        openComponentInWindow(Workspace, {});
+        // openComponentInWindow(Workspace, {});
       } else if (matchesKey(e, "Ctrl-0")) {
         const search = document.createElement("sb-search");
         // FIXME

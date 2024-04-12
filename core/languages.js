@@ -29,16 +29,19 @@ registerLanguage(
     extensions: ["js"],
     defaultExtensions: [
       "javascript:base",
+      "base:base",
       "typescript:lsp",
+      // "copilot:gh",
+      // "browser:javascript",
       "lsp:browse",
-      "lsp:diagnostics",
+      // "lsp:diagnostics",
       "lsp:suggestions",
-      "babylonian:javascript",
+      // "babylonian:javascript",
       "prettier:javascript",
-      "watch:javascript",
-      "javascript:print",
+      // "watch:javascript",
+      // "javascript:print",
     ],
-  })
+  }),
 );
 
 const typescript = {
@@ -49,10 +52,11 @@ const typescript = {
   extensions: ["ts"],
   defaultExtensions: [
     "typescript:base",
-    "lsp:base",
+    "typescript:lsp",
     "lsp:browse",
     "lsp:diagnostics",
     "lsp:suggestions",
+    "copilot:gh",
     // "base:identifierSuggestions",
     "prettier:typescript",
   ],
@@ -65,7 +69,7 @@ registerLanguage(
     name: "tsx",
     path: "/tsx/",
     extensions: ["tsx"],
-  })
+  }),
 );
 
 registerLanguage(
@@ -74,7 +78,7 @@ registerLanguage(
     branch: "98c7b3dceb24f1ee17f1322f3947e55638251c37",
     extensions: ["css"],
     defaultExtensions: ["css:base", "base:identifierSuggestions"],
-  })
+  }),
 );
 
 registerLanguage(
@@ -83,7 +87,7 @@ registerLanguage(
     branch: "3fef30de8aee74600f25ec2e319b62a1a870d51e",
     extensions: ["json"],
     defaultExtensions: ["json:base", "base:identifierSuggestions"],
-  })
+  }),
 );
 
 registerLanguage(
@@ -101,7 +105,7 @@ registerLanguage(
       parseExpressionPrefix: "doIt ",
       matchPrefix: "_",
     },
-  })
+  }),
 );
 
 registerLanguage(
@@ -109,8 +113,8 @@ registerLanguage(
     repo: "tlaplus-community/tree-sitter-tlaplus",
     branch: "c5fae9e4ad9f483fb6232a8688a2c940be6b496b",
     extensions: ["tla"],
-    defaultExtensions: ["base:identifierSuggestions"],
-  })
+    defaultExtensions: ["tlaplus:base", "base:identifierSuggestions"],
+  }),
 );
 
 registerLanguage(
@@ -136,5 +140,5 @@ registerLanguage(
       name: "markdown_inline",
     }),
     matcher: (node) => node.type === "inline",
-  })
+  }),
 );
