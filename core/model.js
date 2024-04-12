@@ -1,5 +1,6 @@
-import { WeakArray, exec, last } from "../utils.js";
-import { TrueDiff } from "./diff.js";
+import { WeakArray, exec, last, rangeEqual } from "../utils.js";
+import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
+import { OffscreenEditor } from "./editor.js";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -25,30 +26,6 @@ const cyrb53 = (str, seed = 0) => {
 };
 const hash = (str) => cyrb53(str);
 const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
-
-export class SBEditor {
-  replaceTextFromCommand(range, text) {
-    throw new Error("to be implemented");
-  }
-
-  insertTextFromCommand(position, text) {
-    this.replaceTextFromCommand([position, position], text);
-  }
-}
-
-class OffscreenEditor extends SBEditor {
-  root = null;
-
-  constructor(root) {
-    super();
-    this.root = root;
-  }
-
-  replaceTextFromCommand([from, to], text) {
-    const s = this.root.sourceString;
-    this.root.updateModelAndView(s.slice(0, from) + text + s.slice(to));
-  }
-}
 
 export class SBLanguage {
   constructor({ name, extensions, defaultExtensions }) {
@@ -93,7 +70,7 @@ export class SBLanguage {
 
     const { tx, root, diff } = new TrueDiff().applyEdits(
       oldRoot,
-      this.parse(text, oldRoot)
+      this.parse(text, oldRoot),
     );
     root._language = this;
     tx.set(root, "_sourceString", text);
@@ -118,6 +95,7 @@ function _nextNodeId() {
 
 class SBNode {
   _parent = null;
+  shards = new WeakArray();
 
   constructor() {
     this._id = _nextNodeId().toString();
@@ -141,7 +119,7 @@ class SBNode {
   }
 
   get language() {
-    return this.isRoot ? this._language : this.root.language;
+    return this._language ?? this.root._language;
   }
 
   get id() {
@@ -174,7 +152,7 @@ class SBNode {
 
   get preferForSelection() {
     // named or likely a keyword
-    return this.named || this.text.match(/^[A-Za-z]+$/);
+    return this.named || this.text?.match(/^[A-Za-z]+$/);
   }
 
   get depth() {
@@ -185,9 +163,13 @@ class SBNode {
     return this.root.isRoot;
   }
 
-  toHTMLExpanded() {
-    // return this.toHTML(this.depth + 2);
-    return this.toHTML();
+  initOps() {
+    return [
+      new LoadOp(this),
+      new AttachOp(this, this.parent, this.siblingIndex),
+
+      ...this.children.flatMap((child) => child.initOps()),
+    ];
   }
 
   updateModelAndView(text) {
@@ -202,26 +184,9 @@ class SBNode {
     return this.editor.createShardFor(this);
   }
 
-  viewsDo(cb) {
-    if (this._views) this._views.forEach(cb);
-  }
-
-  get views() {
-    const out = [];
-    this._views.forEach((v) => out.push(v));
-    return out;
-  }
-
-  // quick way to obtain a view to the element, should only be used for debugging
-  get debugView() {
-    return last(this._views?._array).deref();
-  }
-
   get editor() {
     if (this.root._editor) return this.root._editor;
-    let editor = null;
-    this.root.viewsDo((view) => !editor && (editor = view.editor));
-    return editor;
+    return this.orParentThat((p) => p.shards.any?.editor)?.shards.any.editor;
   }
 
   get context() {
@@ -238,6 +203,24 @@ class SBNode {
 
   atType(type) {
     return this.children.find((child) => child.type === type);
+  }
+
+  blockThat(predicate) {
+    if (predicate(this)) return this;
+    for (const child of this.children) {
+      const match = child.blockThat(predicate);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  allBlocksThat(predicate) {
+    const ret = [];
+    if (predicate(this)) ret.push(this);
+    for (const child of this.children) {
+      ret.push(...child.allBlocksThat(predicate));
+    }
+    return ret;
   }
 
   print(level = 0, namedOnly = false) {
@@ -322,7 +305,7 @@ class SBNode {
   }
 
   get siblingIndex() {
-    return this.parent.children.indexOf(this);
+    return this.parent ? this.parent.children.indexOf(this) : 0;
   }
 
   get previousSiblingChild() {
@@ -359,10 +342,13 @@ class SBNode {
     return null;
   }
 
-  leafForPosition(pos) {
-    if (this.range[0] <= pos && this.range[1] >= pos) {
+  leafForPosition(pos, excludeEnd) {
+    if (
+      this.range[0] <= pos &&
+      (excludeEnd ? this.range[1] > pos : this.range[1] >= pos)
+    ) {
       for (const child of this.children) {
-        const match = child.leafForPosition(pos);
+        const match = child.leafForPosition(pos, excludeEnd);
         if (match) return match;
       }
       return this;
@@ -386,7 +372,7 @@ class SBNode {
   insert(string, type, index) {
     const list = this.childBlocks.filter(
       (child) =>
-        child.compatibleWith(type) && this.language.separatorContextFor(child)
+        child.compatibleWith(type) && this.language.separatorContextFor(child),
     );
     // handle empty list by finding any slot that takes the type
     if (list.length === 0) {
@@ -453,7 +439,7 @@ class SBNode {
     const remove = this.removalNodes;
     this.editor.replaceTextFromCommand(
       [remove[0].range[0], last(remove).range[1]],
-      ""
+      "",
     );
   }
 
@@ -473,6 +459,19 @@ class SBNode {
   nodeAndParentsDo(cb) {
     cb(this);
     if (this.parent) this.parent.nodeAndParentsDo(cb);
+  }
+
+  *andAllParents() {
+    let current = this;
+    while (current) {
+      yield current;
+      current = current.parent;
+    }
+  }
+
+  *allNodes() {
+    yield this;
+    for (const child of this.children) yield* child.allNodes();
   }
 
   allNodesDo(cb) {
@@ -519,7 +518,7 @@ class SBNode {
     for (const child of this.children) {
       height = Math.max(height, child.treeHeight);
     }
-    return height + 1;
+    return (this._treeHeight = height + 1);
   }
 
   // edit operations
@@ -531,21 +530,27 @@ class SBNode {
   wrapWith(start, end) {
     this.editor.replaceTextFromCommand(
       this.range,
-      `${start}${this.sourceString}${end}`
+      `${start}${this.sourceString}${end}`,
     );
   }
 
   select(adjacentView) {
-    adjacentView.editor.findNode(this).select();
+    // TODO consider view
+    this.editor.selectRange(this.range);
   }
 
   get isSelected() {
     return this.editor.selected?.node === this;
   }
 
+  get isFullySelected() {
+    return rangeEqual(this.range, this.editor.selectionRange);
+  }
+
   cleanDiffData() {
     this._structureHash = null;
     this._literalHash = null;
+    this._treeHeight = null;
     this.share = null;
     this.assigned = null;
     this.literalMatch = null;
@@ -623,14 +628,6 @@ export class SBText extends SBNode {
   isWhitespace() {
     return this.text.trim() === "";
   }
-
-  toHTML() {
-    const text = document.createElement("sb-text");
-    text.setAttribute("text", this.text);
-    text.node = this;
-    (this._views ??= new WeakArray()).push(text);
-    return text;
-  }
 }
 
 export class SBBlock extends SBNode {
@@ -662,7 +659,7 @@ export class SBBlock extends SBNode {
       this.field,
       this.range[0],
       this.range[1],
-      this.named
+      this.named,
     );
   }
 
@@ -695,32 +692,13 @@ export class SBBlock extends SBNode {
   get structureHash() {
     return (this._structureHash ??= hashCombine(
       hash(this.type),
-      this.children.reduce((a, node) => hashCombine(a, node.structureHash), 0)
+      this.children.reduce((a, node) => hashCombine(a, node.structureHash), 0),
     ));
   }
   get literalHash() {
     return (this._literalHash ??= hashCombine(
-      this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0)
+      this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0),
     ));
-  }
-
-  toHTML(maxDepth = Infinity) {
-    let block;
-    if (
-      this.depth >= maxDepth &&
-      this.sourceString.length > 200 &&
-      this.children.length > 1
-    ) {
-      block = document.createElement("sb-collapse");
-    } else {
-      block = document.createElement("sb-block");
-      for (const child of this.children) {
-        block.appendChild(child.toHTML(maxDepth));
-      }
-    }
-    block.node = this;
-    (this._views ??= new WeakArray()).push(block);
-    return block;
   }
 }
 
@@ -737,11 +715,13 @@ export class SBList extends SBNode {
   }
 
   get type() {
-    throw new Error("FIXME: SBList has no type");
+    return "__SB_LIST";
   }
 
   get parent() {
-    return this.list[0].parent;
+    const p = this.list[0].parent;
+    console.assert(p !== this);
+    return p;
   }
 
   get id() {
@@ -759,19 +739,5 @@ export class SBList extends SBNode {
       if (!this.list[i].equals(node.list[i])) return false;
     }
     return true;
-  }
-
-  toHTML() {
-    if (false) {
-      return this.list.map((ea) => ea.toHTML());
-    } else {
-      const list = document.createElement("sb-view-list");
-      for (const child of this.list) {
-        list.appendChild(child.toHTML());
-      }
-      list.node = this;
-      (this._views ??= new WeakArray()).push(list);
-      return list;
-    }
   }
 }

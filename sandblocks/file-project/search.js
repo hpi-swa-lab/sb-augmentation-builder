@@ -19,7 +19,7 @@ function Search({ project, onClose }) {
           width: 500px;
           margin-left: -200px;
           left: 50%;
-          z-index: 100;
+          z-index: 10000;
           background: #f5f5f5;
           color: #000;
           padding: 0.25rem;
@@ -31,13 +31,14 @@ function Search({ project, onClose }) {
           box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
           border: 1px solid #aaa;
         }
-    `
+    `,
     ),
     h(List, {
       items,
       labelFunc: (a) => a.path.slice(project.path.length + 1),
       selected,
       setSelected,
+      fuzzy: true,
       height: "400px",
       onConfirm: (item) => {
         onClose();
@@ -57,7 +58,7 @@ customElements.define(
     connectedCallback() {
       render(
         h(Search, { project: this.project, onClose: () => this.remove() }),
-        this
+        this,
       );
       this.querySelector("[focusable]").focus();
       this.addEventListener("keydown", (e) => {
@@ -66,5 +67,5 @@ customElements.define(
         }
       });
     }
-  }
+  },
 );

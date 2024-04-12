@@ -8,6 +8,13 @@ export class WeakArray {
   get length() {
     return this._array.length;
   }
+  get any() {
+    for (const ref of this._array) {
+      const item = ref.deref();
+      if (item) return item;
+    }
+    return null;
+  }
   remove(item) {
     this._array = this._array.filter((ref) => ref.deref() !== item);
   }
@@ -34,6 +41,24 @@ export class WeakArray {
   includes(item) {
     return this._array.some((ref) => ref.deref() === item);
   }
+}
+
+export function undoableMutation(root, cb) {
+  const observer = new MutationObserver(() => {
+    console.assert(false, "should not reach");
+  });
+  observer.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    characterDataOldValue: true,
+  });
+  cb();
+  const changes = observer.takeRecords();
+  console.assert(changes.length > 0, "no operation recorded");
+  observer.disconnect();
+  return () => ToggleableMutationObserver.undoMutations(changes);
 }
 
 export class ToggleableMutationObserver {
@@ -100,7 +125,12 @@ export class ToggleableMutationObserver {
     this.destroyed = true;
   }
 
-  undoMutation(mutation) {
+  static undoMutations(mutations) {
+    for (const mutation of mutations.reverse()) {
+      this.undoMutation(mutation);
+    }
+  }
+  static undoMutation(mutation) {
     switch (mutation.type) {
       case "characterData":
         mutation.target.textContent = mutation.oldValue;
@@ -220,7 +250,7 @@ export function orParentThat(node, predicate) {
 
 export function parentWithTag(node, tag) {
   return orParentThat(node, (n) =>
-    Array.isArray(tag) ? tag.includes(n.tagName) : n.tagName === tag
+    Array.isArray(tag) ? tag.includes(n.tagName) : n.tagName === tag,
   );
 }
 
@@ -283,6 +313,14 @@ export function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+export function asyncEval(str) {
+  const s = document.createElement("script");
+  s.setAttribute("type", "module");
+  s.textContent = str;
+  document.head.appendChild(s);
+  queueMicrotask(() => s.remove());
+}
+
 export function exec(arg, ...script) {
   if (!arg) return null;
 
@@ -312,11 +350,26 @@ function _isEmptyObject(obj) {
 }
 
 export function rangeEqual(a, b) {
-  return a[0] === b[0] && a[1] === b[1];
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
+
+  let [a0, a1] = a;
+  if (a0 > a1) [a0, a1] = [a1, a0];
+  let [b0, b1] = b;
+  if (b0 > b1) [b0, b1] = [b1, b0];
+  return a0 === b0 && a1 === b1;
 }
 
 export function rangeContains(a, b) {
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
   return a[0] <= b[0] && a[1] >= b[1];
+}
+
+export function rangeIntersects(a, b) {
+  console.assert(Array.isArray(a));
+  console.assert(Array.isArray(b));
+  return a[0] <= b[1] && a[1] >= b[0];
 }
 
 export function rangeDistance(a, b) {
@@ -343,10 +396,10 @@ export function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function sequenceMatch(query, word) {
+export function sequenceMatch(query, word, startMustMatch = true) {
   if (!query) return true;
   if (word.length < query.length) return false;
-  if (query[0] !== word[0]) return false;
+  if (startMustMatch && query[0] !== word[0]) return false;
 
   let i = 0;
   for (const char of word.toLowerCase()) {
@@ -396,6 +449,12 @@ export function lastDeepChild(element) {
   else return element;
 }
 
+export function lastDeepChildNode(element) {
+  if (element.childNodes.length > 0)
+    return lastDeepChildNode(last(element.childNodes));
+  else return element;
+}
+
 export function firstDeepChild(element) {
   if (element.children.length > 0) return firstDeepChild(element.children[0]);
   else return element;
@@ -442,19 +501,34 @@ export function pluralString(string, number) {
   return `${number} ${string}${number === 1 ? "" : "s"}`;
 }
 
+export function takeWhile(list, cb) {
+  const result = [];
+  for (const item of list) {
+    if (cb(item)) result.push(item);
+    else break;
+  }
+  return result;
+}
+
 // CREDITS: https://stackoverflow.com/a/8809472/13994294
 export function makeUUID() {
-  var d = new Date().getTime();//Timestamp
-    var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;//Time in microseconds since page-load or 0 if unsupported
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16;//random number between 0 and 16
-        if(d > 0){//Use timestamp until depleted
-            r = (d + r)%16 | 0;
-            d = Math.floor(d/16);
-        } else {//Use microseconds since page-load if supported
-            r = (d2 + r)%16 | 0;
-            d2 = Math.floor(d2/16);
-        }
-        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-    });
+  var d = new Date().getTime(); //Timestamp
+  var d2 =
+    (typeof performance !== "undefined" &&
+      performance.now &&
+      performance.now() * 1000) ||
+    0; //Time in microseconds since page-load or 0 if unsupported
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    if (d > 0) {
+      //Use timestamp until depleted
+      r = (d + r) % 16 | 0;
+      d = Math.floor(d / 16);
+    } else {
+      //Use microseconds since page-load if supported
+      r = (d2 + r) % 16 | 0;
+      d2 = Math.floor(d2 / 16);
+    }
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }

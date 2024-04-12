@@ -1,4 +1,10 @@
-"enable sandblocks";
+class MyCls {
+  test() {
+    console.log("a");
+  }
+}
+
+("enable sandblocks");
 
 let a = 12;
 
@@ -14,7 +20,7 @@ function hello(b) {
         headers: { "Content-Type": "application/json" },
       }),
       e
-    ))("asdadfsd".length+ 21 ),
+    ))("asdadfsd".length + 21),
   ][1];
 
   console.log(b);
@@ -30,7 +36,7 @@ function hello(b) {
         e
       ))("adasd"),
     ][1],
-    12
+    12,
   );
   return a;
 }

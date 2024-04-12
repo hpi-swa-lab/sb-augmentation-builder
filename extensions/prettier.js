@@ -10,7 +10,7 @@ async function tryFormat(string, cursorOffset, filepath, parser, deps, config) {
       filepath,
       parser,
       plugins: (await Promise.all(deps.map((x) => import(x)))).map(
-        (x) => x.default
+        (x) => x.default,
       ),
       arrowParens: "always",
       bracketSpacing: true,
@@ -28,7 +28,7 @@ async function tryFormat(string, cursorOffset, filepath, parser, deps, config) {
       semi: true,
       singleQuote: false,
       tabWidth: 2,
-      trailingComma: "es5",
+      trailingComma: "all",
       useTabs: false,
       embeddedLanguageFormatting: "auto",
       vueIndentScriptAndStyle: false,
@@ -41,30 +41,37 @@ async function tryFormat(string, cursorOffset, filepath, parser, deps, config) {
 }
 
 function extensionWith(parser, deps, config) {
-  return new Extension().registerPreSave((e) => [
-    (x) => x.isRoot,
-    async (x) => {
+  return new Extension().registerCustom(
+    "preSave",
+    async (editor, sourceString) => {
       const result = await tryFormat(
-        x.sourceString,
-        x.editor.selectionRange[0],
-        x.context.path,
+        sourceString,
+        editor.selectionRange[0],
+        editor.context.path,
         parser,
         deps,
-        config
+        config,
       );
       if (result) {
         const { formatted, cursorOffset } = result;
-        const delta = cursorOffset - x.editor.selectionRange[0];
-        if (formatted !== x.sourceString)
+        const delta = cursorOffset - editor.selectionRange[0];
+        if (formatted !== editor.sourceString)
           ToggleableMutationObserver.ignoreMutation(() =>
-            x.editor.replaceFullTextFromCommand(formatted, [
-              x.editor.selectionRange[0] + delta,
-              x.editor.selectionRange[1] + delta,
-            ])
+            editor.applyChanges([
+              {
+                from: 0,
+                to: editor.node.range[1],
+                insert: formatted,
+                selectionRange: [
+                  editor.selectionRange[0] + delta,
+                  editor.selectionRange[1] + delta,
+                ],
+              },
+            ]),
           );
       }
     },
-  ]);
+  );
 }
 
 export const javascript = extensionWith("babel", [

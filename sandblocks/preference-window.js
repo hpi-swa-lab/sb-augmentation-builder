@@ -1,15 +1,9 @@
 import { Extension } from "../core/extension.js";
 import { languageFor } from "../core/languages.js";
-import { asyncDo } from "../extensions/javascript.js";
-import { preferences } from "../view/preferences.js";
-import {
-  button,
-  createWidgetPreact,
-  ensureReplacementPreact,
-  h,
-  icon,
-  shard,
-} from "../view/widgets.js";
+import { asyncEval } from "../utils.js";
+import { preferences } from "../core/preferences.js";
+import { button, h, icon } from "../view/widgets.js";
+import { Shard } from "../core/replacement.js";
 import { FileEditor } from "./file-project/file-editor.js";
 import { localStorageProject } from "./local-project.js";
 import { openComponentInWindow } from "./window.js";
@@ -18,13 +12,13 @@ const preferencesFilePath = "localStorage:///preferences.js";
 
 async function readPreferences() {
   const s = await localStorageProject.readFile(preferencesFilePath);
-  if (!s) return "import { preferences } from '/view/preferences.js';\n\n";
+  if (!s) return "import { preferences } from '/core/preferences.js';\n\n";
   return s;
 }
 
 let _userPreferencesLoaded = false;
 export async function loadUserPreferences(source = null) {
-  await asyncDo(source ?? (await readPreferences()));
+  asyncEval(source ?? (await readPreferences()));
   _userPreferencesLoaded = true;
 }
 
@@ -45,7 +39,7 @@ function _setUserPreference(root, preference, value, method = "set") {
     root.insert(
       `\n\npreferences.${method}("${preference}", ${JSON.stringify(value)});`,
       "expression_statement",
-      9e8
+      9e8,
     );
   }
 }
@@ -53,7 +47,7 @@ function _setUserPreference(root, preference, value, method = "set") {
 export function getPreferenceOr(preference, defaultValue) {
   if (!_userPreferencesLoaded)
     throw new Error(
-      "attempted to access preference before user preferences were loaded"
+      "attempted to access preference before user preferences were loaded",
     );
   return preferences.get(preference) ?? defaultValue;
 }
@@ -61,7 +55,7 @@ export function getPreferenceOr(preference, defaultValue) {
 export async function getPreferenceOrAsk(preference, ifMissing) {
   if (!_userPreferencesLoaded)
     throw new Error(
-      "attempted to access preference before user preferences were loaded"
+      "attempted to access preference before user preferences were loaded",
     );
   if (!preferences.has(preference) || preferences.get(preference) === null) {
     const value = await ifMissing();
@@ -75,7 +69,7 @@ export function openPreferences() {
   openComponentInWindow(FileEditor, {
     project: localStorageProject,
     path: preferencesFilePath,
-    inlineExtensions: [preferencesExtension],
+    // inlineExtensions: [preferencesExtension],
   });
 }
 
@@ -88,7 +82,7 @@ const preferencesExtension = new Extension()
           type: "checkbox",
           checked: node.type === "true",
           onchange: (e) => node.replaceWith(e.target.checked.toString()),
-        })
+        }),
       ),
   ])
   .registerReplacement((e) => [
@@ -110,73 +104,73 @@ const preferencesExtension = new Extension()
                 {},
                 methodIcon(method),
                 " ",
-                field.childBlock(0).sourceString
+                field.childBlock(0).sourceString,
               ),
-              h("td", {}, shard(value))
-            )
+              h("td", {}, h(Shard, { value })),
+            ),
           ),
-        props
-      ),
-  ])
-  .registerSave((e) => [
-    (x) => x.isRoot,
-    (x) => loadUserPreferences(x.sourceString),
-  ])
-  .registerExtensionConnected((e) => [
-    (x) => x.isRoot,
-    (x) =>
-      x.editor.appendChild(
-        createWidgetPreact(
-          e,
-          "sb-prefs-list",
-          ({ node }) => {
-            const allStrings = [];
-            node.root.allChildrenDo(
-              (x) =>
-                x.type === "string" && allStrings.push(x.childBlock(0).text)
-            );
-
-            return h(
-              "table",
-              { style: { marginTop: "1rem" } },
-              h(
-                "tr",
-                {},
-                h(
-                  "td",
-                  { colspan: 2 },
-                  button("Add Default Extension", () =>
-                    _setUserPreference(
-                      node.root,
-                      prompt("Name?"),
-                      true,
-                      "addDefaultExtension"
-                    )
-                  )
-                )
-              ),
-              h(
-                "tr",
-                {},
-                h(
-                  "td",
-                  { colspan: 2 },
-                  h("h2", {}, "Default Preferences"),
-                  "Click to override."
-                )
-              ),
-              [...preferences.map.entries()]
-                .filter(([field]) => !allStrings.includes(prefString(field)[1]))
-                .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([field, value]) =>
-                  h(Preference, { field, value, root: node.root })
-                )
-            );
-          },
-          (trigger) => trigger === "always"
-        )
+        props,
       ),
   ]);
+// .registerSave((e) => [
+//   (x) => x.isRoot,
+//   (x) => loadUserPreferences(x.sourceString),
+// ])
+// .registerExtensionConnected((e) => [
+//   (x) => x.isRoot,
+//   (x) =>
+//     x.editor.appendChild(
+//       createWidgetPreact(
+//         e,
+//         "sb-prefs-list",
+//         ({ node }) => {
+//           const allStrings = [];
+//           node.root.allChildrenDo(
+//             (x) =>
+//               x.type === "string" && allStrings.push(x.childBlock(0).text)
+//           );
+
+//           return h(
+//             "table",
+//             { style: { marginTop: "1rem" } },
+//             h(
+//               "tr",
+//               {},
+//               h(
+//                 "td",
+//                 { colspan: 2 },
+//                 button("Add Default Extension", () =>
+//                   _setUserPreference(
+//                     node.root,
+//                     prompt("Name?"),
+//                     true,
+//                     "addDefaultExtension"
+//                   )
+//                 )
+//               )
+//             ),
+//             h(
+//               "tr",
+//               {},
+//               h(
+//                 "td",
+//                 { colspan: 2 },
+//                 h("h2", {}, "Default Preferences"),
+//                 "Click to override."
+//               )
+//             ),
+//             [...preferences.map.entries()]
+//               .filter(([field]) => !allStrings.includes(prefString(field)[1]))
+//               .sort((a, b) => a[0].localeCompare(b[0]))
+//               .map(([field, value]) =>
+//                 h(Preference, { field, value, root: node.root })
+//               )
+//           );
+//         },
+//         (trigger) => trigger === "always"
+//       )
+//     ),
+// ]);
 
 function prefString(name) {
   const [prefix, ...rest] = name.split(":");
@@ -189,7 +183,7 @@ function methodIcon(method) {
       set: "toggle_on",
       setShortcut: "keyboard",
       addDefaultExtension: "extension",
-    }[method.text]
+    }[method.text],
   );
 }
 
@@ -199,7 +193,7 @@ function prefIcon(name) {
     {
       shortcut: "keyboard",
       "default-extension": "extension",
-    }[prefix] ?? "toggle_on"
+    }[prefix] ?? "toggle_on",
   );
 }
 
@@ -224,8 +218,8 @@ function Preference({ field, value, root }) {
       "td",
       {},
       button(JSON.stringify(value), () =>
-        _setUserPreference(root, name, JSON.parse(prompt()), prefMethod(field))
-      )
-    )
+        _setUserPreference(root, name, JSON.parse(prompt()), prefMethod(field)),
+      ),
+    ),
   );
 }

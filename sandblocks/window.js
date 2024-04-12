@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "../external/preact-hooks.mjs";
 import { focusWithoutScroll, matchesKey, orParentThat } from "../utils.js";
-import { preferences } from "../view/preferences.js";
+import { preferences } from "../core/preferences.js";
 import { h, button, registerPreactElement, render } from "../view/widgets.js";
 import { List } from "./list.js";
 import { getPreferenceOr } from "./preference-window.js";
@@ -26,7 +26,7 @@ function updateFocus(target) {
   while (target?.shadowRoot) {
     const inner = target.shadowRoot.elementFromPoint(
       globalMousePos.x,
-      globalMousePos.y
+      globalMousePos.y,
     );
     if (!inner || inner === target) break;
     target = inner;
@@ -66,13 +66,14 @@ export function Window({
   initialPosition,
   initialSize,
   doNotStartAttached,
+  fullscreen,
 }) {
   initialSize ??= { x: 500, y: 200 };
   const [position, setPosition] = useState(
     initialPosition ?? {
       x: globalMousePos.x - initialSize.x / 2,
       y: globalMousePos.y - initialSize.y / 2,
-    }
+    },
   );
   const [title, setTitle] = useState(initialTitle ?? "");
   const [size, setSize] = useState(initialSize);
@@ -89,7 +90,7 @@ export function Window({
 
   const raise = () => {
     const all = [...document.querySelectorAll("sb-window")].sort(
-      (a, b) => a.style.zIndex - b.style.zIndex
+      (a, b) => a.style.zIndex - b.style.zIndex,
     );
     all.splice(all.indexOf(root), 1);
     all.push(root);
@@ -143,6 +144,23 @@ export function Window({
   display: flex;
   flex-direction: column;
 }
+.sb-window.fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  border: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.sb-window.fullscreen .sb-window-bar {
+  display: none;
+}
+.sb-window.fullscreen .sb-window-resize {
+  display: none;
+}
 
 .sb-window-bar {
   background-color: #ccc;
@@ -178,13 +196,13 @@ export function Window({
   flex-direction: column;
   flex-grow: 1;
   min-height: 0;
-}`
+}`,
     ),
     h(
       "div",
       {
         ref: windowRef,
-        class: "sb-window",
+        class: "sb-window " + (fullscreen ? "fullscreen" : ""),
         style: {
           left: position.x,
           top: position.y,
@@ -209,7 +227,7 @@ export function Window({
             onMove: (delta) =>
               setPosition((p) => ({ x: p.x + delta.x, y: p.y + delta.y })),
           },
-          [button("x", close), title]
+          [button("x", close), title],
         ),
         h("div", { class: "sb-window-content" }, children, h("slot")),
         initialPlacement &&
@@ -224,7 +242,7 @@ export function Window({
           onMove: (delta) =>
             setSize((p) => ({ x: p.x + delta.x, y: p.y + delta.y })),
         }),
-      ]
+      ],
     ),
   ];
 }
@@ -275,7 +293,7 @@ function MoveHandle({ onMove, onFinish, children, startAttached, ...props }) {
       },
       ...props,
     },
-    children
+    children,
   );
 }
 
@@ -291,7 +309,7 @@ export function confirmUnsavedChanges() {
         ],
         cancelActionIndex: 1,
       },
-      { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } }
+      { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } },
     );
   });
 }
@@ -302,7 +320,7 @@ export function choose(items, labelFunc) {
     openComponentInWindow(
       Choose,
       { items, labelFunc, resolve },
-      { doNotStartAttached: true, initialSize: { x: 200, y: "auto" } }
+      { doNotStartAttached: true, initialSize: { x: 200, y: "auto" } },
     );
   });
 }
@@ -330,8 +348,8 @@ function Choose({ items, labelFunc, resolve, window }) {
             resolve(i);
           },
           height: "10rem",
-        })
-      )
+        }),
+      ),
     ),
     actions: [
       ["Cancel", () => resolve(null)],
@@ -378,10 +396,10 @@ export function Dialog({ body, actions, cancelActionIndex, window }) {
               window.close();
               action();
             },
-            autofocus
-          )
-        )
+            autofocus,
+          ),
+        ),
       ),
-    ]
+    ],
   );
 }

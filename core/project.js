@@ -20,9 +20,12 @@ export class Project extends EventTarget {
   _data = new Map();
   data(key, ifAbsent) {
     if (this._data.has(key)) return this._data.get(key);
-    const value = ifAbsent();
-    this._data.set(key, value);
-    return value;
+    if (ifAbsent) {
+      const value = ifAbsent();
+      this._data.set(key, value);
+      return value;
+    }
+    return null;
   }
   clearData(key) {
     this._data.delete(key);

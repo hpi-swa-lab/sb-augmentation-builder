@@ -4,7 +4,7 @@ import {
   useState,
   useMemo,
 } from "../external/preact-hooks.mjs";
-import { last } from "../utils.js";
+import { last, sequenceMatch } from "../utils.js";
 import { h } from "../view/widgets.js";
 
 function highlightSubstring(string, search) {
@@ -16,7 +16,7 @@ function highlightSubstring(string, search) {
     h(
       "span",
       { class: "search-result" },
-      string.slice(index, index + search.length)
+      string.slice(index, index + search.length),
     ),
     string.slice(index + search.length),
   ];
@@ -37,6 +37,7 @@ export function List({
   style,
   onConfirm,
   autofocus,
+  fuzzy,
 }) {
   labelFunc ??= (x) => x;
 
@@ -44,13 +45,15 @@ export function List({
 
   const [filterString, setFilterString] = useState("");
 
+  const filter = fuzzy
+    ? (query, word) => sequenceMatch(query, word, false)
+    : (query, word) => word.toLowerCase().includes(query);
+
   const visibleItems = useMemo(() => {
     return filterString === ""
       ? items
       : items
-          .filter((item) =>
-            labelFunc(item).toLowerCase().includes(filterString)
-          )
+          .filter((item) => filter(filterString, labelFunc(item)))
           .sort((a, b) => labelFunc(a).length - labelFunc(b).length);
   }, [items, filterString]);
 
@@ -108,8 +111,10 @@ export function List({
             onConfirm?.(item);
           },
         },
-        highlightSubstring(labelFunc(item), filterString)
-      )
+        fuzzy
+          ? labelFunc(item)
+          : highlightSubstring(labelFunc(item), filterString),
+      ),
     ),
     visibleItems.length < 1 &&
       items.length > 0 &&
@@ -119,7 +124,7 @@ export function List({
         "No items matching ",
         h("span", { class: "search-result" }, filterString),
         h("br"),
-        "(Press backspace to clear)"
-      )
+        "(Press backspace to clear)",
+      ),
   );
 }
