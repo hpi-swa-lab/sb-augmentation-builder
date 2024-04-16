@@ -1,16 +1,20 @@
 # Sandblocks Text
 
 <script>
-  import  {setConfig} from "./core/config.js"
-  import {Editor} from "./view/editor.js";
+import  {setConfig} from "./core/config.js"
+import * as editor from "./sandblocks/editor/editor.js"
   
-  var baseDir = lively.query(this, "lively-container").getDir()
-  setConfig({baseURL: baseDir})
+var baseDir = lively.query(this, "lively-container").getDir()
+setConfig({baseURL: baseDir})
+  
+  
+  // Editor.init()
 
-  Editor.init()
+// javascript:base javascript:dataurlimage javascript:table javascript:smileys javascript:colorstrings base:base base:identifierSuggestions editorConfig:base javascript:highlightNode
 
   var ui = await (<sb-editor
-    extensions="javascript:base javascript:dataurlimage javascript:table javascript:smileys javascript:colorstrings base:base base:identifierSuggestions editorConfig:base javascript:highlightNode"
+    language="javascript"
+    extensions="javascript:base javascript:table watch:javascript base:base base:identifierSuggestions"
     text={`console.log(sbWatch(hello, 12398482))
 
 let a = 3 + 4, c = 3
@@ -29,13 +33,10 @@ var iconURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAApCAYAAACBZ/9
 
 
 function a() {
-}`}
-    language="javascript"></sb-editor>)
+}`}></sb-editor>)
   
   
-  
-  
-  let style = <link href="https://lively-kernel.org/lively4/sandblocks-text/view/editor-style.css" rel="stylesheet" />
+  let style = <link href={baseDir + "./view/editor-style.css"} rel="stylesheet" />
   let pane = <div>{style}{ui}</div> 
   pane
 </script>

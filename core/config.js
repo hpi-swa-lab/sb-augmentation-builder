@@ -1,5 +1,8 @@
+var loc = window.location.pathname;
+var dir = loc.substring(0, loc.lastIndexOf('/')) + "/";
+
 export let config = {
-  baseURL: "/",
+  baseURL: dir,
   url(path) {
     return `${config.baseURL}${path}`;
   },
