@@ -135,7 +135,7 @@ export function QueryBuilder() {
       ...snippits,
       {
         code: code,
-        tree: typescript.parse(code),
+        tree: typescript.parseSync(code),
         selectedNodes: new Set(),
         nodeClicked: nodeClicked,
       },

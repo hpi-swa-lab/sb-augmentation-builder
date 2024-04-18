@@ -46,6 +46,10 @@ export class SBLanguage {
   }
   parse(text, oldRoot = null) {}
 
+  parseSync(text) {
+    return this._assignState(this.parse(text), text);
+  }
+
   destroyRoot(root) {}
 
   async initModelAndView(text) {
