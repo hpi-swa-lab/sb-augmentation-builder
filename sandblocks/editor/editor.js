@@ -135,6 +135,14 @@ class SandblocksShard extends BaseShard {
 
     this.addEventListener("keydown", (e) => this.onKeyDown(e));
 
+    this.addEventListener("compositionstart", () => (this._compositing = true));
+    this.addEventListener("compositionend", () => {
+      this._compositing = false;
+      if (this._compositionPendingMutations)
+        this.onMutations(this._compositionPendingMutations);
+      this._compositionPendingMutations = null;
+    });
+
     this.addEventListener("blur", (e) => this.editor.clearSuggestions());
     this.addEventListener(
       "beforeinput",
@@ -406,6 +414,12 @@ class SandblocksShard extends BaseShard {
     mutations = [...mutations, ...this.observer.takeRecords()];
     if (mutations.some((m) => m.type === "attributes")) return;
     if (!mutations.some((m) => this.isMyMutation(m))) return;
+
+    if (this._compositing) {
+      this._compositionPendingMutations ??= [];
+      this._compositionPendingMutations.push(...mutations);
+      return;
+    }
 
     ToggleableMutationObserver.ignoreMutation(() => {
       const { selectionRange, sourceString } =
