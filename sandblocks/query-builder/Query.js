@@ -1,18 +1,34 @@
 import htm from "../../external/htm.mjs";
 import { h } from "../../external/preact.mjs";
+import { editor } from "../../view/widgets.js";
+import { QueryType } from "./main.js";
 
 const html = htm.bind(h);
 
-export default function Query({ query, setQuery }) {
+export default function Query({ query }) {
   return html`
     <div>
-      <h1>Query</h1>
-      <textarea
-        width="100%"
-        value=${query}
-        onkeyup=${(e) => setQuery(e.target.value)}
+      <select
+        onChange=${(e) => {
+          query.value = {
+            ...query.value,
+            queryType: QueryType[e.target.value],
+          };
+        }}
+        selected=${query.value.queryType}
       >
-      </textarea>
+        ${Object.keys(QueryType).map((type) => {
+          return html`<option value="${type}">${type}</option>`;
+        })}
+      </select>
+      ${editor({
+        sourceString: query.value.queryString,
+        language: "javascript",
+        extensions: ["base:base", "javascript:base"],
+        onChange: (e) => {
+          query.value = { ...query.value, queryString: e };
+        },
+      })}
     </div>
   `;
 }
