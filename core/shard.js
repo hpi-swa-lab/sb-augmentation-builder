@@ -1,5 +1,6 @@
 import {
   clamp,
+  last,
   orParentThat,
   rangeContains,
   rangeDistance,
@@ -8,8 +9,10 @@ import {
 import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
 export class BaseShard extends HTMLElement {
-  // must be set before a node can be set or the shard is used
+  // must be set before the nodes field and before the shard is used
   editor = null;
+
+  nodes = [];
 
   get replacements() {
     throw "subclass responsibility";
@@ -21,19 +24,40 @@ export class BaseShard extends HTMLElement {
     this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
 
+    this.editor.ensureModels(this.requiredModels);
+
     if (!this.childNodes.length) {
       this.initView();
-      this.applyChanges(new EditBuffer(this.node.initOps()), [
-        {
-          from: this.range[0],
-          to: this.range[0],
-          insert: this.node.sourceString,
-        },
-      ]);
+      this.applyChanges(
+        [...this.editor.models.values()].map(
+          (root) =>
+            new EditBuffer(
+              this.allVisibleNodesOf(root).flatMap((n) => n.initOps()),
+            ),
+        ),
+        [
+          {
+            from: this.range[0],
+            to: this.range[0],
+            insert: this.sourceString,
+          },
+        ],
+      );
     }
   }
   disconnectedCallback() {
     this.editor.shards.delete(this);
+  }
+
+  get requiredModels() {
+    return new Set(this.extensions().flatMap((e) => [...e.requiredModels]));
+  }
+
+  get sourceString() {
+    return this.editor.sourceString.slice(
+      this.nodes[0].range[0],
+      last(this.nodes).range[1],
+    );
   }
 
   get parentShard() {
@@ -41,11 +65,10 @@ export class BaseShard extends HTMLElement {
   }
 
   get range() {
+    const r = [this.nodes[0].range[0], last(this.nodes).range[1]];
     // FIXME both node and editor are set by Preact as props,
     // we can't guarantee the order in which they are set
-    return this.editor
-      ? this.editor.adjustRange(this.node.range, false)
-      : this.node.range;
+    return this.editor ? this.editor.adjustRange(r, false) : r;
   }
 
   get extensionMarkers() {
@@ -107,6 +130,7 @@ export class BaseShard extends HTMLElement {
     if (!rangeContains(this.range, range)) return null;
 
     let candidate = null;
+    console.assert(false, "fixme");
     for (const child of this.node.allNodes()) {
       if (!this.isShowing(child)) continue;
       const [start, end] = child.range;
@@ -128,14 +152,14 @@ export class BaseShard extends HTMLElement {
     return null;
   }
 
-  set node(n) {
-    this._node?.shards.remove(this);
-    this._node = n;
-    n?.shards.push(this);
+  set nodes(n) {
+    for (const node of this._nodes ?? []) node.shards.remove(this);
+    this._nodes = n;
+    for (const node of this._nodes ?? []) node.shards.push(this);
   }
 
-  get node() {
-    return this._node;
+  get nodes() {
+    return this._nodes;
   }
 
   get hasFocus() {
@@ -146,11 +170,11 @@ export class BaseShard extends HTMLElement {
     throw "subclass responsibility";
   }
 
-  applyChanges(editBuffer, changes) {
+  applyChanges(editBuffers, changes) {
     throw "subclass responsibility";
   }
 
-  applyRejectedDiff(editBuffer, changes) {
+  applyRejectedDiff(changes) {
     throw "subclass responsibility";
   }
 
@@ -208,7 +232,34 @@ export class BaseShard extends HTMLElement {
     return view;
   }
 
+  *allVisibleNodesOf(root) {
+    for (const node of this.firstChildrenInRangeOf(root)) {
+      yield* this.visibleNodesOf(node);
+    }
+  }
+
+  *visibleNodesOf(root) {
+    if (this.isShowing(root)) {
+      for (const child of root.children) {
+        yield* this.visibleNodesOf(child);
+      }
+      yield root;
+    }
+  }
+
+  *firstChildrenInRangeOf(root) {
+    if (rangeContains(this.range, root.range)) {
+      yield root;
+    } else {
+      for (const node of root.children) {
+        yield* this.firstChildrenInRangeOf(node);
+      }
+    }
+  }
+
   updateReplacements(editBuffer) {
+    if (editBuffer.empty) return;
+
     // check for replacements that are now gone because their node was removed
     for (const op of editBuffer.negBuf) {
       if (op instanceof RemoveOp) {
@@ -231,22 +282,25 @@ export class BaseShard extends HTMLElement {
     for (const root of changedNodes) {
       for (const node of root.andAllParents()) {
         const replacement = this.getReplacementFor(node);
-        if (replacement && !node.exec(...replacement.query))
+        if (replacement && !replacement.query.match(node))
           this.uninstallReplacement(node, editBuffer);
       }
     }
 
     // re-render remaining replacements (FIXME we're currently re-rendering all)
     for (const replacement of this.replacements) {
-      console.assert(replacement.node.connected);
-      if (replacement.rerender?.(editBuffer)) replacement.render();
+      if (replacement.node.language === editBuffer.language) {
+        console.assert(replacement.node.connected);
+        if (replacement.rerender?.(editBuffer)) replacement.render();
+      }
     }
 
     // check for new replacements
     for (const root of changedNodes) {
       for (const extension of this.extensionReplacements) {
+        if (extension.query.model !== root.language) continue;
         let node = root;
-        for (let i = 0; i <= extension.queryDepth; i++) {
+        for (let i = 0; i <= extension.query.queryDepth; i++) {
           if (!node || !this.isShowing(node)) continue;
           if (this.mayReplace(node, extension))
             this.installReplacement(node, extension);
@@ -258,7 +312,7 @@ export class BaseShard extends HTMLElement {
 
   mayReplace(node, extension) {
     if (this.getReplacementFor(node)) return false;
-    if (!node?.exec(...extension.query)) return false;
+    if (!extension.query.match(node)) return false;
     if (this.parentShard?.replacements.some((r) => r.node === node))
       return false;
     return true;
@@ -273,11 +327,11 @@ export class BaseShard extends HTMLElement {
     ]) {
       for (const extension of this.extensionMarkers) {
         let node = root;
-        for (let i = 0; i <= extension.queryDepth; i++) {
+        for (let i = 0; i <= extension.query.queryDepth; i++) {
           const markers = this.getMarkersFor(node);
           if (!markers) continue;
           const marker = markers.get(extension.name);
-          const match = node?.exec(...extension.query);
+          const match = extension.query.match(node);
           if (!marker && match) {
             markers.set(extension.name, extension);
             extension.attach(this, node);
@@ -331,7 +385,7 @@ export class BaseShard extends HTMLElement {
   }
 
   candidatePositionForIndex(index, other) {
-    if (!this.node || !this.isConnected)
+    if (!this.nodes.length || !this.isConnected)
       return { position: null, distance: Infinity };
 
     if (index < this.range[0] || index > this.range[1])

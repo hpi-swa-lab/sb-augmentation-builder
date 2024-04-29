@@ -1,4 +1,6 @@
 import { Extension } from "../core/extension.js";
+import { languageFor } from "../core/languages.js";
+import { SBMatcher } from "../core/model.js";
 import {
   DeletionInteraction,
   SelectionInteraction,
@@ -11,20 +13,23 @@ import { html, markInputEditable } from "../view/widgets.js";
 import { AddButton } from "../view/widgets/shard-array.js";
 
 export const table = new Extension().registerReplacement({
-  queryDepth: 3,
   selection: SelectionInteraction.StartAndEnd,
   name: "sb-js-table",
   rerender: () => true,
-  query: [
-    (x) => x.type === "array",
-    (x) => x.childBlocks.length > 0,
-    (x) =>
-      x.childBlocks.every(
-        (ea) =>
-          ea.type == "array" &&
-          ea.childBlocks.length === x.childBlocks[0].childBlocks.length,
-      ),
-  ],
+  query: new SBMatcher(
+    languageFor("javascript"),
+    [
+      (x) => x.type === "array",
+      (x) => x.childBlocks.length > 0,
+      (x) =>
+        x.childBlocks.every(
+          (ea) =>
+            ea.type == "array" &&
+            ea.childBlocks.length === x.childBlocks[0].childBlocks.length,
+        ),
+    ],
+    3,
+  ),
   component: ({ node, replacement }) => {
     useStickyReplacementValidator(replacement);
     const add = (index, column) => {
@@ -78,11 +83,10 @@ export const table = new Extension().registerReplacement({
 });
 
 export const testValueShow = new Extension().registerReplacement({
-  query: [
+  query: new SBMatcher(languageFor("javascript"), [
     (x) => x.compatibleWith("expression"),
     (x) => x.sourceString.length < 10,
-  ],
-  queryDepth: 1,
+  ]),
   component: ({ node }) =>
     h(
       "span",
@@ -95,8 +99,7 @@ export const testValueShow = new Extension().registerReplacement({
 
 export const testValueHover = new Extension().registerEventListener({
   name: "sb-js-test-value-hover",
-  query: [(x) => x.type === "number"],
-  queryDepth: 1,
+  query: new SBMatcher(languageFor("javascript"), [(x) => x.type === "number"]),
   event: "mouseenter",
   callback: (e, shard, node) => {
     shard.withDom(node, (dom) => {
@@ -126,11 +129,13 @@ function toggle(e) {
 
 export const PLACEHOLDER = "__sb_placeholder";
 export const base = new Extension()
+  .defaultModel(languageFor("javascript"))
   .registerReplacement({
-    query: [(x) => x.type === "identifier" && x.text === PLACEHOLDER],
+    query: new SBMatcher(languageFor("javascript"), [
+      (x) => x.type === "identifier" && x.text === PLACEHOLDER,
+    ]),
     name: "sb-js-placeholder",
     deletion: DeletionInteraction.Full,
-    queryDepth: 1,
     component: ({ node }) =>
       h("input", {
         ref: markInputEditable,
@@ -146,9 +151,10 @@ export const base = new Extension()
   })
 
   .registerMarker({
-    query: [(x) => x.type === "true" || x.type === "false"],
+    query: new SBMatcher(languageFor("javascript"), [
+      (x) => x.type === "true" || x.type === "false",
+    ]),
     name: "sb-js-boolean",
-    queryDepth: 1,
     attach: (shard, node) =>
       shard.withDom(node, (dom) => dom.addEventListener("dblclick", toggle)),
     detach: (shard, node) =>

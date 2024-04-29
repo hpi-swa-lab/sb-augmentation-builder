@@ -2,6 +2,41 @@ import { WeakArray, exec, last, rangeEqual } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 import { OffscreenEditor } from "./editor.js";
 
+export class SBMatcher {
+  constructor(model, steps, queryDepth = 1) {
+    this.steps = steps;
+    this.model = model;
+    this.queryDepth = queryDepth;
+  }
+
+  match(node) {
+    return exec(node, ...this.steps);
+  }
+
+  modelFor(editor) {
+    return this.model;
+  }
+
+  get requiredModels() {
+    return [this.model];
+  }
+}
+
+export class SBDefaultLanguageMatcher extends SBMatcher {
+  constructor(steps, queryDepth = 1) {
+    super(null, steps, queryDepth);
+  }
+
+  modelFor(editor) {
+    for (const model of editor.models) if (model.canBeDefault) return model;
+    for (const model of editor.models) return model;
+  }
+
+  get requiredModels() {
+    return [];
+  }
+}
+
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
     cyrb53 (c) 2018 bryc (github.com/bryc)
@@ -44,53 +79,60 @@ export class SBLanguage {
   compatibleType(type, other) {
     return type === other;
   }
-  parse(text, oldRoot = null) {}
-
-  parseSync(text) {
-    return this._assignState(this.parse(text), text);
+  _parse(text, oldRoot = null) {
+    throw "subclass responsibility";
   }
 
-  destroyRoot(root) {}
-
-  async initModelAndView(text) {
-    await this.ready();
-
-    text = this._ensureTrailingLineBreak(text);
-    return this._assignState(this.parse(text), text);
+  parseSync(text, editor) {
+    return this._assignState(this._parse(text), text, editor);
   }
-
   async parseOffscreen(text) {
-    await this.ready();
-    const root = this.parse(text);
-    root._language = this;
-    root._sourceString = text;
+    const root = await this.parse(text);
     root._editor = new OffscreenEditor(root);
     return root;
   }
 
-  updateModelAndView(text, oldRoot) {
+  async parse(text, editor) {
+    await this.ready();
+    return this.parseSync(text, editor);
+  }
+  reParse(text, oldRoot) {
     console.assert(oldRoot);
-    text = this._ensureTrailingLineBreak(text);
 
     const { tx, root, diff } = new TrueDiff().applyEdits(
       oldRoot,
-      this.parse(text, oldRoot),
+      this._parse(text, oldRoot),
     );
     root._language = this;
+    root._editor = oldRoot._editor;
     tx.set(root, "_sourceString", text);
     return { tx, root, diff };
   }
 
-  _ensureTrailingLineBreak(text) {
-    return last(text) === "\n" ? text : text + "\n";
+  destroyRoot(root) {}
+
+  _assignState(root, text, editor) {
+    root._language = this;
+    root._sourceString = text;
+    root._editor = editor;
+    return root;
+  }
+}
+
+class _SBBaseLanguage extends SBLanguage {
+  constructor() {
+    super({ name: "sb-base-lang", extensions: [], defaultExtensions: [] });
   }
 
-  _assignState(root, text) {
+  _parse(text, _oldRoot) {
+    const root = new SBBlock("document", null, 0, text.length, true);
     root._language = this;
     root._sourceString = text;
     return root;
   }
 }
+
+export const SBBaseLanguage = new _SBBaseLanguage();
 
 let _nodeId = 0;
 function _nextNodeId() {
@@ -176,8 +218,8 @@ class SBNode {
     ];
   }
 
-  updateModelAndView(text) {
-    return this.language.updateModelAndView(text, this);
+  reParse(text) {
+    return this.language.reParse(text, this);
   }
 
   destroy() {

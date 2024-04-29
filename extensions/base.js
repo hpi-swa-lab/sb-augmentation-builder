@@ -1,5 +1,6 @@
 import { LoadOp, RemoveOp, UpdateOp } from "../core/diff.js";
 import { Extension } from "../core/extension.js";
+import { SBDefaultLanguageMatcher } from "../core/model.js";
 import { exec, rangeEqual, rangeShift, withDo } from "../utils.js";
 import { Widget, h } from "../view/widgets.js";
 import { undo } from "./undo.js";
@@ -298,7 +299,7 @@ export const base = new Extension()
 
   .registerCss(
     "highlight",
-    [
+    new SBDefaultLanguageMatcher([
       (x) => x.isText,
       (x) => {
         const text = x.editor.selectedNode?.text;
@@ -306,8 +307,7 @@ export const base = new Extension()
       },
       // contains at least one of these
       (x) => !!x.text.match(/["'A-Za-z0-9_\-:]+/),
-    ],
-    1,
+    ]),
   )
   .registerSelection((node, view, editor) =>
     editor.updateMarker("css:highlight"),

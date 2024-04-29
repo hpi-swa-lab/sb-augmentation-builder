@@ -1,4 +1,6 @@
 import { Extension } from "../core/extension.js";
+import { languageFor } from "../core/languages.js";
+import { SBBlock, SBLanguage, SBMatcher, SBText } from "../core/model.js";
 import {
   DeletionInteraction,
   SelectionInteraction,
@@ -18,34 +20,52 @@ function takeBackwardWhile(list, start, condition) {
   return list.slice(index + 1, list.indexOf(start));
 }
 
+class _SBWhitespaceModel extends SBLanguage {
+  constructor() {
+    super({ name: "whitespace" });
+  }
+  _parse(text, _old) {
+    const root = new SBBlock("document", null, 0, text.length, true);
+    const add = (type, text, start, end) => {
+      const block = new SBBlock(type, null, start, end, true);
+      block.appendChild(new SBText(text, start, end));
+      root.appendChild(block);
+    };
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "\t") add("tab", "\t", i, i + 1);
+      else if (text[i] === "\n") add("newline", "\n", i, i + 1);
+      else if (text[i] === " " && text[i + 1] === " ") {
+        add("tab", "  ", i, i + 2);
+        i++;
+      } else {
+        const start = i;
+        let s = "";
+        do {
+          s += text[i];
+          i++;
+        } while (text[i + 1] !== "\t" && text[i + 1] !== "\n");
+        add("text", s, start, i);
+      }
+    }
+    return root;
+  }
+}
+const SBWhitespaceModel = new _SBWhitespaceModel();
+
 const removeIndent = new Extension().registerReplacement({
-  query: [(x) => x.isText && x.text.includes("\n") && x.text.length > 2],
-  queryDepth: 1,
+  query: new SBMatcher(SBWhitespaceModel, [
+    (x) => x.type === "tab" && x.previousSiblingChild.type === "newline",
+  ]),
   selection: SelectionInteraction.Point,
   deletion: DeletionInteraction.SelectThenFull,
-  component: ({ node, replacement }) => {
-    const root = replacement.shard.node;
-    let minIndent = Infinity;
-    for (const child of root.allNodes())
-      if (child.isText && child.text.includes("\n"))
-        minIndent = Math.min(
-          minIndent,
-          child.text.match(/\n\s*/)?.[0].length ?? 0,
-        );
-
-    const [prefix, suffix] = node.text.split("\n", 2);
-    return h(
-      "span",
-      { style: { fontFamily: "monospace" } },
-      prefix + "\n" + (suffix ?? "").slice(minIndent - 1),
-    );
-  },
+  component: () => h("span"),
   name: "remove-indent",
 });
 
 export const javascript = new Extension().registerReplacement({
-  query: [(x) => x.type === "program"],
-  queryDepth: 1,
+  query: new SBMatcher(languageFor("javascript"), [
+    (x) => x.type === "program",
+  ]),
   rerender: () => true,
   component: ({ node, replacement }) => {
     const symbols = node.childBlocks;

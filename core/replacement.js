@@ -5,20 +5,18 @@ import { SBList } from "./model.js";
 
 export function useStickyReplacementValidator(replacement) {
   useValidator(
+    replacement.node.language,
     () =>
       replacement.node.connected && replacement.node.exec(...replacement.query),
     [replacement.node, replacement.query],
   );
 }
 
-export function useValidator(func, deps) {
+export function useValidator(model, func, deps) {
   if (deps === undefined)
     throw new Error("no dependencies for useValidator provided");
   const owner = useContext(ShardContext);
-  useEffect(() => {
-    owner.editor.registerValidator(func);
-    return () => owner.editor.unregisterValidator(func);
-  }, deps);
+  useEffect(() => owner.editor.registerValidator(model, func), deps);
 }
 
 export const SelectionInteraction = {
@@ -34,13 +32,18 @@ export const DeletionInteraction = {
 
 const ShardContext = createContext(null);
 
-export function Shard({ node, sticky, ...props }) {
+export function Shard({ node, nodes, sticky, ...props }) {
   if (!node.editor) throw new Error("node has become disconnected");
 
-  useValidator(() => (sticky ? node.connected : true), [node, sticky]);
+  useValidator(node.language, () => (sticky ? node.connected : true), [
+    node,
+    sticky,
+  ]);
+
+  const list = useMemo(() => nodes || [node], [node, nodes]);
 
   return h(node.editor.constructor.shardTag, {
-    node,
+    nodes: list,
     key: node.id,
     editor: node.editor,
     ...props,
@@ -51,6 +54,7 @@ export function ShardList({ list, sticky, ...props }) {
   const node = useMemo(() => new SBList(list), list);
 
   useValidator(
+    list[0].language,
     () => (sticky ? list.every((n) => n.connected) : true),
     [...list, sticky],
   );

@@ -14,6 +14,10 @@ export class TreeSitterLanguage extends SBLanguage {
   _readyPromise = null;
   tsLanguage = null;
 
+  get canBeDefault() {
+    return true;
+  }
+
   constructor({
     repo,
     branch,
@@ -107,7 +111,7 @@ export class TreeSitterLanguage extends SBLanguage {
     return grammar;
   }
 
-  parse(text, oldRoot = null) {
+  _parse(text, oldRoot = null) {
     const parser = new TreeSitter();
     parser.setLanguage(this.tsLanguage);
 
@@ -128,7 +132,7 @@ export class TreeSitterLanguage extends SBLanguage {
 
   parseExpression(string) {
     const source = `${this.parseConfig.parseExpressionPrefix}${string}${this.parseConfig.parseExpressionSuffix}`;
-    const root = this.parse(source);
+    const root = this._parse(source);
     this.destroyRoot(root);
     return this.parseConfig.unwrapExpression(root);
   }
@@ -566,7 +570,7 @@ export class TreeSitterComposedLanguage extends SBLanguage {
 
   // TODO compatibleType and separatorContext
 
-  parse(text, oldRoot = null) {
+  _parse(text, oldRoot = null) {
     // TODO use includedRanges instead
     const newRoot = this.baseLanguage.parse(text, oldRoot);
     const update = [];

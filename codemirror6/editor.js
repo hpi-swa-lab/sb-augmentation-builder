@@ -1,9 +1,14 @@
-import { last, orParentThat, rangeContains, rangeShift } from "../utils.js";
+import {
+  last,
+  orParentThat,
+  rangeContains,
+  rangeIntersects,
+  rangeShift,
+} from "../utils.js";
 import { BaseEditor } from "../core/editor.js";
 import { BaseShard } from "../core/shard.js";
 import {
   EditorView,
-  basicSetup,
   RangeSet,
   StateField,
   Prec,
@@ -136,7 +141,7 @@ class CodeMirrorShard extends BaseShard {
       doc: "",
       extensions: [
         ...baseCMExtensions,
-        ...(this.node.isRoot ? extraCMExtensionsForRoot : []),
+        ...(this.nodes[0].isRoot ? extraCMExtensionsForRoot : []),
         Prec.highest(
           keymap.of([
             {
@@ -170,7 +175,7 @@ class CodeMirrorShard extends BaseShard {
             (context) => {
               if (
                 !this.suggestionAnchor ||
-                !this.node?.connected ||
+                !this.nodes[0]?.connected ||
                 !this.isShowing(this.suggestionAnchor)
               )
                 return null;
@@ -190,7 +195,7 @@ class CodeMirrorShard extends BaseShard {
       parent: this,
     });
 
-    if (!this.node.isRoot)
+    if (!this.nodes[0].isRoot)
       this.cm.dom.style.cssText = "display: inline-flex !important";
   }
 
@@ -236,19 +241,21 @@ class CodeMirrorShard extends BaseShard {
         [v.state.selection.main.head, v.state.selection.main.anchor],
         this.range[0],
       );
+      last(changes).sideAffinity =
+        this.range[0] === last(changes).from ? 1 : -1;
       this.onTextChanges(changes);
 
       if (
-        this.node.connected &&
+        this.nodes[0]?.connected &&
         this.editor.pendingChanges.value.length === 0 &&
-        this.node.sourceString !== this.cm.state.doc.toString()
+        this.sourceString !== this.cm.state.doc.toString()
       ) {
         this.cm.dispatch({
           changes: [
             {
               from: 0,
               to: this.cm.state.doc.length,
-              insert: this.node.sourceString,
+              insert: this.sourceString,
             },
           ],
           userEvent: "sync",
@@ -294,11 +301,13 @@ class CodeMirrorShard extends BaseShard {
     return anyChange;
   }
 
-  applyChanges(editBuffer, changes) {
+  applyChanges(editBuffers, changes) {
     this._applyTextChanges(changes);
 
-    this.updateReplacements(editBuffer);
-    this.updateMarkers(editBuffer);
+    for (const editBuffer of editBuffers) {
+      this.updateReplacements(editBuffer);
+      this.updateMarkers(editBuffer);
+    }
 
     this.cm.dispatch({ userEvent: "sync" });
   }
@@ -333,7 +342,7 @@ class CodeMirrorShard extends BaseShard {
     this.cm.dispatch({ userEvent: "replacements" });
   }
 
-  applyRejectedDiff(editBuffer, changes) {
+  applyRejectedDiff(changes) {
     this._applyTextChanges(changes);
     this.cm.dispatch({ userEvent: "sync" });
     return [
@@ -358,7 +367,7 @@ class CodeMirrorShard extends BaseShard {
     if (!rangeContains(this.range, node.range)) return false;
 
     for (const replacement of this.replacements) {
-      if (rangeContains(replacement.range, node.range)) return false;
+      if (rangeIntersects(replacement.range, node.range)) return false;
     }
 
     return true;

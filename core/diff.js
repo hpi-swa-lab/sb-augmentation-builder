@@ -456,6 +456,12 @@ export class EditBuffer {
     this.pendingDetached = [];
     this.pendingLoaded = [];
   }
+  get language() {
+    return this.posBuf[0]?.node?.language ?? this.negBuf[0]?.node?.language;
+  }
+  get empty() {
+    return this.posBuf.length === 0 && this.negBuf.length === 0;
+  }
   notePendingDetached(node) {
     this.pendingDetached.push(node);
   }

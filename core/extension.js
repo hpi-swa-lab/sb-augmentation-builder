@@ -1,5 +1,5 @@
-import { exec, sequenceMatch } from "../utils.js";
 import { config } from "./config.js";
+import { SBMatcher } from "./model.js";
 
 // An extension groups a set of functionality, such as syntax highlighting,
 // shortcuts, or key modifiers. Extensions are only instantiated once. They
@@ -108,8 +108,16 @@ export class Extension {
     return this;
   }
 
-  instance(concreteClass) {
-    return new concreteClass(this);
+  get requiredModels() {
+    return new Set([
+      ...this.markers.flatMap((a) => a.query.requiredModels),
+      ...this.replacements.flatMap((a) => a.query.requiredModels),
+    ]);
+  }
+
+  defaultModel(model) {
+    this._defaultModel = model;
+    return this;
   }
 
   custom(type) {
@@ -117,17 +125,30 @@ export class Extension {
   }
 
   registerReplacement(r) {
+    if (!(r.query instanceof SBMatcher))
+      throw new Error("query must be a matcher");
+    if (!r.query.requiredModels.every((m) => !!m))
+      throw new Error("unset model");
     this.replacements.push(r);
     return this;
   }
 
   registerMarker(r) {
+    if (!(r.query instanceof SBMatcher))
+      throw new Error("query must be a matcher");
+    if (!r.query.requiredModels.every((m) => !!m))
+      throw new Error("unset model");
     r.name = `${r.name}:${this.constructor.nextMarkerId++}`;
     this.markers.push(r);
     return this;
   }
 
   registerSyntax(cls, query, queryDepth = 1) {
+    if (Array.isArray(query)) {
+      if (!this._defaultModel)
+        throw new Error("Need a default model or a matcher");
+      query = new SBMatcher(this._defaultModel, query, queryDepth);
+    }
     return this.registerMarker({
       query,
       name: `syntax:${cls}`,
@@ -137,21 +158,19 @@ export class Extension {
     });
   }
 
-  registerCss(cls, query, queryDepth = 1) {
+  registerCss(cls, query) {
     return this.registerMarker({
       query,
       name: `css:${cls}`,
-      queryDepth,
       attach: (shard, node) => shard.cssClass(node, cls, true),
       detach: (shard, node) => shard.cssClass(node, cls, false),
     });
   }
 
-  registerEventListener({ name, query, queryDepth, event, callback }) {
+  registerEventListener({ name, query, event, callback }) {
     return this.registerMarker({
-      query,
       name,
-      queryDepth,
+      query,
       attach: (shard, node) => {
         const cb = (e) => callback(e, shard, node, dom);
         shard.withDom(node, (dom) => dom.addEventListener(event, cb));

@@ -12,6 +12,7 @@ import { h, render } from "../view/widgets.js";
 import { Extension } from "./extension.js";
 import { preferences } from "./preferences.js";
 import { setConfig } from "./config.js";
+import { SBBaseLanguage, SBLanguage } from "./model.js";
 
 preferences
   // .registerDefaultShortcut("nextSuggestion", "ArrowDown")
@@ -69,11 +70,11 @@ export class BaseEditor extends HTMLElement {
   // subclassResponsibility
   static shardTag = null;
 
+  models = new Map();
   shards = new Set();
   pendingChanges = signal([]);
   validators = new Set();
   revertChanges = [];
-  inlineExtensions = [];
   extensionData = new Map();
   // an optional field that may contain an object that knows more
   // about this editor, for instance what file is open.
@@ -105,12 +106,9 @@ export class BaseEditor extends HTMLElement {
     return this.selection.head.element ?? this.rootShard;
   }
 
+  _sourceString = "\n";
   get sourceString() {
-    return this.node.sourceString;
-  }
-
-  get language() {
-    return this.node.language;
+    return this._sourceString;
   }
 
   get tabSize() {
@@ -119,7 +117,7 @@ export class BaseEditor extends HTMLElement {
 
   static observedAttributes = ["text", "language", "extensions"];
   async attributeChangedCallback(attr, _oldValue, newValue) {
-    if (attr === "text" && newValue === this.node?.sourceString) return;
+    if (attr === "text" && newValue === this.sourceString) return;
     this._queueUpdate();
   }
 
@@ -129,7 +127,7 @@ export class BaseEditor extends HTMLElement {
     this._queuedUpdate = true;
     queueMicrotask(() => {
       this._queuedUpdate = false;
-      this.setText(this.getAttribute("text"), this.getAttribute("language"));
+      this.setText(this.getAttribute("text"));
     });
   }
 
@@ -170,21 +168,38 @@ export class BaseEditor extends HTMLElement {
     });
   }
 
-  async setText(text, language) {
-    this.node = await languageFor(language).initModelAndView(text);
+  async ensureModels(list, updateAll = false) {
+    for (const model of list)
+      if (!this.models.has(model) || updateAll)
+        this.models.set(model, await model.parse(this.sourceString, this));
+  }
+
+  async setText(text) {
+    this._sourceString = this._ensureTrailingLineBreak(text);
+
     this.firstElementChild?.remove();
     this.rootShard = document.createElement(this.constructor.shardTag);
+
     const extensions = await Promise.all(
       (this.getAttribute("extensions") ?? "")
         .split(" ")
         .filter((ext) => ext.length > 0)
         .map((ext) => Extension.get(ext)),
     );
-    this.rootShard.extensions = () => [...extensions, ...this.inlineExtensions];
+    this.rootShard.extensions = () => [
+      ...extensions,
+      ...(this.extensions ?? []),
+    ];
+    await this.ensureModels(
+      [SBBaseLanguage, ...this.rootShard.requiredModels],
+      true,
+    );
+
     for (const extension of this.allExtensions())
       for (const func of extension.connected) func(this);
     this.rootShard.editor = this;
-    this.rootShard.node = this.node;
+    this.rootShard.nodes = [this.models.get(SBBaseLanguage)];
+
     this.appendChild(this.rootShard);
     this.onSelectionChange({
       head: this.rootShard.positionForIndex(0),
@@ -193,12 +208,12 @@ export class BaseEditor extends HTMLElement {
     this.dispatchEvent(new Event("ready"));
   }
 
-  registerValidator(cb) {
-    this.validators.add(cb);
-  }
-
-  unregisterValidator(cb) {
-    this.validators.delete(cb);
+  async registerValidator(model, cb) {
+    if (!(model instanceof SBLanguage)) throw new Error("no model given");
+    const p = [model, cb];
+    this.validators.add(p);
+    await this.ensureModels([model]);
+    return () => this.validators.delete(p);
   }
 
   // hook that may be implemented by editors for cleaning up
@@ -217,19 +232,20 @@ export class BaseEditor extends HTMLElement {
       }
     }
 
-    if (selection.head.index !== undefined) {
-      const node = selection.head.element.selectedFor?.(this.selectionRange);
-      const view = selection.head.element.viewFor?.(node);
-      if (node && node !== this._selectedNode) {
-        this._selectedNode = node;
-        this._selectedView = view;
-        for (const shard of this.shards) {
-          for (const ext of shard.extensions()) {
-            for (const func of ext.selection) func(node, view, this);
-          }
-        }
-      }
-    }
+    // TODO
+    // if (selection.head.index !== undefined) {
+    //   const node = selection.head.element.selectedFor?.(this.selectionRange);
+    //   const view = selection.head.element.viewFor?.(node);
+    //   if (node && node !== this._selectedNode) {
+    //     this._selectedNode = node;
+    //     this._selectedView = view;
+    //     for (const shard of this.shards) {
+    //       for (const ext of shard.extensions()) {
+    //         for (const func of ext.selection) func(node, view, this);
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   replaceTextFromCommand(range, text) {
@@ -267,46 +283,54 @@ export class BaseEditor extends HTMLElement {
     }
 
     const oldSelection = this.selectionRange;
-    const oldSource = this.node.sourceString;
+    const oldSource = this.sourceString;
     let newSource = oldSource;
     const allChanges = [...this.pendingChanges.value, ...changes];
     for (const { from, to, insert } of allChanges) {
       newSource =
         newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
     }
+    newSource = this._ensureTrailingLineBreak(newSource);
 
-    const { diff, tx, root } = this.node.updateModelAndView(newSource);
-    const oldRoot = this.node;
-    this.node = root;
-
+    const update = [...this.models.values()].map((n) => n.reParse(newSource));
     if (!forceApply) {
-      for (const validator of this.validators) {
-        if (!validator(root, diff, allChanges)) {
-          this.determineSideAffinity(root, allChanges);
+      for (const { diff, root } of update) {
+        for (const [validateModel, validator] of this.validators) {
+          if (
+            root.language === validateModel &&
+            !validator(root, diff, allChanges)
+          ) {
+            this.determineSideAffinity(root, allChanges);
 
-          tx.rollback();
-          this.node = oldRoot;
-          this.pendingChanges.value = [
-            ...this.pendingChanges.value,
-            ...changes,
-          ];
-          for (const shard of this.shards)
-            this.revertChanges.push(...shard.applyRejectedDiff(diff, changes));
-          this.selectRange(
-            last(allChanges).selectionRange ?? this.selectionRange,
-          );
-          return false;
+            for (const { tx } of update) tx.rollback();
+            this.pendingChanges.value = [
+              ...this.pendingChanges.value,
+              ...changes,
+            ];
+            for (const shard of this.shards)
+              this.revertChanges.push(...shard.applyRejectedDiff(changes));
+            this.selectRange(
+              last(allChanges).selectionRange ?? this.selectionRange,
+            );
+            return false;
+          }
         }
       }
     }
 
+    for (const { tx } of update) tx.commit();
+    this.models = new Map(update.map(({ root }) => [root.language, root]));
+    this._sourceString = newSource;
     this.onSuccessfulChange();
-    tx.commit();
 
     // may create or delete shards while iterating, so iterate over a copy
     for (const shard of [...this.shards]) {
       // if we are deleted while iterating, don't process diff
-      if (shard.node?.connected) shard.applyChanges(diff, changes);
+      if (shard.nodes[0]?.connected)
+        shard.applyChanges(
+          update.map((u) => u.diff),
+          changes,
+        );
     }
 
     this.pendingChanges.value = [];
@@ -315,14 +339,21 @@ export class BaseEditor extends HTMLElement {
     this.selectRange(last(allChanges).selectionRange ?? this.selectionRange);
 
     this.clearSuggestions();
-    for (const extension of this.allExtensions()) {
-      for (const func of extension.changesApplied)
-        func(changes, oldSource, newSource, this.node, diff, oldSelection);
-    }
+    // TODO
+    // for (const extension of this.allExtensions()) {
+    //   for (const func of extension.changesApplied) {
+    //     console.assert(false, "fixme");
+    //     func(changes, oldSource, newSource, this.node, diff, oldSelection);
+    //   }
+    // }
 
     this.dispatchEvent(
       new CustomEvent("change", { detail: this.sourceString }),
     );
+  }
+
+  _ensureTrailingLineBreak(text) {
+    return last(text) === "\n" ? text : text + "\n";
   }
 
   // if we have a pending change, we need to figure out to which node it contributed to.
@@ -396,7 +427,7 @@ export class BaseEditor extends HTMLElement {
   }
 
   get range() {
-    return [0, this.node.sourceString.length];
+    return [0, this.sourceString.length];
   }
 
   selectRange([from, to], scrollIntoView = false) {

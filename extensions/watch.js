@@ -1,4 +1,6 @@
 import { Extension } from "../core/extension.js";
+import { languageFor } from "../core/languages.js";
+import { SBMatcher } from "../core/model.js";
 import { Slot, useStickyReplacementValidator } from "../core/replacement.js";
 import { useEffect, useState } from "../external/preact-hooks.mjs";
 import { socket } from "../sandblocks/host.js";
@@ -8,8 +10,11 @@ import { html } from "../view/widgets.js";
 function makeWatchExtension(config) {
   return new Extension()
     .registerReplacement({
-      query: [(x) => x.query(config.query)],
-      queryDepth: config.queryDepth,
+      query: new SBMatcher(
+        config.model,
+        [(x) => x.query(config.query)],
+        config.queryDepth,
+      ),
       name: "sb-watch",
       component: Watch,
     })
@@ -29,6 +34,7 @@ function makeWatchExtension(config) {
 }
 
 export const javascriptInline = makeWatchExtension({
+  model: languageFor("javascript"),
   query: `sbWatch($expr, $identifier)`,
   queryDepth: 3,
   exprNesting: 2,
@@ -36,6 +42,7 @@ export const javascriptInline = makeWatchExtension({
 });
 
 export const javascript = makeWatchExtension({
+  model: languageFor("javascript"),
   query: `["sbWatch",
     ((e) => (
       fetch("http://localhost:3000/sb-watch", {

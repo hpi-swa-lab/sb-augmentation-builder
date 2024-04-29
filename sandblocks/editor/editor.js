@@ -169,7 +169,7 @@ class SandblocksShard extends BaseShard {
   }
 
   initView() {
-    this.actualSourceString = this.node.sourceString;
+    this.actualSourceString = this.sourceString;
   }
 
   viewFor(node) {
@@ -214,7 +214,7 @@ class SandblocksShard extends BaseShard {
     f(this.views.get(node));
   }
 
-  applyRejectedDiff(_editBuffer, changes) {
+  applyRejectedDiff(changes) {
     return changes
       .map((change) => this.applyRejectedChange(change))
       .filter((n) => n);
