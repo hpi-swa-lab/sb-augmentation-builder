@@ -1,4 +1,5 @@
-import { checkIfDAG } from "./dag.js";
+import { checkIfDAG, getExecutionOrder } from "./dag.js";
+import { Pipeline, PipelineNode } from "./piplineNode.js";
 
 const tests = [];
 const configStack = [{}];
@@ -65,23 +66,68 @@ function tick() {
 //TODO Write Test test for tree
 
 test("validDAG", async () => {
-  const graph = {
-    NodeA: { name: "NodeA", adjacentTo: ["NodeB", "NodeC"] },
-    NodeB: { name: "NodeB", adjacentTo: ["NodeC", "NodeD"] },
-    NodeC: { name: "NodeC", adjacentTo: [] },
-    NodeD: { name: "NodeD", adjacentTo: [] },
-  };
+  const graph = new Pipeline();
+  const nodeA = new PipelineNode("NodeA", () => console.log(self.name));
+  const nodeB = new PipelineNode("NodeB", () => console.log(self.name));
+  const nodeC = new PipelineNode("NodeC", () => console.log(self.name));
+  const nodeD = new PipelineNode("NodeD", () => console.log(self.name));
+
+  nodeA.addConnection(nodeB);
+  nodeA.addConnection(nodeC);
+  nodeB.addConnection(nodeC);
+  nodeB.addConnection(nodeD);
+
+  graph.addNode(nodeA);
+  graph.addNode(nodeB);
+  graph.addNode(nodeC);
+  graph.addNode(nodeD);
   assertTrue(checkIfDAG(graph));
 });
 
 test("invalidDAG", async () => {
-  const graph = {
-    NodeA: { name: "NodeA", adjacentTo: ["NodeB", "NodeC"] },
-    NodeB: { name: "NodeB", adjacentTo: ["NodeC", "NodeD", "NodeA"] },
-    NodeC: { name: "NodeC", adjacentTo: [] },
-    NodeD: { name: "NodeD", adjacentTo: [] },
-  };
+  const graph = new Pipeline();
+  const nodeA = new PipelineNode("NodeA", () => console.log(self.name));
+  const nodeB = new PipelineNode("NodeB", () => console.log(self.name));
+  const nodeC = new PipelineNode("NodeC", () => console.log(self.name));
+  const nodeD = new PipelineNode("NodeD", () => console.log(self.name));
+
+  nodeA.addConnection(nodeB);
+  nodeA.addConnection(nodeC);
+  nodeB.addConnection(nodeC);
+  nodeB.addConnection(nodeD);
+  nodeC.addConnection(nodeA);
+
+  graph.addNode(nodeA);
+  graph.addNode(nodeB);
+  graph.addNode(nodeC);
+  graph.addNode(nodeD);
+
   assertTrue(!checkIfDAG(graph));
+});
+
+test("executionOrder", async () => {
+  const graph = new Pipeline();
+  const nodeA = new PipelineNode("NodeA", () => console.log("A"));
+  const nodeB = new PipelineNode("NodeB", () => console.log("B"));
+  const nodeC = new PipelineNode("NodeC", () => console.log("C"));
+  const nodeD = new PipelineNode("NodeD", () => console.log("D"));
+
+  nodeA.addConnection(nodeB);
+  nodeA.addConnection(nodeC);
+  nodeB.addConnection(nodeC);
+  nodeB.addConnection(nodeD);
+  nodeC.addConnection(nodeD);
+
+  graph.addNode(nodeA);
+  graph.addNode(nodeB);
+  graph.addNode(nodeC);
+  graph.addNode(nodeD);
+
+  assertEq(
+    getExecutionOrder(graph).map((node) => node.name),
+    ["NodeA", "NodeB", "NodeC", "NodeD"],
+  );
+  assertTrue(checkIfDAG(graph));
 });
 
 run();

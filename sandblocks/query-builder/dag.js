@@ -1,72 +1,35 @@
-/***input from type:
- * 
- * {
- *      "NodeA": {"name": "NodeA", "adjacentTo": ["NodeB", "NodeC"]},
- *      "NodeB": {"name": "NodeB", "adjacentTo": ["NodeC", "NodeD"]},
- *      "NodeC": {"name": "NodeC", "adjacentTo": ["NodeA"]},
- *      "NodeD": {"name": "NodeD", "adjacentTo": []}
- * }
-}
- * 
- ***/
 export function checkIfDAG(graph) {
-  return topoSort(graph);
+  return topoSort(graph)[0];
+}
+
+export function getExecutionOrder(graph) {
+  const [isDag, executionOrder] = topoSort(graph);
+  if (isDag) {
+    return executionOrder;
+  }
 }
 /**
  * Implementation of Kahn's algorithm
  */
 function topoSort(graph) {
-  let graphAsList = [];
-
-  Object.keys(graph).forEach((key) => {
-    graphAsList.push({ name: key, node: graph[key] });
-  });
-
   let sortedList = [];
-  let nodesWithNoIncomming = [];
-  graphAsList.forEach((node) => {
-    let found = false;
-    graphAsList.forEach((innerNode) => {
-      if (innerNode.node.adjacentTo.includes(node.name)) {
-        found = true;
-      }
-    });
-    if (!found) {
-      nodesWithNoIncomming.push(node);
-    }
+  let nodesWithNoIncomming = graph.getAllNodes().filter((node) => {
+    let incomming = graph.getIncommingEdges(node);
+    return incomming.length == 0;
   });
   while (nodesWithNoIncomming.length != 0) {
-    const buff = nodesWithNoIncomming[nodesWithNoIncomming.length - 1];
-    nodesWithNoIncomming.splice(nodesWithNoIncomming.length - 1, 1);
+    const buff = nodesWithNoIncomming.pop();
     sortedList.push(buff);
-    buff.node.adjacentTo.forEach((name) => {
-      let conNode = getNodeByName(graph, name);
-      buff.node.adjacentTo = buff.node.adjacentTo.filter(
-        (node) => node != conNode.name,
-      );
-      if (getIncommingEdges(graphAsList, name) == 0) {
-        nodesWithNoIncomming.push(conNode);
+    buff.connections.forEach((node) => {
+      buff.removeConnection(node);
+      if (graph.getIncommingEdges(node).length == 0) {
+        nodesWithNoIncomming.push(node);
       }
     });
   }
-  return graphAsList.every((node) => node.node.adjacentTo.length == 0);
-}
-
-function getNodeByName(graph, name) {
-  let graphAsList = [];
-
-  Object.keys(graph).forEach((key) => {
-    graphAsList.push({ name: key, node: graph[key] });
-  });
-  return graphAsList.filter((node) => node.name == name)[0];
-}
-
-function getIncommingEdges(graphAsList, name) {
-  let incommingEdges = [];
-  graphAsList.forEach((node) => {
-    if (node.node.adjacentTo.includes(name)) {
-      incommingEdges.push(node.name);
-    }
-  });
-  return incommingEdges;
+  if (graph.getAllNodes().every((node) => node.connections.length == 0)) {
+    return [true, sortedList];
+  } else {
+    return [false, []];
+  }
 }
