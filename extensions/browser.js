@@ -27,7 +27,7 @@ const removeIndent = new Extension().registerReplacement({
   ]),
   selection: SelectionInteraction.Point,
   deletion: DeletionInteraction.SelectThenFull,
-  component: () => h("span"),
+  component: () => h("span", { style: { opacity: 0.2 } }, "⭾"),
   name: "remove-indent",
 });
 
