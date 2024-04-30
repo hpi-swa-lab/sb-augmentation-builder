@@ -473,6 +473,25 @@ describe("replacement", () => {
       assertEq(editor.sourceString, "a\n");
     });
   });
+
+  test("update after change", async () => {
+    const ext = new Extension().registerReplacement({
+      name: "test-hiding-replacement",
+      query: new SBMatcher(languageFor("javascript"), [
+        (x) => x.type === "number",
+      ]),
+      rerender: () => true,
+      component: ({ node }) =>
+        h("span", { style: { "background-color": "red" } }, node.text),
+    });
+    editor.extensions = [ext];
+    await editor.setText("a = ");
+    editor.selectAndFocus([4, 4]);
+    editor.simulateKeyStroke("1");
+    editor.simulateKeyStroke("2");
+    assertEq(editor.sourceString, "a = 12\n");
+    assertEq(editor.rootShard.replacements[0].range, [4, 6]);
+  });
 });
 
 describe("pending changes", () => {

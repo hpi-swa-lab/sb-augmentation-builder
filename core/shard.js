@@ -22,7 +22,8 @@ export class BaseShard extends HTMLElement {
 
   extensions = () => this.parentShard?.extensions() ?? [];
 
-  initPromise = new Promise(() => {});
+  initResolve = null;
+  initPromise = new Promise((resolve) => (this.initResolve = resolve));
 
   async connectedCallback() {
     if (this.isInitializing) return;
@@ -35,7 +36,7 @@ export class BaseShard extends HTMLElement {
     if (!this.childNodes.length) {
       await this.initView();
       this.isInitializing = false;
-      this.initPromise.resolve();
+      this.initResolve();
       this.applyChanges(
         [...this.editor.models.values()].map(
           (root) =>
