@@ -1,6 +1,5 @@
 import { effect, signal } from "../external/preact-signals-core.mjs";
 
-import { languageFor } from "./languages.js";
 import { clamp, last, sequenceMatch } from "../utils.js";
 import {
   Text,
