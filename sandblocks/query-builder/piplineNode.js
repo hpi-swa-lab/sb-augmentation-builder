@@ -43,7 +43,7 @@ export class Pipeline {
   }
 
   getNodeById(id) {
-    return this.nodes[id];
+    return this.nodes.get(id);
   }
 
   getIncommingEdges(node) {

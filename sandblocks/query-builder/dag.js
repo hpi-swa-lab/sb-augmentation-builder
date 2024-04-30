@@ -4,6 +4,7 @@ export function checkIfDAG(graph) {
 
 export function getExecutionOrder(graph) {
   const [isDag, executionOrder] = topoSort(graph);
+  debugger;
   if (isDag) {
     return executionOrder;
   }
@@ -32,6 +33,7 @@ function topoSort(graph) {
         }
       });
   }
+
   if (edges.length == 0) {
     return [true, l.map((id) => graph.getNodeById(id))];
   } else {

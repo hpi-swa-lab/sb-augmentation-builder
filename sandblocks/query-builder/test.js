@@ -67,6 +67,21 @@ function tick() {
 
 describe("check validity of DAG", () => {
   test("validDAG", async () => {
+    /*
+     * ┌─┐
+     * │A│
+     * └┬┘
+     *  │
+     *  ▼
+     * ┌─┐    ┌─┐
+     * │B├───►│C│
+     * └┬┘    └┬┘
+     *  │      │
+     *  ▼      │
+     * ┌─┐     │
+     * │D│◄────┘
+     * └─┘
+     */
     const graph = new Pipeline();
     const nodeA = new PipelineNode("NodeA", () => console.log(self.name));
     const nodeB = new PipelineNode("NodeB", () => console.log(self.name));
@@ -86,6 +101,22 @@ describe("check validity of DAG", () => {
   });
 
   test("invalidDAG", async () => {
+    /*
+     * ┌─┐
+     * │A│◄────┐
+     * └┬┘     │
+     *  │      │
+     *  ▼      │
+     * ┌─┐    ┌┴┐
+     * │B├───►│C│
+     * └┬┘    └┬┘
+     *  │      │
+     *  ▼      │
+     * ┌─┐     │
+     * │D│◄────┘
+     * └─┘
+     */
+
     const graph = new Pipeline();
     const nodeA = new PipelineNode("NodeA", () => console.log(self.name));
     const nodeB = new PipelineNode("NodeB", () => console.log(self.name));
@@ -105,10 +136,64 @@ describe("check validity of DAG", () => {
 
     assertTrue(!checkIfDAG(graph));
   });
+
+  test("onlyOneNode", async () => {
+    /*
+     * ┌─┐
+     * │A│
+     * └─┘
+     */
+    const graph = new Pipeline();
+    const nodeA = new PipelineNode("NodeA", () => {});
+
+    graph.addNode(nodeA);
+
+    assertTrue(checkIfDAG(graph));
+  });
+
+  test("smallestCircle", async () => {
+    /*
+     *   ┌─┐
+     * ┌─┤A│◄┐
+     * │ └─┘ │
+     * │     │
+     * │     │
+     * │ ┌─┐ │
+     * └►│B├─┘
+     *   └─┘
+     */
+
+    const graph = new Pipeline();
+    const nodeA = new PipelineNode("NodeA", () => {});
+    const nodeB = new PipelineNode("NodeB", () => {});
+
+    nodeA.addConnection(nodeB);
+    nodeB.addConnection(nodeA);
+
+    graph.addNode(nodeA);
+    graph.addNode(nodeB);
+
+    assertTrue(!checkIfDAG(graph));
+  });
 });
 
 describe("check execution order", () => {
   test("executionOrder", async () => {
+    /*
+     * ┌─┐
+     * │A│
+     * └┬┘
+     *  │
+     *  ▼
+     * ┌─┐    ┌─┐
+     * │B├───►│C│
+     * └┬┘    └┬┘
+     *  │      │
+     *  ▼      │
+     * ┌─┐     │
+     * │D│◄────┘
+     * └─┘
+     */
     const graph = new Pipeline();
     const nodeA = new PipelineNode("NodeA", () => console.log("A"));
     const nodeB = new PipelineNode("NodeB", () => console.log("B"));
@@ -130,7 +215,6 @@ describe("check execution order", () => {
       getExecutionOrder(graph).map((node) => node.name),
       ["NodeA", "NodeB", "NodeC", "NodeD"],
     );
-    assertTrue(checkIfDAG(graph));
   });
 });
 
