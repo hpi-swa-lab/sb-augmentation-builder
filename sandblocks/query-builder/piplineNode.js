@@ -42,12 +42,29 @@ export class Pipeline {
     return Array.from(this.nodes.values());
   }
 
+  getNodeById(id) {
+    return this.nodes[id];
+  }
+
   getIncommingEdges(node) {
     let edges = [];
     this.nodes.forEach((n, k, m) => {
       if (n.connections.map((it) => it.id).includes(node.id)) {
         edges.push(n);
       }
+    });
+  }
+
+  getAllNodesId() {
+    return Array.from(this.nodes.values()).map((node) => node.id);
+  }
+
+  getAllEdgesId() {
+    let edges = [];
+    Array.from(this.nodes.values()).forEach((node) => {
+      node.connections.forEach((connectedNode) => {
+        edges.push({ from: node.id, to: connectedNode.id });
+      });
     });
     return edges;
   }

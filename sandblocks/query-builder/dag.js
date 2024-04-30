@@ -10,25 +10,30 @@ export function getExecutionOrder(graph) {
 }
 /**
  * Implementation of Kahn's algorithm
+ * Based on pseudo code from: https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
  */
 function topoSort(graph) {
-  let sortedList = [];
-  let nodesWithNoIncomming = graph.getAllNodes().filter((node) => {
-    let incomming = graph.getIncommingEdges(node);
-    return incomming.length == 0;
-  });
-  while (nodesWithNoIncomming.length != 0) {
-    const buff = nodesWithNoIncomming.pop();
-    sortedList.push(buff);
-    buff.connections.forEach((node) => {
-      buff.removeConnection(node);
-      if (graph.getIncommingEdges(node).length == 0) {
-        nodesWithNoIncomming.push(node);
-      }
-    });
+  let nodes = graph.getAllNodesId();
+  let edges = graph.getAllEdgesId();
+
+  let l = [];
+  let s = nodes.filter((node) => !edges.map((edge) => edge.to).includes(node));
+
+  while (s.length != 0) {
+    const n = s.pop();
+    l.push(n);
+    edges
+      .filter((edge) => edge.from == n)
+      .map((edge) => edge.to)
+      .forEach((m) => {
+        edges = edges.filter((edge) => !(edge.from == n && edge.to == m));
+        if (edges.filter((edge) => edge.to == m).length == 0) {
+          s.push(m);
+        }
+      });
   }
-  if (graph.getAllNodes().every((node) => node.connections.length == 0)) {
-    return [true, sortedList];
+  if (edges.length == 0) {
+    return [true, l.map((id) => graph.getNodeById(id))];
   } else {
     return [false, []];
   }
