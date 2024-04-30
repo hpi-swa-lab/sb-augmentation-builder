@@ -8,6 +8,9 @@ import {
 } from "../utils.js";
 import { AttachOp, DetachOp, EditBuffer, RemoveOp, UpdateOp } from "./diff.js";
 
+
+import "./replacement.js"
+
 export class BaseShard extends HTMLElement {
   // must be set before the nodes field and before the shard is used
   editor = null;
@@ -20,14 +23,17 @@ export class BaseShard extends HTMLElement {
 
   extensions = () => this.parentShard?.extensions() ?? [];
 
-  connectedCallback() {
+  async connectedCallback() {
+    if (this.isInitializing) return 
+    this.isInitializing = true
     this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
 
     this.editor.ensureModels(this.requiredModels);
 
     if (!this.childNodes.length) {
-      this.initView();
+      await this.initView();
+      this.isInitializing = false
       this.applyChanges(
         [...this.editor.models.values()].map(
           (root) =>
