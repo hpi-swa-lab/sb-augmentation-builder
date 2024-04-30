@@ -10,6 +10,7 @@ import {
   ShardList,
   useValidator,
 } from "./core/replacement.js";
+import { SBWhitespaceModel } from "./core/whitespace.js";
 import { matchingParentheses } from "./extensions/base.js";
 import { h } from "./external/preact.mjs";
 import {
@@ -559,4 +560,34 @@ describe("pending changes", () => {
   });
 });
 
-run();
+describe("multiple models", () => {
+  let editor;
+  beforeEach(() => {
+    editor = new testWithEditor();
+    document.body.appendChild(editor);
+  });
+  afterEach(() => {
+    editor.remove();
+  });
+
+  test("both support replacements", async () => {
+    const ext = new Extension()
+      .registerReplacement({
+        name: "test",
+        query: new SBMatcher(languageFor("javascript"), [
+          (x) => x.type === "number",
+        ]),
+        component: ({ node }) => h("span", {}, node.text),
+      })
+      .registerReplacement({
+        name: "test2",
+        query: new SBMatcher(SBWhitespaceModel, [(x) => x.type === "tab"]),
+        component: ({ node }) => h("span", {}, node.text),
+      });
+    editor.extensions = [ext];
+    await editor.setText("12\t");
+    assertEq(editor.rootShard.replacements.length, 2);
+  });
+});
+
+// run();

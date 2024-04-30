@@ -31,9 +31,9 @@ export class BaseShard extends HTMLElement {
       this.applyChanges(
         [...this.editor.models.values()].map(
           (root) =>
-            new EditBuffer(
-              this.allVisibleNodesOf(root).flatMap((n) => n.initOps()),
-            ),
+            new EditBuffer([
+              ...this.allVisibleNodesOf(root).flatMap((n) => n.initOps()),
+            ]),
         ),
         [
           {
