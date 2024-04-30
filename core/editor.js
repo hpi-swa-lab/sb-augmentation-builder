@@ -200,6 +200,8 @@ export class BaseEditor extends HTMLElement {
     this.rootShard.nodes = [this.models.get(SBBaseLanguage)];
 
     this.appendChild(this.rootShard);
+    await this.rootShard.initPromise;
+
     this.onSelectionChange({
       head: this.rootShard.positionForIndex(0),
       anchor: this.rootShard.positionForIndex(0),
