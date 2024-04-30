@@ -81,7 +81,6 @@ export class SBReplacement extends HTMLElement {
   editor = null;
   props = {};
 
-  _selectionAtStart = false;
   _selectionInteraction = SelectionInteraction.Skip;
   deletion = DeletionInteraction.Character;
 
@@ -153,11 +152,21 @@ export class SBReplacement extends HTMLElement {
     }
   }
 
+  onClick(e) {
+    if (e.target !== this) return;
+    if (this._selectionInteraction === SelectionInteraction.Skip) return;
+    this.focus();
+  }
+
   connectedCallback() {
     this.setAttribute("contenteditable", "false");
     this.addEventListener(
       "keydown",
       (this._keyListener = this.onKeyDown.bind(this)),
+    );
+    this.addEventListener(
+      "click",
+      (this._clickListener = this.onClick.bind(this)),
     );
     this.style.verticalAlign = "top";
     this.render();
@@ -181,6 +190,7 @@ export class SBReplacement extends HTMLElement {
 
   disconnectedCallback() {
     this.removeEventListener("keydown", this._keyListener);
+    this.removeEventListener("click", this._clickListener);
   }
 
   *cursorPositions() {
@@ -257,7 +267,6 @@ export class SBReplacement extends HTMLElement {
         ]);
         break;
       case DeletionInteraction.SelectThenFull:
-        this._selectionAtStart = false;
         this.focus();
         break;
     }

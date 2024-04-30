@@ -1,6 +1,6 @@
 import { WeakArray, exec, last, rangeEqual } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
-import { OffscreenEditor } from "./editor.js";
+// import { OffscreenEditor } from "./editor.js";
 
 export class SBMatcher {
   constructor(model, steps, queryDepth = 1) {
@@ -88,7 +88,8 @@ export class SBLanguage {
   }
   async parseOffscreen(text) {
     const root = await this.parse(text);
-    root._editor = new OffscreenEditor(root);
+    // FIXME cyclic import
+    // root._editor = new OffscreenEditor(root);
     return root;
   }
 
