@@ -23,9 +23,9 @@ export class BaseShard extends HTMLElement {
   extensions = () => this.parentShard?.extensions() ?? [];
 
   async connectedCallback() {
+    this.editor.shards.add(this);
     if (this.isInitializing) return;
     this.isInitializing = true;
-    this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
 
     await this.editor.ensureModels(this.requiredModels);

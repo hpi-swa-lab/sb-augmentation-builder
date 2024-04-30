@@ -20,7 +20,7 @@ import {} from './editor.js';
 let source = `var a = 3 + 4`
 
 
-const editor = await (<scml-editor text={source}></scml-editor>)
+const editor = await (<scml-editor text={source} style="width:400px"></scml-editor>)
 
 const ext =  new Extension().registerReplacement({
       name: "test-hiding-replacement",
