@@ -12,10 +12,8 @@ import { BaseEditor } from "../core/editor.js";
 import { BaseShard } from "../core/shard.js";
 
 export class CodeMirrorLively extends BaseEditor {
-  
   static shardTag = "scml-shard"
   
-
   clearSuggestions() {
     // #TODO
   }
@@ -25,12 +23,11 @@ export class CodeMirrorLively extends BaseEditor {
 export class CodeMirrorLivelyShard extends BaseShard {
   replacementsMap = new Map();
 
-  async initView() {
+  initView() {
     let node = this.nodes[0]
-    this.livelyCodeMirror = await (<lively-code-mirror 
-                                     style="display:inline-block; border: 1px solid gray"
-                                     class={node == node.root ? "" : "shard"}
-                                     ></lively-code-mirror>)
+    this.livelyCodeMirror = document.createElement("lively-code-mirror")
+    this.livelyCodeMirror.style =  "display:inline-block; border: 1px solid gray"
+    this.livelyCodeMirror.className = node == node.root ? "" : "shard"
     
     this.livelyCodeMirror.addEventListener("change", (e) => {
       if (!this.editor || this.nextSource === this.livelyCodeMirror.value) return;
