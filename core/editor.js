@@ -193,6 +193,7 @@ export class BaseEditor extends HTMLElement {
       [SBBaseLanguage, ...this.rootShard.requiredModels],
       true,
     );
+    await this.rootShard.initPromise;
 
     for (const extension of this.allExtensions())
       for (const func of extension.connected) func(this);

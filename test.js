@@ -590,4 +590,4 @@ describe("multiple models", () => {
   });
 });
 
-// run();
+run();
