@@ -12,17 +12,29 @@ import { BaseEditor } from "../core/editor.js";
 import { BaseShard } from "../core/shard.js";
 
 export class CodeMirrorLively extends BaseEditor {
-  
   static shardTag = "scml-shard"
   
+  clearSuggestions() {
+    // #TODO
+  }
 }
 
 
 export class CodeMirrorLivelyShard extends BaseShard {
   replacementsMap = new Map();
 
-  async initView() {
-    this.livelyCodeMirror = await (<lively-code-mirror></lively-code-mirror>)
+  initView() {
+    let node = this.nodes[0]
+    this.livelyCodeMirror = document.createElement("lively-code-mirror")
+    this.livelyCodeMirror.style =  "display:inline-block; border: 1px solid gray"
+    this.livelyCodeMirror.className = node == node.root ? "" : "shard"
+    
+    this.livelyCodeMirror.addEventListener("change", (e) => {
+      if (!this.editor || this.nextSource === this.livelyCodeMirror.value) return;
+      
+      this._onChange(e)
+    });
+    
     this.appendChild(this.livelyCodeMirror)
   }
   
@@ -30,9 +42,26 @@ export class CodeMirrorLivelyShard extends BaseShard {
     return this.livelyCodeMirror.editor
   }
   
-  
   positionForIndex(index) {
      return { element: this, elementOffset: index - this.range[0], index };
+  }
+
+  _onChange(e) {
+    if (this.isMyChange) return 
+    
+    const changes = [];
+    const fromA = this.cm.indexFromPos(e.detail.from)
+    const toA = this.cm.indexFromPos(e.detail.to)
+    const change = {
+          from: fromA + this.range[0],
+          to: toA + this.range[0],
+          insert: e.detail.text.join(""),
+          sourceShard: this,
+    }
+    changes.push(change);
+    
+    this.onTextChanges(changes);
+    
   }
   
   _applyTextChanges(changes) {
@@ -45,8 +74,10 @@ export class CodeMirrorLivelyShard extends BaseShard {
       
       let from = this.cm.posFromIndex(change.from - this.range[0])
       let to = this.cm.posFromIndex(change.to - this.range[0])
-      this.cm.replaceRange(change.insert, from, to)
       
+      this.isMyChange = true
+      this.cm.replaceRange(change.insert, from, to)
+      this.isMyChange = false
       // this.cm.dispatch({
       //   userEvent: "sync",
       //   changes: [
@@ -94,10 +125,25 @@ export class CodeMirrorLivelyShard extends BaseShard {
     const pos = [this.cm.posFromIndex(node.range[0]), 
           this.cm.posFromIndex(node.range[1])]
     
-    this.cm.doc.markText(pos[0], pos[1], {
+    comp.marker = this.cm.doc.markText(pos[0], pos[1], {
       replacedWith: comp
     });
     
+  }
+
+  updateReplacements(editBuffer) {
+    super.updateReplacements(editBuffer);
+
+    for(let comp of this.replacements) { 
+      const pos = [
+        this.cm.posFromIndex(comp.range[0]), 
+        this.cm.posFromIndex(comp.range[1])]
+    
+      comp.marker.clear()
+      comp.marker = this.cm.doc.markText(pos[0], pos[1], {
+        replacedWith: comp
+      });
+    }
   }
 
   uninstallReplacement(node) {
@@ -107,6 +153,20 @@ export class CodeMirrorLivelyShard extends BaseShard {
   getReplacementFor(node) {
     return this.replacementsMap.get(node);
   }
+
+  *iterVisibleRanges() {
+    let current = this.range[0];
+    for(let iter of this.replacements.map(r => r.range)) {
+      yield [current, iter[0]];
+      current = iter[1]
+    }
+    yield [current, this.range[1]];
+  }
+
+  select(selection) {
+    // #TODO
+  }
+
 }
 
 

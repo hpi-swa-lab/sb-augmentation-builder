@@ -26,9 +26,9 @@ export class BaseShard extends HTMLElement {
   initPromise = new Promise((resolve) => (this.initResolve = resolve));
 
   connectedCallback() {
+    this.editor.shards.add(this);
     if (this.isInitializing) return;
     this.isInitializing = true;
-    this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
 
     if (!this.childNodes.length) {
