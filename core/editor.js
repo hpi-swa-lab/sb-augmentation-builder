@@ -168,9 +168,22 @@ export class BaseEditor extends HTMLElement {
   }
 
   async ensureModels(list, updateAll = false) {
-    for (const model of list)
-      if (!this.models.has(model) || updateAll)
+    let didUpdate = new Set();
+    for (const model of list) {
+      if (!this.models.has(model) || updateAll) {
         this.models.set(model, await model.parse(this.sourceString, this));
+        didUpdate.add(model);
+        this.dispatchEvent(new CustomEvent("modelLoaded", { detail: model }));
+      }
+    }
+
+    if (!updateAll) {
+      const roots = [...didUpdate].map((model) => this.models.get(model));
+      for (const shard of this.shards) {
+        for (const buffer of shard.getEditBufferForEntireDocument(roots))
+          shard.updateReplacements(buffer);
+      }
+    }
   }
 
   async setText(text) {
@@ -200,7 +213,8 @@ export class BaseEditor extends HTMLElement {
     this.rootShard.nodes = [this.models.get(SBBaseLanguage)];
 
     this.appendChild(this.rootShard);
-    await this.rootShard.initPromise;
+    if (this.isConnected)
+      await Promise.all([...this.shards].map((s) => s.initPromise));
 
     this.onSelectionChange({
       head: this.rootShard.positionForIndex(0),

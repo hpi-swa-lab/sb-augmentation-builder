@@ -85,6 +85,15 @@ function assertContains(a, b) {
 function tick() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+function eventDispatched(object, name) {
+  return new Promise((resolve) => {
+    const handler = (e) => {
+      object.removeEventListener(name, handler);
+      resolve(e);
+    };
+    object.addEventListener(name, handler);
+  });
+}
 
 afterEach(() => {
   ShardSelection.reset();
@@ -315,6 +324,15 @@ describe("codemirror", () => {
     editor.simulateKeyStroke("b");
     assertEq(editor.selection.head.index, 4);
     assertEq(editor.sourceString, "a()b\n");
+  });
+
+  test.skip("append char at end", async () => {
+    await editor.setText("a");
+    editor.selectAndFocus([2, 2]);
+    editor.simulateKeyStroke("b");
+    assertEq(editor.sourceString, "a\nb\n");
+    editor.simulateKeyStroke("c");
+    assertEq(editor.sourceString, "a\nbc\n");
   });
 });
 
@@ -606,6 +624,32 @@ describe("multiple models", () => {
     editor.extensions = [ext];
     await editor.setText("12\t");
     assertEq(editor.rootShard.replacements.length, 2);
+  });
+
+  test("loads model late", async () => {
+    const nestedExt = new Extension().registerReplacement({
+      name: "test2",
+      query: new SBMatcher(languageFor("javascript"), [
+        (x) => x.type === "number",
+      ]),
+      component: () => h("span", {}, "num"),
+    });
+    const ext = new Extension().registerReplacement({
+      name: "test",
+      query: new SBMatcher(SBWhitespaceModel, [(x) => x.type === "document"]),
+      component: ({ node }) =>
+        h(Shard, { node, extensions: () => [nestedExt] }),
+    });
+    editor.extensions = [ext];
+    await editor.setText("12\t");
+    await eventDispatched(editor, "modelLoaded");
+    assertEq(editor.shards.size, 2);
+    assertEq(
+      [...editor.shards]
+        .map((s) => s.replacements.length)
+        .reduce((a, b) => a + b, 0),
+      2,
+    );
   });
 });
 

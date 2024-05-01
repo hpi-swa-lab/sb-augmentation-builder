@@ -25,25 +25,18 @@ export class BaseShard extends HTMLElement {
   initResolve = null;
   initPromise = new Promise((resolve) => (this.initResolve = resolve));
 
-  async connectedCallback() {
+  connectedCallback() {
     if (this.isInitializing) return;
     this.isInitializing = true;
     this.editor.shards.add(this);
     this.setAttribute("sb-editable", "");
 
-    await this.editor.ensureModels(this.requiredModels);
-
     if (!this.childNodes.length) {
-      await this.initView();
+      this.initView();
       this.isInitializing = false;
       this.initResolve();
       this.applyChanges(
-        [...this.editor.models.values()].map(
-          (root) =>
-            new EditBuffer([
-              ...this.allVisibleNodesOf(root).flatMap((n) => n.initOps()),
-            ]),
-        ),
+        this.getEditBufferForEntireDocument(this.editor.models.values()),
         [
           {
             from: this.range[0],
@@ -53,9 +46,20 @@ export class BaseShard extends HTMLElement {
         ],
       );
     }
+
+    this.editor.ensureModels(this.requiredModels);
   }
   disconnectedCallback() {
     this.editor.shards.delete(this);
+  }
+
+  getEditBufferForEntireDocument(roots) {
+    return [...roots].map(
+      (root) =>
+        new EditBuffer([
+          ...this.allVisibleNodesOf(root).flatMap((n) => n.initOps()),
+        ]),
+    );
   }
 
   get requiredModels() {
