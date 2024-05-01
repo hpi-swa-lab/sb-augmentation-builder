@@ -326,13 +326,14 @@ describe("codemirror", () => {
     assertEq(editor.sourceString, "a()b\n");
   });
 
-  test.skip("append char at end", async () => {
+  test("append char at end", async () => {
     await editor.setText("a");
     editor.selectAndFocus([2, 2]);
     editor.simulateKeyStroke("b");
-    assertEq(editor.sourceString, "a\nb\n");
+    assertEq(editor.sourceString, "a\nb");
+    assertEq(editor.selection.head.index, 3);
     editor.simulateKeyStroke("c");
-    assertEq(editor.sourceString, "a\nbc\n");
+    assertEq(editor.sourceString, "a\nbc");
   });
 });
 

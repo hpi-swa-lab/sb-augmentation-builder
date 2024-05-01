@@ -297,7 +297,6 @@ export class BaseEditor extends HTMLElement {
       return;
     }
 
-    const oldSelection = this.selectionRange;
     const oldSource = this.sourceString;
     let newSource = oldSource;
     const allChanges = [...this.pendingChanges.value, ...changes];
@@ -305,7 +304,6 @@ export class BaseEditor extends HTMLElement {
       newSource =
         newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
     }
-    newSource = this._ensureTrailingLineBreak(newSource);
 
     const update = [...this.models.values()].map((n) => n.reParse(newSource));
     if (!forceApply) {
