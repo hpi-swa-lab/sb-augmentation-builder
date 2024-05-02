@@ -12,6 +12,7 @@ import { Extension } from "../../core/extension.js";
 import { confirmUnsavedChanges } from "../window.js";
 import { wait } from "../../utils.js";
 import { preferences } from "../../core/preferences.js";
+import { SBDefaultLanguageMatcher, SBMatcher } from "../../core/model.js";
 
 export function FileEditor({
   window,
@@ -80,16 +81,19 @@ export function FileEditor({
         setSearchVisible(true);
         queueMicrotask(() => searchRef.current?.focus());
       })
-      .registerCss("search-result", [
-        (x) => !!x.editor.data("search-string"),
-        (x) => x.isText,
-        (x) =>
-          x.editor.data("search-is-exact")
-            ? x.text === x.editor.data("search-string")
-            : x.text
-                .toLowerCase()
-                .includes(x.editor.data("search-string").toLowerCase()),
-      ]),
+      .registerCss(
+        "search-result",
+        new SBDefaultLanguageMatcher([
+          (x) => !!x.editor.data("search-string"),
+          (x) => x.isText,
+          (x) =>
+            x.editor.data("search-is-exact")
+              ? x.text === x.editor.data("search-string")
+              : x.text
+                  .toLowerCase()
+                  .includes(x.editor.data("search-string").toLowerCase()),
+        ]),
+      ),
   );
 
   return h(

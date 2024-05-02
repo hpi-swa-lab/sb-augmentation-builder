@@ -7,6 +7,7 @@ import { Shard } from "../core/replacement.js";
 import { FileEditor } from "./file-project/file-editor.js";
 import { localStorageProject } from "./local-project.js";
 import { openComponentInWindow } from "./window.js";
+import { SBMatcher } from "../core/model.js";
 
 const preferencesFilePath = "localStorage:///preferences.js";
 
@@ -74,44 +75,41 @@ export function openPreferences() {
 }
 
 const preferencesExtension = new Extension()
-  .registerReplacement((e) => [
-    (x) => x.type === "true" || x.type === "false",
-    (x) =>
-      ensureReplacementPreact(e, x, "sb-prefs-boolean", ({ node }) =>
-        h("input", {
-          type: "checkbox",
-          checked: node.type === "true",
-          onchange: (e) => node.replaceWith(e.target.checked.toString()),
-        }),
-      ),
-  ])
-  .registerReplacement((e) => [
-    (x) => x.extract("preferences.$method($field, $value)"),
-    ([x, props]) =>
-      ensureReplacementPreact(
-        e,
-        x,
-        "sb-prefs-set",
-        ({ field, value, method }) =>
+  .registerReplacement({
+    query: new SBMatcher(languageFor("javascript"), (e) => [
+      (x) => x.type === "true" || x.type === "false",
+    ]),
+    component: ({ node }) =>
+      h("input", {
+        type: "checkbox",
+        checked: node.type === "true",
+        onchange: (e) => node.replaceWith(e.target.checked.toString()),
+      }),
+    name: "sb-prefs-boolean",
+  })
+  .registerReplacement({
+    query: new SBMatcher(languageFor("javascript"), (e) => [
+      (x) => x.extract("preferences.$method($field, $value)"),
+    ]),
+    name: "sb-prefs-set",
+    component: ({ field, value, method }) =>
+      h(
+        "table",
+        { style: { display: "inline-table" } },
+        h(
+          "tr",
+          {},
           h(
-            "table",
-            { style: { display: "inline-table" } },
-            h(
-              "tr",
-              {},
-              h(
-                "td",
-                {},
-                methodIcon(method),
-                " ",
-                field.childBlock(0).sourceString,
-              ),
-              h("td", {}, h(Shard, { value })),
-            ),
+            "td",
+            {},
+            methodIcon(method),
+            " ",
+            field.childBlock(0).sourceString,
           ),
-        props,
+          h("td", {}, h(Shard, { value })),
+        ),
       ),
-  ]);
+  });
 // .registerSave((e) => [
 //   (x) => x.isRoot,
 //   (x) => loadUserPreferences(x.sourceString),

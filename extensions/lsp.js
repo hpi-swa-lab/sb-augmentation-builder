@@ -453,9 +453,9 @@ export class LanguageClient {
       textDocument: {
         uri: `file://${editor.context.path}`,
         languageId:
-          editor.language.name === "tsx"
+          editor.defaultModel.name === "tsx"
             ? "typescriptreact"
-            : editor.language.name,
+            : editor.defaultModel.name,
         version: 1,
         text: editor.sourceString,
       },

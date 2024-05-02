@@ -86,6 +86,11 @@ export class BaseEditor extends HTMLElement {
   _selectedNode = null;
   _selectedView = null;
 
+  get defaultModel() {
+    for (const model of this.models) if (model.canBeDefault) return model;
+    for (const model of this.models) return model;
+  }
+
   get selectedText() {
     return this.sourceString.slice(
       this.selectionRange[0],

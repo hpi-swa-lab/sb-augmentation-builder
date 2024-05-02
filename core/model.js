@@ -28,8 +28,7 @@ export class SBDefaultLanguageMatcher extends SBMatcher {
   }
 
   modelFor(editor) {
-    for (const model of editor.models) if (model.canBeDefault) return model;
-    for (const model of editor.models) return model;
+    return editor.defaultModel;
   }
 
   get requiredModels() {
