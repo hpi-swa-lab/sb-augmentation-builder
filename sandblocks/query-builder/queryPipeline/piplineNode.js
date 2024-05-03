@@ -1,7 +1,8 @@
-import { randomId } from "../../utils.js";
+import { randomId } from "../../../utils.js";
+import { getExecutionOrder } from "./dag.js";
 
 export class PipelineNode {
-  constructor(name, task = {}, connections = []) {
+  constructor(name, task = () => {}, connections = []) {
     this.id = randomId();
     this.name = name;
     this.task = task;
@@ -16,8 +17,8 @@ export class PipelineNode {
     this.connections = this.connections.filter((it) => it.id != node.id);
   }
 
-  execute() {
-    this.task();
+  execute(input) {
+    return input.map((it) => this.task(it));
   }
 }
 
@@ -67,5 +68,47 @@ export class Pipeline {
       });
     });
     return edges;
+  }
+
+  execute(input) {
+    let currentResult = input;
+    //debugger;
+    getExecutionOrder(this).forEach((node) => {
+      debugger;
+      currentResult = node.execute(currentResult);
+    });
+    return currentResult;
+  }
+}
+
+export class AstGrepQuery extends PipelineNode {
+  constructor(name, query, connections = []) {
+    super(
+      name,
+      (input) => {
+        //debugger;
+        return input.findQueryAll(query);
+      },
+      connections,
+    );
+  }
+}
+
+export class Filter extends PipelineNode {
+  constructor(name, filter, connections = []) {
+    super(
+      name,
+      (input) => {
+        //debugger;
+        const evalString = filter;
+        const res = eval(evalString);
+        return res;
+      },
+      connections,
+    );
+  }
+
+  execute(input) {
+    return input.map((pos) => pos.filter((it) => this.task(it)));
   }
 }

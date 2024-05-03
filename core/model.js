@@ -589,6 +589,16 @@ class SBNode {
     }
     return null;
   }
+
+  findQueryAll(string, extract = null, out = []) {
+    const res = this.query(string, extract);
+    if (res) out.push({ ...res, root: this });
+
+    for (const child of this.children) {
+      child.findQueryAll(string, extract, out);
+    }
+    return out;
+  }
 }
 
 const structureHashText = hash("text");

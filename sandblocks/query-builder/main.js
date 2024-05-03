@@ -8,7 +8,6 @@ import Design from "./Design.js";
 import Preview from "./Preview.js";
 import Tab from "./Tab.js";
 import CodeCST from "./Code.js";
-import {} from "./test.js";
 const html = htm.bind(h);
 
 export const QueryType = {

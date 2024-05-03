@@ -1,22 +1,22 @@
 export function checkIfDAG(graph) {
-  return topoSort(graph)[0];
+  let nodes = graph.getAllNodesId();
+  let edges = graph.getAllEdgesId();
+  return topoSort(nodes, edges)[0];
 }
 
 export function getExecutionOrder(graph) {
-  const [isDag, executionOrder] = topoSort(graph);
-  debugger;
+  let nodes = graph.getAllNodesId();
+  let edges = graph.getAllEdgesId();
+  const [isDag, executionOrder] = topoSort(nodes, edges);
   if (isDag) {
-    return executionOrder;
+    return executionOrder.map((id) => graph.getNodeById(id));
   }
 }
 /**
  * Implementation of Kahn's algorithm
  * Based on pseudo code from: https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
  */
-function topoSort(graph) {
-  let nodes = graph.getAllNodesId();
-  let edges = graph.getAllEdgesId();
-
+function topoSort(nodes, edges) {
   let l = [];
   let s = nodes.filter((node) => !edges.map((edge) => edge.to).includes(node));
 
@@ -35,7 +35,7 @@ function topoSort(graph) {
   }
 
   if (edges.length == 0) {
-    return [true, l.map((id) => graph.getNodeById(id))];
+    return [true, l];
   } else {
     return [false, []];
   }
