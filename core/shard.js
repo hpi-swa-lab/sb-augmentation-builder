@@ -281,7 +281,6 @@ export class BaseShard extends HTMLElement {
       }
     }
 
-    // check for replacements that are now gone because a change made them invalid
     const changedNodes = new Set();
     for (const op of editBuffer.posBuf) {
       if (op instanceof UpdateOp || op instanceof AttachOp)
@@ -292,10 +291,11 @@ export class BaseShard extends HTMLElement {
         changedNodes.add(op.oldParent);
     }
 
+    // check for replacements that are now gone because a change made them invalid
     for (const root of changedNodes) {
       for (const node of root.andAllParents()) {
         const replacement = this.getReplacementFor(node);
-        if (replacement && !replacement.query.match(node))
+        if (replacement && !replacement.query.match(node, this))
           this.uninstallReplacement(node, editBuffer);
       }
     }
@@ -325,7 +325,7 @@ export class BaseShard extends HTMLElement {
 
   mayReplace(node, extension) {
     if (this.getReplacementFor(node)) return false;
-    if (!extension.query.match(node)) return false;
+    if (!extension.query.match(node, this)) return false;
     if (this.parentShard?.replacements.some((r) => r.node === node))
       return false;
     return true;

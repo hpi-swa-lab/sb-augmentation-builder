@@ -9,7 +9,7 @@ export class SBMatcher {
     this.queryDepth = queryDepth;
   }
 
-  match(node) {
+  match(node, shard) {
     return exec(node, ...this.steps);
   }
 
@@ -33,6 +33,16 @@ export class SBDefaultLanguageMatcher extends SBMatcher {
 
   get requiredModels() {
     return [];
+  }
+}
+
+export class SBShardLocalMatcher extends SBMatcher {
+  constructor(model, fn, queryDepth = 1) {
+    super(model, fn, queryDepth);
+  }
+
+  match(node, shard) {
+    return exec(node, ...this.steps(shard));
   }
 }
 

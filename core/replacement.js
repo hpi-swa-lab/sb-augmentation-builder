@@ -83,6 +83,7 @@ export function Slot({ node, ...props }) {
 export class SBReplacement extends HTMLElement {
   editor = null;
   props = {};
+  node = null;
 
   _selectionInteraction = SelectionInteraction.Skip;
   deletion = DeletionInteraction.Character;
