@@ -18,7 +18,7 @@ import {
   ShardSelection,
 } from "./sandblocks/editor/editor.js";
 import { rangeEqual } from "./utils.js";
-import { markInputEditable } from "./view/widgets.js";
+import { editor, markInputEditable } from "./view/widgets.js";
 
 const testWithEditor = false ? SandblocksEditor : CodeMirrorEditor;
 
@@ -685,6 +685,32 @@ describe("multiple models", () => {
         .reduce((a, b) => a + b, 0),
       2,
     );
+  });
+});
+
+describe("extensions", () => {
+  let editor;
+  beforeEach(() => {
+    editor = new testWithEditor();
+    document.body.appendChild(editor);
+  });
+  afterEach(() => {
+    editor.remove();
+  });
+
+  test("can listen to shard changes", async () => {
+    let newStr = null;
+    const ext = new Extension().registerShardChanged(
+      (shard, string, changes) => {
+        newStr = string;
+      },
+    );
+    editor.extensions = [ext];
+    await editor.setText("a");
+    assertEq(newStr, "a\n");
+    editor.selectAndFocus([0, 0]);
+    editor.simulateKeyStroke("b");
+    assertEq(newStr, "ba\n");
   });
 });
 

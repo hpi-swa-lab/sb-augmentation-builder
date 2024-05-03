@@ -280,7 +280,7 @@ class CodeMirrorShard extends BaseShard {
   }
 
   _applyTextChanges(changes) {
-    let anyChange = false;
+    let anyChange = changes.some((c) => c.sourceShard === this);
     for (const change of changes.filter(
       (c) =>
         c.sourceShard !== this && rangeContains(this.range, [c.from, c.from]),
@@ -303,6 +303,7 @@ class CodeMirrorShard extends BaseShard {
       this.editor.pendingChanges.value.length === 0 &&
       this.sourceString !== this.cm.state.doc.toString()
     ) {
+      anyChange = true;
       this.cm.dispatch({
         changes: [
           {
@@ -313,6 +314,11 @@ class CodeMirrorShard extends BaseShard {
         ],
         userEvent: "sync",
       });
+    }
+
+    if (anyChange) {
+      for (const ext of this.extensions())
+        for (const fn of ext.shardChanged) fn(this, this.sourceString, changes);
     }
 
     return anyChange;

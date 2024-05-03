@@ -85,6 +85,7 @@ export class Extension {
   selection = [];
   caret = [];
   changesApplied = [];
+  shardChanged = [];
   connected = [];
   disconnected = [];
   changeFilter = [];
@@ -208,6 +209,11 @@ export class Extension {
 
   registerChangesApplied(func) {
     this.changesApplied.push(func);
+    return this;
+  }
+
+  registerShardChanged(func) {
+    this.shardChanged.push(func);
     return this;
   }
 
