@@ -236,7 +236,11 @@ class CodeMirrorShard extends BaseShard {
           });
         });
       console.assert(inverse.length === changes.length);
+
+      this._parallelToSequentialChanges(changes);
+      this._parallelToSequentialChanges(inverse);
       changes.forEach((c, i) => (c.inverse = inverse[i]));
+
       last(changes).selectionRange = rangeShift(
         [v.state.selection.main.head, v.state.selection.main.anchor],
         this.range[0],
@@ -244,23 +248,19 @@ class CodeMirrorShard extends BaseShard {
       last(changes).sideAffinity =
         this.range[0] === last(changes).from ? 1 : -1;
       this.onTextChanges(changes);
+    }
+  }
 
-      if (
-        this.nodes[0]?.connected &&
-        this.editor.pendingChanges.value.length === 0 &&
-        this.sourceString !== this.cm.state.doc.toString()
-      ) {
-        this.cm.dispatch({
-          changes: [
-            {
-              from: 0,
-              to: this.cm.state.doc.length,
-              insert: this.sourceString,
-            },
-          ],
-          userEvent: "sync",
-        });
-      }
+  _parallelToSequentialChanges(changes) {
+    for (let i = 0; i < changes.length; i++) {
+      changes[i].from = this.editor.adjustIndex(
+        changes[i].from,
+        changes.slice(0, i),
+      );
+      changes[i].to = this.editor.adjustIndex(
+        changes[i].to,
+        changes.slice(0, i),
+      );
     }
   }
 
@@ -291,10 +291,27 @@ class CodeMirrorShard extends BaseShard {
         changes: [
           {
             from: change.from - this.range[0],
-            to: change.to - this.range[0],
+            to: Math.min(change.to, this.range[1]) - this.range[0],
             insert: change.insert,
           },
         ],
+      });
+    }
+
+    if (
+      this.nodes[0]?.connected &&
+      this.editor.pendingChanges.value.length === 0 &&
+      this.sourceString !== this.cm.state.doc.toString()
+    ) {
+      this.cm.dispatch({
+        changes: [
+          {
+            from: 0,
+            to: this.cm.state.doc.length,
+            insert: this.sourceString,
+          },
+        ],
+        userEvent: "sync",
       });
     }
 
@@ -460,8 +477,12 @@ class CodeMirrorShard extends BaseShard {
   }
 
   simulateKeyStroke(key) {
-    if (key === "Backspace" || key === "Delete")
+    if (key === "Backspace" || key === "Delete" || key === "Tab")
       this.cm.inputState.handleEvent(new KeyboardEvent("keydown", { key }));
+    else if (key === "Shift+Tab")
+      this.cm.inputState.handleEvent(
+        new KeyboardEvent("keydown", { key: "Tab", shiftKey: true }),
+      );
     else document.execCommand("inserttext", false, key);
     this.cm.observer.forceFlush();
   }

@@ -61,6 +61,8 @@ const cyrb53 = (str, seed = 0) => {
 const hash = (str) => cyrb53(str);
 const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
 
+export const extractType = (type) => (node) => node.firstOfType(type);
+
 export class SBLanguage {
   constructor({ name, extensions, defaultExtensions }) {
     this.name = name;
@@ -249,6 +251,13 @@ class SBNode {
 
   atType(type) {
     return this.children.find((child) => child.type === type);
+  }
+
+  firstOfType(type) {
+    for (const child of this.allNodes()) {
+      if (child.type === type) return child;
+    }
+    return null;
   }
 
   blockThat(predicate) {

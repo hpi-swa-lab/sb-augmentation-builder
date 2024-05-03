@@ -32,6 +32,9 @@ export const DeletionInteraction = {
 
 const ShardContext = createContext(null);
 
+export function OptionalShard({ node, ...rest }) {
+  return node ? h(Shard, { node, ...rest }) : null;
+}
 export function Shard({ node, nodes, sticky, ...props }) {
   if (!node.editor) throw new Error("node has become disconnected");
 

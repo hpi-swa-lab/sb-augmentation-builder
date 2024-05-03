@@ -6,45 +6,13 @@
     <link rel="stylesheet" href="./sandblocks/style.css" />
   </head>
   <body>
-    <!--<scm-editor
+    <scm-editor
       id="scm-editor"
-      text='
-class A {
-
-  constructor() {
-    this.a = 1;
-  }
-
-  test() {}
-}
-function StickyShard({ node, ...props }) {
-  useEffect(() => {
-    const editor = node.editor;
-    editor.markSticky(node, true);
-    return () => editor.markSticky(node, false);
-  }, node);
-  [[1], [2]]
-  return shard(node, props);
-}
-export const stickyShard = (node, props = {}) =>
-  h(StickyShard, { node, ...props });
-export const shardList = (list) => {
-  const node = new SBList(list);
-  return h(node.editor.shardTag, { initNode: node, key: node.id });
-};
-export const icon = (name) =>
-  h(
-    "span",
-    {
-      class: "material-symbols-outlined",
-      style: { fontSize: "inherit", verticalAlign: "bottom" },
-    },
-    name
-  );
-'
-      extensions="browser:javascript javascript:table watch:javascript base:base"
-      language="javascript"
-    ></scm-editor>-->
+      text="  a
+  b
+  c
+"
+    ></scm-editor>
     <script type="module">
       import {} from "./sandblocks/editor/editor.js";
       import {} from "./codemirror6/editor.js";

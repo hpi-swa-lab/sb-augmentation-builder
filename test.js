@@ -335,6 +335,40 @@ describe("codemirror", () => {
     editor.simulateKeyStroke("c");
     assertEq(editor.sourceString, "a\nbc");
   });
+
+  test("change larger range than shard", async () => {
+    const extension = new Extension().registerReplacement({
+      name: "test-replacement",
+      query: new SBMatcher(languageFor("javascript"), [
+        (x) => x.type === "number",
+      ]),
+      queryDepth: 1,
+      rerender: () => true,
+      component: ({ node }) => h("span", {}, "[[", h(Shard, { node }), "]]"),
+    });
+
+    editor.extensions = [extension];
+    await editor.setText("a+2+c");
+    editor.selectAndFocus([0, 4]);
+    editor.simulateKeyStroke("1");
+    assertEq(editor.selection.head.index, 1);
+    assertEq(editor.sourceString, "1c\n");
+  });
+
+  test("indent", async () => {
+    await editor.setText("a\nb\nc\n");
+    editor.selectAndFocus([0, 6]);
+    // expected change: 0,0->tab, 3,3->tab, 6,6->tab
+    editor.simulateKeyStroke("Tab");
+    assertEq(editor.sourceString, "  a\n  b\n  c\n");
+  });
+
+  test("dedent", async () => {
+    await editor.setText("  a\n  b\n  c");
+    editor.selectAndFocus([0, 11]);
+    editor.simulateKeyStroke("Shift+Tab");
+    assertEq(editor.sourceString, "a\nb\nc\n");
+  });
 });
 
 describe.skip("sandblocks", () => {
@@ -643,7 +677,7 @@ describe("multiple models", () => {
     });
     editor.extensions = [ext];
     await editor.setText("12\t");
-    await eventDispatched(editor, "modelLoaded");
+    if (editor.shards.size < 2) await eventDispatched(editor, "modelLoaded");
     assertEq(editor.shards.size, 2);
     assertEq(
       [...editor.shards]

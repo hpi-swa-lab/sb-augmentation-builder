@@ -532,3 +532,9 @@ export function makeUUID() {
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
+
+export function appendCss(text) {
+  const style = document.createElement("style");
+  style.textContent = text;
+  document.head.appendChild(style);
+}
