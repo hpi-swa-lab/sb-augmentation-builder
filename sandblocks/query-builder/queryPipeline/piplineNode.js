@@ -18,13 +18,15 @@ export class PipelineNode {
   }
 
   execute(input) {
-    return input.map((it) => this.task(it));
+    //return input.map((it) => this.task(it));
+    return this.task(input);
   }
 }
 
 export class Pipeline {
   constructor() {
     this.nodes = new Map();
+    this.captures = new Map();
   }
 
   addNode(node) {
@@ -74,20 +76,39 @@ export class Pipeline {
     let currentResult = input;
     //debugger;
     getExecutionOrder(this).forEach((node) => {
-      debugger;
       currentResult = node.execute(currentResult);
     });
-    return currentResult;
+    debugger;
+    Object.keys(currentResult).forEach((res) => {
+      debugger;
+      this.captures.set(res, this.captures[res]);
+    });
+    return this.captures;
   }
 }
 
 export class AstGrepQuery extends PipelineNode {
-  constructor(name, query, connections = []) {
+  constructor(name, query, rec, connections = []) {
     super(
       name,
-      (input) => {
-        //debugger;
-        return input.findQueryAll(query);
+      (root) => {
+        if (rec) {
+          function queryRec(query, node, matches) {
+            const res = node.query(query);
+            if (res) {
+              matches.push(res);
+            }
+            node.children.forEach((child) => {
+              queryRec(query, child, matches);
+            });
+          }
+          let matches = [];
+          queryRec(query, root, matches);
+          return matches;
+          //debugger;
+        } else {
+          return root.query(query);
+        }
       },
       connections,
     );
@@ -108,7 +129,8 @@ export class Filter extends PipelineNode {
     );
   }
 
-  execute(input) {
-    return input.map((pos) => pos.filter((it) => this.task(it)));
+  execute(input, first = false) {
+    const res = input.filter((it) => this.task(it));
+    return first ? (res.length > 0 ? res[0] : []) : res;
   }
 }

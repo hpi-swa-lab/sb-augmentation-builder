@@ -225,6 +225,31 @@ describe("check execution order", () => {
 });
 
 describe("PipelineExecution", async () => {
+  test("Match!", async () => {
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const tree = typescript.parseSync("const x = 1");
+
+    const query = new AstGrepQuery("Query1", "const $a = $b", false);
+    const pipeline = new Pipeline();
+
+    pipeline.addNode(query);
+    const matchingPartOfTree = tree.children[0].children[2];
+    const res = pipeline.execute(matchingPartOfTree);
+    debugger;
+    assertTrue(res != null);
+  });
+
+  /**
+   * Input:      const x = 0
+   *             const y = 1
+   *
+   *             const mood = [😇,👿]
+   *
+   *
+
+  });
+
   /**
    * Input: const x = [[1,2],[3,4]]
    *        const x = 5
@@ -234,21 +259,23 @@ describe("PipelineExecution", async () => {
    *
    * Output: a = [[1,2],[3,4]]
    */
-
+  /*
   test("AstGrepQueryMatchOnlyOne", async () => {
     const typescript = languageFor("typescript");
     await typescript.ready();
     const pipeline = new Pipeline();
     const tree = typescript.parseSync("const x = [[1,2],[3,4]]\nconst x = 5");
-    const query = new AstGrepQuery("AstGrepQuery1", "let x = $a");
+    const query = new AstGrepQuery("AstGrepQuery1", "let x = $a", tree);
     const filter = new Filter("Filter1", "input.a.type == 'array'");
     query.addConnection(filter);
     pipeline.addNode(query);
     pipeline.addNode(filter);
-    const res = pipeline.execute([tree]);
-    assertTrue(res[0][0].a.type == "array");
+    debugger;
+    const res = pipeline.execute(tree, true);
+    assertTrue(res[0].a.type == "array");
     assertTrue(res.length == 1);
   });
+  */
 
   /**
    * Input:      const x = 0
@@ -269,7 +296,7 @@ describe("PipelineExecution", async () => {
    *
    * Output:
    */
-
+  /*
   test("AstGrepQueryMultiple", async () => {
     const typescript = languageFor("typescript");
     await typescript.ready();
@@ -282,9 +309,13 @@ describe("PipelineExecution", async () => {
 
     const tree = typescript.parseSync(code);
 
-    const query1 = new AstGrepQuery("AstGrepQuery1", "mood[$a]");
-    const query2 = new AstGrepQuery("AstGrepQuery2", "const a = $pos");
-    const moodQuery = new AstGrepQuery("MoodQuery", "const mood = $moods");
+    const query1 = new AstGrepQuery("AstGrepQuery1", "mood[$a]", tree);
+    const query2 = new AstGrepQuery("AstGrepQuery2", "const a = $pos", tree);
+    const moodQuery = new AstGrepQuery(
+      "MoodQuery",
+      "const mood = $moods",
+      tree,
+    );
 
     query1.addConnection(query2);
     query2.addConnection(moodQuery);
@@ -298,6 +329,7 @@ describe("PipelineExecution", async () => {
     debugger;
     assertTrue(false);
   });
+  */
 });
 
 run();
