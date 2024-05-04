@@ -2,7 +2,7 @@ import { languageFor } from "../../core/languages.js";
 import htm from "../../external/htm.mjs";
 import { useComputed, useSignal } from "../../external/preact-signals.mjs";
 import { h } from "../../external/preact.mjs";
-import { useAsyncEffect } from "../../view/widgets.js";
+import { useAsyncEffect, useLocalStorageSignal } from "../../view/widgets.js";
 import Query from "./Query.js";
 import Design from "./Design.js";
 import Preview from "./Preview.js";
@@ -22,9 +22,9 @@ export function QueryBuilder() {
     await typescript.ready();
   });
 
-  const codes = useSignal([""]);
+  const codes = useLocalStorageSignal("codes", [""]);
   const pos = useSignal(0);
-  const design = useSignal("");
+  const design = useLocalStorageSignal("design", "");
   const currentlySelectedCode = useComputed(() => codes.value[pos.value]);
   const tree = useComputed(() => {
     try {
@@ -34,7 +34,7 @@ export function QueryBuilder() {
     }
   });
 
-  const query = useSignal({
+  const query = useLocalStorageSignal("query", {
     queryType: QueryType.AstGrep,
     queryString: "",
   });
