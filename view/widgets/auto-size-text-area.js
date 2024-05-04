@@ -1,7 +1,7 @@
-import { markAsEditableElement } from "../../core/focus.js";
-import { h } from "../widgets.js";
+import { findChange } from "../../utils.js";
+import { h, markInputEditable } from "../widgets.js";
 
-export function AutoSizeTextArea({ node, value, onChange }) {
+export function AutoSizeTextArea({ node }) {
   const style = {
     padding: 0,
     lineHeight: "inherit",
@@ -17,9 +17,8 @@ export function AutoSizeTextArea({ node, value, onChange }) {
       {
         ref: (current) => {
           if (current) {
-            markAsEditableElement(current);
+            markInputEditable(current);
             current.range = node.range;
-            current.node = node;
           }
         },
         rows: 1,
@@ -31,13 +30,23 @@ export function AutoSizeTextArea({ node, value, onChange }) {
           gridArea: "1 / 1 / 2 / 2",
         },
         onInput: (e) => {
-          const range = [e.target.selectionStart, e.target.selectionEnd];
-          onChange(e);
-          e.target.selectionStart = range[0];
-          e.target.selectionEnd = range[1];
+          const change = findChange(
+            node.text,
+            e.target.value,
+            e.target.selectionStart,
+          );
+          if (change) {
+            change.from += node.range[0];
+            change.to += node.range[0];
+            change.selectionRange = [
+              e.target.selectionStart + node.range[0],
+              e.target.selectionEnd + node.range[0],
+            ];
+            node.editor.applyChanges([change]);
+          }
         },
       },
-      value
+      node.text,
     ),
     h(
       "span",
@@ -49,7 +58,7 @@ export function AutoSizeTextArea({ node, value, onChange }) {
           gridArea: "1 / 1 / 2 / 2",
         },
       },
-      value
-    )
+      node.text,
+    ),
   );
 }

@@ -31,7 +31,6 @@ import {
   closeBrackets,
   rectangularSelection,
   crosshairCursor,
-  highlightActiveLine,
   highlightSelectionMatches,
   closeBracketsKeymap,
   defaultKeymap,
@@ -87,7 +86,6 @@ const baseCMExtensions = [
   autocompletion(),
   rectangularSelection(),
   crosshairCursor(),
-  highlightActiveLine(),
   highlightSelectionMatches(),
   keymap.of([
     ...closeBracketsKeymap,

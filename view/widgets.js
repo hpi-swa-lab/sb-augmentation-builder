@@ -1,6 +1,6 @@
 import "../external/preact-debug.js";
 import { h, render } from "../external/preact.mjs";
-import { orParentThat, parentWithTag } from "../utils.js";
+import { orParentThat, parentWithTag, rangeDistance } from "../utils.js";
 import {
   useEffect,
   useMemo,
@@ -121,7 +121,22 @@ export function markInputEditable(input) {
   input.resync = update;
   input.cursorPositions = function* () {
     for (let i = 0; i <= input.value.length; i++)
-      yield { element: input, elementOffset: i };
+      yield {
+        element: input,
+        elementOffset: i,
+        index: !!input.range ? i + input.range[0] : undefined,
+      };
+  };
+  input.candidatePositionForIndex = function (index) {
+    if (!input.range) return null;
+    return {
+      distance: rangeDistance(input.range, [index, index]),
+      position: {
+        element: input,
+        elementOffset: index - input.range[0],
+        index,
+      },
+    };
   };
   input.select = function ({ head, anchor }) {
     input.focus();
