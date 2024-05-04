@@ -11,6 +11,7 @@ import Gitignore from "gitignore-fs";
 import crypto from "crypto";
 import https from "https";
 import { hotReload } from "./hot-reload.js";
+import { typescript } from "./typescript.js";
 
 let key, cert;
 try {
@@ -37,6 +38,7 @@ const rootPath = fsPath.join(
   "../..",
 );
 if (process.env.HOT) hotReload(app, rootPath, io);
+typescript(app, rootPath);
 app.use(express.static(rootPath));
 
 function callback(cb) {
