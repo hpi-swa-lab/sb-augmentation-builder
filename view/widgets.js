@@ -10,6 +10,7 @@ import {
 import { SBList } from "../core/model.js";
 import htm from "../external/htm.mjs";
 import { BaseEditor } from "../core/editor.js";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 
 export const html = htm.bind(h);
 export { h, render, Component } from "../external/preact.mjs";
@@ -62,6 +63,18 @@ export const useAsyncEffect = (fn, deps) => {
   useEffect(() => {
     fn();
   }, deps);
+};
+export const useLocalStorageSignal = (key, initialValue) => {
+  const initial = useMemo(() => {
+    const current = localStorage.getItem(key);
+    if (current && current !== "undefined") return JSON.parse(current);
+    return initialValue;
+  }, []);
+  const signal = useSignal(initial);
+  useSignalEffect(() => {
+    localStorage.setItem(key, JSON.stringify(signal.value));
+  });
+  return signal;
 };
 export const useLocalState = (key, initialValue) => {
   const [value, setValue] = useState(() => {
