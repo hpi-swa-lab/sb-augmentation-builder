@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { SBAbstractMatcher } from "./matcher.ts";
 import { SBMatcher } from "./model.js";
 
 // An extension groups a set of functionality, such as syntax highlighting,
@@ -126,7 +127,7 @@ export class Extension {
   }
 
   registerReplacement(r) {
-    if (!(r.query instanceof SBMatcher))
+    if (!(r.query instanceof SBAbstractMatcher))
       throw new Error("query must be a matcher");
     if (!r.query.requiredModels.every((m) => !!m))
       throw new Error("unset model");
@@ -135,7 +136,7 @@ export class Extension {
   }
 
   registerMarker(r) {
-    if (!(r.query instanceof SBMatcher))
+    if (!(r.query instanceof SBAbstractMatcher))
       throw new Error("query must be a matcher");
     if (!r.query.requiredModels.every((m) => !!m))
       throw new Error("unset model");

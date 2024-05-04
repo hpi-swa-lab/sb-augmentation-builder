@@ -1,50 +1,11 @@
 import { WeakArray, exec, last, rangeEqual } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 // import { OffscreenEditor } from "./editor.js";
-
-export class SBMatcher {
-  constructor(model, steps, queryDepth = 1) {
-    this.steps = steps;
-    this.model = model;
-    this.queryDepth = queryDepth;
-  }
-
-  match(node, shard) {
-    return exec(node, ...this.steps);
-  }
-
-  modelFor(editor) {
-    return this.model;
-  }
-
-  get requiredModels() {
-    return [this.model];
-  }
-}
-
-export class SBDefaultLanguageMatcher extends SBMatcher {
-  constructor(steps, queryDepth = 1) {
-    super(null, steps, queryDepth);
-  }
-
-  modelFor(editor) {
-    return editor.defaultModel;
-  }
-
-  get requiredModels() {
-    return [];
-  }
-}
-
-export class SBShardLocalMatcher extends SBMatcher {
-  constructor(model, fn, queryDepth = 1) {
-    super(model, fn, queryDepth);
-  }
-
-  match(node, shard) {
-    return exec(node, ...this.steps(shard));
-  }
-}
+export {
+  SBMatcher,
+  SBDefaultLanguageMatcher,
+  SBShardLocalMatcher,
+} from "./matcher.ts";
 
 /*
     https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
