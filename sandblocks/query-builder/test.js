@@ -4,7 +4,7 @@ import {
   Filter,
   Pipeline,
   PipelineNode,
-} from "./queryPipeline/piplineNode.js";
+} from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
 
 const tests = [];
@@ -69,7 +69,15 @@ function assertContains(a, b) {
 function tick() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
-//TODO Write Test test for tree
+
+function simSbMatching(tree, pipeline, replacements = []) {
+  let res = pipeline.execute(tree);
+  if (res[0]) replacements.push(res[1]);
+  tree.children.forEach((child) =>
+    simSbMatching(child, pipeline, replacements),
+  );
+  return replacements;
+}
 
 describe("check validity of DAG", () => {
   test("validDAG", async () => {
@@ -225,19 +233,20 @@ describe("check execution order", () => {
 });
 
 describe("PipelineExecution", async () => {
-  test("Match!", async () => {
+  test("Pipeline Single Query", async () => {
     const typescript = languageFor("typescript");
     await typescript.ready();
-    const tree = typescript.parseSync("const x = 1");
+    const tree = typescript.parseSync(
+      "const name =  'test'\nconst ui = new UI(name)",
+    );
 
-    const query = new AstGrepQuery("Query1", "const $a = $b", false);
+    const query = new AstGrepQuery("Query1", "const $a = $b");
     const pipeline = new Pipeline();
 
     pipeline.addNode(query);
     const matchingPartOfTree = tree.children[0].children[2];
-    const res = pipeline.execute(matchingPartOfTree);
-    debugger;
-    assertTrue(res != null);
+    const res = simSbMatching(tree, pipeline);
+    assertTrue(res.length == 2);
   });
 
   /**
