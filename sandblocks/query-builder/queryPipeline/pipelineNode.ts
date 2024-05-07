@@ -1,5 +1,6 @@
 import { SBBlock } from "../../../core/model.js";
 import { randomId } from "../../../utils.js";
+import { el, tr } from "../../../view/widgets.js";
 import { getExecutionOrder } from "./dag.js";
 
 export abstract class PipelineNode {
@@ -80,44 +81,91 @@ export class Pipeline {
     let currentResult: Object | null = null;
     const captures = new Map<string, SBBlock>();
     const executionOrder = getExecutionOrder(this);
+    let allMatch = true;
     //debugger;
     if (executionOrder) {
       executionOrder.forEach((node: PipelineNode) => {
         currentResult = node.execute(input);
+        if (currentResult != null && Object.keys(currentResult).length != 0) {
+          Object.keys(currentResult).forEach((res) => {
+            console.log(currentResult!![res]);
+            captures.set(res, currentResult!![res]);
+          });
+        } else {
+          allMatch = false;
+          //return [false, new Replacement()];
+        }
       });
-      if (currentResult != null && Object.keys(currentResult).length != 0) {
-        Object.keys(currentResult).forEach((res) => {
-          captures.set(res, currentResult!![res]);
-        });
+      //return [true, new Replacement(new)];
+      if (allMatch) {
+        console.log("return true");
         return [true, new Replacement(new SBBlock(), captures)];
       } else {
+        console.log("return false");
         return [false, new Replacement()];
       }
-    } else {
-      return [false, new Replacement()];
     }
   }
 }
 
 export class Query extends PipelineNode {
-  constructor(name, task, root, connections = []) {
+  searchType: SearchType;
+
+  constructor(
+    name,
+    task,
+    searchType: SearchType = SearchType.THIS_NODE,
+    connections = [],
+  ) {
     super(name, task, connections);
+    this.searchType = searchType;
   }
 
   execute(input: SBBlock) {
     //return input.map((it) => this.task(it));
-    return this.task(input);
+    console.log(this.searchType);
+    switch (this.searchType) {
+      case SearchType.THIS_NODE:
+        return this.task(input);
+      case SearchType.DOWNWARDS:
+        return this.searchDownwards(input);
+      case SearchType.PROGRAM:
+        const res = this.searchDownwards(input.root);
+        return res;
+    }
+  }
+
+  private searchUpwards(input: SBBlock, alreadyChecked: number[] = []) {
+    const res = this.task(input);
+  }
+
+  private searchDownwards(input: SBBlock, matches: Object[] = []) {
+    const res = this.task(input);
+    if (res != null && Object.keys(res).length != 0) {
+      matches.push(res);
+    } else {
+      input.children.forEach((child) => {
+        this.searchDownwards(child, matches);
+      });
+    }
+    return matches.length > 0 ? matches[0] : {};
   }
 }
 
 export class AstGrepQuery extends Query {
-  constructor(name: string, query: string, connections = []) {
+  constructor(
+    name: string,
+    query: string,
+    searchType: SearchType = SearchType.THIS_NODE,
+    connections = [],
+  ) {
     super(
       name,
       (root: SBBlock) => {
         const res = root.query(query);
         return res;
       },
+      searchType,
       connections,
     );
   }
@@ -150,4 +198,11 @@ export class Replacement {
     this.root = root;
     this.captures = captures;
   }
+}
+
+export enum SearchType {
+  THIS_NODE,
+  UPWARDS,
+  DOWNWARDS,
+  PROGRAM,
 }

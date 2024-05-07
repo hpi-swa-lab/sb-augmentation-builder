@@ -4,6 +4,7 @@ import {
   Filter,
   Pipeline,
   PipelineNode,
+  SearchType,
 } from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
 
@@ -234,6 +235,7 @@ describe("check execution order", () => {
 
 describe("PipelineExecution", async () => {
   test("Pipeline Single Query", async () => {
+    console.log("Pipeline Single Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const tree = typescript.parseSync(
@@ -244,19 +246,9 @@ describe("PipelineExecution", async () => {
     const pipeline = new Pipeline();
 
     pipeline.addNode(query);
-    const matchingPartOfTree = tree.children[0].children[2];
     const res = simSbMatching(tree, pipeline);
+
     assertTrue(res.length == 2);
-  });
-
-  /**
-   * Input:      const x = 0
-   *             const y = 1
-   *
-   *             const mood = [😇,👿]
-   *
-   *
-
   });
 
   /**
@@ -305,8 +297,8 @@ describe("PipelineExecution", async () => {
    *
    * Output:
    */
-  /*
   test("AstGrepQueryMultiple", async () => {
+    console.log("Pipeline Multiple Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const code =
@@ -318,27 +310,34 @@ describe("PipelineExecution", async () => {
 
     const tree = typescript.parseSync(code);
 
-    const query1 = new AstGrepQuery("AstGrepQuery1", "mood[$a]", tree);
-    const query2 = new AstGrepQuery("AstGrepQuery2", "const a = $pos", tree);
-    const moodQuery = new AstGrepQuery(
-      "MoodQuery",
-      "const mood = $moods",
-      tree,
+    const query1 = new AstGrepQuery(
+      "AstGrepQuery1",
+      "mood[$a]",
+      SearchType.THIS_NODE,
     );
+    const query2 = new AstGrepQuery(
+      "AstGrepQuery2",
+      "const $x = $pos",
+      SearchType.PROGRAM,
+    );
+    //const moodQuery = new AstGrepQuery(
+    //  "MoodQuery",
+    ///  "const mood = $moods",
+    //  tree,
+    //);
 
     query1.addConnection(query2);
-    query2.addConnection(moodQuery);
+    //query2.addConnection(moodQuery);
 
     const pipeline = new Pipeline();
     pipeline.addNode(query1);
     pipeline.addNode(query2);
-    pipeline.addNode(moodQuery);
+    //pipeline.addNode(moodQuery);
 
-    const res = pipeline.execute([tree]);
+    const res = simSbMatching(tree, pipeline);
     debugger;
     assertTrue(false);
   });
-  */
 });
 
 run();
