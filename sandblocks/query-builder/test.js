@@ -241,7 +241,7 @@ describe("PipelineExecution", async () => {
       "const name =  'test'\nconst ui = new UI(name)",
     );
 
-    const query = new AstGrepQuery("Query1", "const $a = $b");
+    const query = new AstGrepQuery("Query1", "const $a = $b", false);
     const pipeline = new Pipeline();
 
     pipeline.addNode(query);
@@ -311,16 +311,19 @@ describe("PipelineExecution", async () => {
     const query1 = new AstGrepQuery(
       "AstGrepQuery1",
       "mood[$a]",
+      false,
       SearchType.THIS_NODE,
     );
     const query2 = new AstGrepQuery(
       "AstGrepQuery2",
       "const €captures.get('a').children[0].text€ = $pos",
+      false,
       SearchType.PROGRAM,
     );
     const moodQuery = new AstGrepQuery(
       "MoodQuery",
       "const mood = $moods",
+      false,
       SearchType.PROGRAM,
     );
 
@@ -336,12 +339,44 @@ describe("PipelineExecution", async () => {
     assertEq(res.length, 2);
 
     assertEq(res[0].captures.size, 3);
-    assertEq(res[0].captures.get("a").children[0].text, "y");
-    assertEq(res[0].captures.get("pos").children[0].text, "1");
+    assertEq(res[0].captures.get("a").text, "y");
+    assertEq(res[0].captures.get("pos").text, "1");
 
     assertEq(res[1].captures.size, 3);
-    assertEq(res[1].captures.get("a").children[0].text, "x");
-    assertEq(res[1].captures.get("pos").children[0].text, "0");
+    assertEq(res[1].captures.get("a").text, "x");
+    assertEq(res[1].captures.get("pos").text, "0");
+  });
+
+  test("DifferentStateMachines", async () => {
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const code =
+      "const s1 = new StateMaschine(edges,nodes)\nconst s2 = new StateMaschine(nodes)\nconst s3 = new StateMaschine()";
+
+    const tree = typescript.parseSync(code);
+
+    const queryS1 = new AstGrepQuery(
+      "QueryS1",
+      "const $sname = new StateMaschine($edges, $nodes)",
+    );
+    const queryS2 = new AstGrepQuery(
+      "QueryS2",
+      "const $sname = new StateMaschine($nodes)",
+    );
+    const queryS3 = new AstGrepQuery(
+      "QueryS3",
+      "const $sname = new StateMaschine()",
+    );
+    const pipeline = new Pipeline();
+    pipeline.addNode(queryS1);
+    pipeline.addNode(queryS2);
+    pipeline.addNode(queryS3);
+
+    const res = simSbMatching(tree, pipeline);
+
+    assertEq(res[0].captures.size, 3);
+    assertEq(res[1].captures.size, 2);
+    assertEq(res[2].captures.size, 1);
   });
 });
 

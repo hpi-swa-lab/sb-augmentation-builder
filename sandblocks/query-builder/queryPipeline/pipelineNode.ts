@@ -1,6 +1,5 @@
 import { SBBlock } from "../../../core/model.js";
 import { randomId } from "../../../utils.js";
-import { el, tr } from "../../../view/widgets.js";
 import { getExecutionOrder } from "./dag.js";
 
 export abstract class PipelineNode {
@@ -84,18 +83,25 @@ export class Pipeline {
     let allMatch = true;
     if (executionOrder) {
       executionOrder.forEach((node: PipelineNode) => {
-        if (allMatch) {
-          currentResult = node.execute(input, captures);
-          if (currentResult != null && Object.keys(currentResult).length != 0) {
-            Object.keys(currentResult).forEach((res) => {
-              captures.set(res, currentResult!![res]);
-            });
-          } else {
-            allMatch = false;
+        if (node instanceof Query) {
+          if (allMatch) {
+            currentResult = node.execute(input, captures);
+            if (
+              currentResult != null &&
+              Object.keys(currentResult).length != 0
+            ) {
+              Object.keys(currentResult).forEach((res) => {
+                captures.set(res, currentResult!![res]);
+              });
+            } else {
+              if (!node.optional) {
+                allMatch = false;
+              }
+            }
           }
         }
       });
-      if (allMatch) {
+      if (allMatch && captures.size > 0) {
         return [true, new Replacement(new SBBlock(), captures)];
       } else {
         return [false, new Replacement()];
@@ -106,15 +112,18 @@ export class Pipeline {
 
 export class Query extends PipelineNode {
   searchType: SearchType;
+  optional: boolean;
 
   constructor(
     name,
     task,
     searchType: SearchType = SearchType.THIS_NODE,
+    optional: boolean,
     connections = [],
   ) {
     super(name, task, connections);
     this.searchType = searchType;
+    this.optional = optional;
   }
 
   execute(input: SBBlock, captures) {
@@ -157,6 +166,7 @@ export class AstGrepQuery extends Query {
   constructor(
     name: string,
     query: string,
+    optional = true,
     searchType: SearchType = SearchType.THIS_NODE,
     connections = [],
   ) {
@@ -177,6 +187,7 @@ export class AstGrepQuery extends Query {
         return res;
       },
       searchType,
+      optional,
       connections,
     );
   }
