@@ -6,7 +6,7 @@ import { getExecutionOrder } from "./dag.js";
 export abstract class PipelineNode {
   id: number;
   name: string;
-  task: (input: SBBlock) => Object;
+  task: (input: SBBlock, captures: any) => Object;
   connections: PipelineNode[];
 
   constructor(
@@ -28,7 +28,7 @@ export abstract class PipelineNode {
     this.connections = this.connections.filter((it) => it.id != node.id);
   }
 
-  abstract execute(SBBlock);
+  abstract execute(input, captures);
 }
 
 export class Pipeline {
@@ -82,26 +82,22 @@ export class Pipeline {
     const captures = new Map<string, SBBlock>();
     const executionOrder = getExecutionOrder(this);
     let allMatch = true;
-    //debugger;
     if (executionOrder) {
       executionOrder.forEach((node: PipelineNode) => {
-        currentResult = node.execute(input);
-        if (currentResult != null && Object.keys(currentResult).length != 0) {
-          Object.keys(currentResult).forEach((res) => {
-            console.log(currentResult!![res]);
-            captures.set(res, currentResult!![res]);
-          });
-        } else {
-          allMatch = false;
-          //return [false, new Replacement()];
+        if (allMatch) {
+          currentResult = node.execute(input, captures);
+          if (currentResult != null && Object.keys(currentResult).length != 0) {
+            Object.keys(currentResult).forEach((res) => {
+              captures.set(res, currentResult!![res]);
+            });
+          } else {
+            allMatch = false;
+          }
         }
       });
-      //return [true, new Replacement(new)];
       if (allMatch) {
-        console.log("return true");
         return [true, new Replacement(new SBBlock(), captures)];
       } else {
-        console.log("return false");
         return [false, new Replacement()];
       }
     }
@@ -121,31 +117,36 @@ export class Query extends PipelineNode {
     this.searchType = searchType;
   }
 
-  execute(input: SBBlock) {
-    //return input.map((it) => this.task(it));
-    console.log(this.searchType);
+  execute(input: SBBlock, captures) {
     switch (this.searchType) {
       case SearchType.THIS_NODE:
-        return this.task(input);
+        return this.task(input, captures);
+      case SearchType.UPWARDS:
+        this.searchUpwards(input, captures);
       case SearchType.DOWNWARDS:
-        return this.searchDownwards(input);
+        return this.searchDownwards(input, captures);
       case SearchType.PROGRAM:
-        const res = this.searchDownwards(input.root);
+        const res = this.searchDownwards(input.root, captures);
         return res;
     }
   }
 
-  private searchUpwards(input: SBBlock, alreadyChecked: number[] = []) {
-    const res = this.task(input);
+  private searchUpwards(
+    input: SBBlock,
+    captures,
+    alreadyChecked: number[] = [],
+  ) {
+    const res = this.task(input, captures);
+    console.error("Upward Search not yet implemented");
   }
 
-  private searchDownwards(input: SBBlock, matches: Object[] = []) {
-    const res = this.task(input);
+  private searchDownwards(input: SBBlock, captures, matches: Object[] = []) {
+    const res = this.task(input, captures);
     if (res != null && Object.keys(res).length != 0) {
       matches.push(res);
     } else {
       input.children.forEach((child) => {
-        this.searchDownwards(child, matches);
+        this.searchDownwards(child, captures, matches);
       });
     }
     return matches.length > 0 ? matches[0] : {};
@@ -161,8 +162,18 @@ export class AstGrepQuery extends Query {
   ) {
     super(
       name,
-      (root: SBBlock) => {
-        const res = root.query(query);
+      (root: SBBlock, captures) => {
+        let query_copy = query;
+        const match = query.match(/€(\S)*€/gm);
+        if (match) {
+          const replacements = match
+            .map((it) => it.substring(1, it.length - 1))
+            .map((it) => eval(it));
+          replacements.forEach((rep, index) => {
+            query_copy = query_copy.replace(match[index], rep.toString());
+          });
+        }
+        const res = root.query(query_copy);
         return res;
       },
       searchType,
@@ -185,10 +196,10 @@ export class Filter extends PipelineNode {
     );
   }
 
-  execute(input: SBBlock[], first = false) {
-    const res = input.filter((it) => this.task(it));
-    return first ? (res.length > 0 ? res[0] : []) : res;
-  }
+  //execute(input: SBBlock[], first = false) {
+  //  const res = input.filter((it) => this.task(it));
+  //  return first ? (res.length > 0 ? res[0] : []) : res;
+  //}
 }
 
 export class Replacement {

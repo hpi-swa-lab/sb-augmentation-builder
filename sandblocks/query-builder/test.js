@@ -235,7 +235,6 @@ describe("check execution order", () => {
 
 describe("PipelineExecution", async () => {
   test("Pipeline Single Query", async () => {
-    console.log("Pipeline Single Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const tree = typescript.parseSync(
@@ -248,7 +247,7 @@ describe("PipelineExecution", async () => {
     pipeline.addNode(query);
     const res = simSbMatching(tree, pipeline);
 
-    assertTrue(res.length == 2);
+    assertEq(res.length, 2);
   });
 
   /**
@@ -298,15 +297,14 @@ describe("PipelineExecution", async () => {
    * Output:
    */
   test("AstGrepQueryMultiple", async () => {
-    console.log("Pipeline Multiple Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const code =
       "const x = 0\n" +
       "const y = 1\n" +
       "const mood = ['😇','👿']\n" +
-      "fun onLikeButtonPressed() {\n   console.log(mood[x])\n}\n" +
-      "fun onDislikeButtonPressed() {\n   console.log(mood[y])\n}\n";
+      "fun onDislikeButtonPressed() {\n   console.log(mood[y])\n}\n" +
+      "fun onLikeButtonPressed() {\n   console.log(mood[x])\n}\n";
 
     const tree = typescript.parseSync(code);
 
@@ -317,26 +315,33 @@ describe("PipelineExecution", async () => {
     );
     const query2 = new AstGrepQuery(
       "AstGrepQuery2",
-      "const $x = $pos",
+      "const €captures.get('a').children[0].text€ = $pos",
       SearchType.PROGRAM,
     );
-    //const moodQuery = new AstGrepQuery(
-    //  "MoodQuery",
-    ///  "const mood = $moods",
-    //  tree,
-    //);
+    const moodQuery = new AstGrepQuery(
+      "MoodQuery",
+      "const mood = $moods",
+      SearchType.PROGRAM,
+    );
 
     query1.addConnection(query2);
-    //query2.addConnection(moodQuery);
+    query1.addConnection(moodQuery);
 
     const pipeline = new Pipeline();
     pipeline.addNode(query1);
     pipeline.addNode(query2);
-    //pipeline.addNode(moodQuery);
+    pipeline.addNode(moodQuery);
 
     const res = simSbMatching(tree, pipeline);
-    debugger;
-    assertTrue(false);
+    assertEq(res.length, 2);
+
+    assertEq(res[0].captures.size, 3);
+    assertEq(res[0].captures.get("a").children[0].text, "y");
+    assertEq(res[0].captures.get("pos").children[0].text, "1");
+
+    assertEq(res[1].captures.size, 3);
+    assertEq(res[1].captures.get("a").children[0].text, "x");
+    assertEq(res[1].captures.get("pos").children[0].text, "0");
   });
 });
 
