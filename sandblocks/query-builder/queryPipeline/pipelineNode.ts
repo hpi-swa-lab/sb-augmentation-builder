@@ -95,7 +95,9 @@ export class Pipeline {
       executionOrder.forEach((node: PipelineNode) => {
         if (
           allMatch &&
-          (node instanceof Query || node instanceof OptionalQuery)
+          (node instanceof Query ||
+            node instanceof OptionalQuery ||
+            node instanceof Filter)
         ) {
           allMatch = node.execute(input, captures);
         }
@@ -183,27 +185,25 @@ export class AstGrepQuery extends Query {
   }
 }
 
-/*
 export class Filter extends PipelineNode {
   constructor(name: string, filter: string, connections = []) {
     super(
       name,
-      (input) => {
-        //debugger;
-        const evalString = filter;
-        const res = eval(evalString);
+      (input, captures) => {
+        let evalPreable = "";
+        for (const [key, _] of captures) {
+          evalPreable += `const ${key} = captures.get("${key}");\n`;
+        }
+        const res = eval(evalPreable + filter);
         return res;
       },
       connections,
     );
   }
-
-  //execute(input: SBBlock[], first = false) {
-  //  const res = input.filter((it) => this.task(it));
-  //  return first ? (res.length > 0 ? res[0] : []) : res;
-  //}
+  execute(input: SBBlock, captures: any): boolean {
+    return this.task(input, captures);
+  }
 }
-*/
 
 export class Replacement {
   root: SBBlock;

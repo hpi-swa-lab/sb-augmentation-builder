@@ -6,6 +6,7 @@ import {
   Pipeline,
   PipelineNode,
   SingleNode,
+  Filter,
 } from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
 
@@ -76,7 +77,6 @@ function simSbMatching(tree, pipeline, replacements = []) {
   let res = pipeline.execute(tree);
   if (res[0]) {
     replacements.push(res[1]);
-    console.log(res[1]);
   }
   tree.children.forEach((child) =>
     simSbMatching(child, pipeline, replacements),
@@ -239,7 +239,6 @@ describe("check execution order", () => {
 
 describe("PipelineExecution", async () => {
   test("Pipeline Single Query", async () => {
-    console.log("Pipeline Single Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const tree = typescript.parseSync(
@@ -266,23 +265,24 @@ describe("PipelineExecution", async () => {
    *
    * Output: a = [[1,2],[3,4]]
    */
-  /*
   test("AstGrepQueryMatchOnlyOne", async () => {
     const typescript = languageFor("typescript");
     await typescript.ready();
     const pipeline = new Pipeline();
     const tree = typescript.parseSync("const x = [[1,2],[3,4]]\nconst x = 5");
-    const query = new AstGrepQuery("AstGrepQuery1", "let x = $a", tree);
-    const filter = new Filter("Filter1", "input.a.type == 'array'");
+    const query = new AstGrepQuery(
+      "AstGrepQuery1",
+      "let x = $a",
+      new SingleNode(),
+    );
+    const filter = new Filter("Filter1", "a.type == 'array'");
     query.addConnection(filter);
     pipeline.addNode(query);
     pipeline.addNode(filter);
-    debugger;
-    const res = pipeline.execute(tree, true);
-    assertTrue(res[0].a.type == "array");
-    assertTrue(res.length == 1);
+    const res = simSbMatching(tree, pipeline);
+    assertEq(res[0].captures.get("a").type, "array");
+    assertEq(res.length, 1);
   });
-  */
 
   /**
    * Input:      const x = 0
@@ -304,7 +304,6 @@ describe("PipelineExecution", async () => {
    * Output:
    */
   test("AstGrepQueryMultiple", async () => {
-    console.log("AstGrepQueryMultiple");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const code =
