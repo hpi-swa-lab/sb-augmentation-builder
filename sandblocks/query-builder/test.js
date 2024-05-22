@@ -1,10 +1,11 @@
 import { checkIfDAG, getExecutionOrder } from "./queryPipeline/dag.js";
 import {
+  AllNodes,
   AstGrepQuery,
-  Filter,
+  OptionalQuery,
   Pipeline,
   PipelineNode,
-  SearchType,
+  SingleNode,
 } from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
 
@@ -73,7 +74,10 @@ function tick() {
 
 function simSbMatching(tree, pipeline, replacements = []) {
   let res = pipeline.execute(tree);
-  if (res[0]) replacements.push(res[1]);
+  if (res[0]) {
+    replacements.push(res[1]);
+    console.log(res[1]);
+  }
   tree.children.forEach((child) =>
     simSbMatching(child, pipeline, replacements),
   );
@@ -235,13 +239,16 @@ describe("check execution order", () => {
 
 describe("PipelineExecution", async () => {
   test("Pipeline Single Query", async () => {
+    console.log("Pipeline Single Query");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const tree = typescript.parseSync(
       "const name =  'test'\nconst ui = new UI(name)",
     );
 
-    const query = new AstGrepQuery("Query1", "const $a = $b", false);
+    const query = new OptionalQuery(
+      new AstGrepQuery("Query1", "const $a = $b", new SingleNode()),
+    );
     const pipeline = new Pipeline();
 
     pipeline.addNode(query);
@@ -297,6 +304,7 @@ describe("PipelineExecution", async () => {
    * Output:
    */
   test("AstGrepQueryMultiple", async () => {
+    console.log("AstGrepQueryMultiple");
     const typescript = languageFor("typescript");
     await typescript.ready();
     const code =
@@ -311,20 +319,17 @@ describe("PipelineExecution", async () => {
     const query1 = new AstGrepQuery(
       "AstGrepQuery1",
       "mood[$a]",
-      false,
-      SearchType.THIS_NODE,
+      new SingleNode(),
     );
     const query2 = new AstGrepQuery(
       "AstGrepQuery2",
-      "const €captures.get('a').children[0].text€ = $pos",
-      false,
-      SearchType.PROGRAM,
+      "const €a.children[0].text€ = $pos",
+      new AllNodes(),
     );
     const moodQuery = new AstGrepQuery(
       "MoodQuery",
       "const mood = $moods",
-      false,
-      SearchType.PROGRAM,
+      new AllNodes(),
     );
 
     query1.addConnection(query2);
@@ -355,17 +360,26 @@ describe("PipelineExecution", async () => {
 
     const tree = typescript.parseSync(code);
 
-    const queryS1 = new AstGrepQuery(
-      "QueryS1",
-      "const $sname = new StateMaschine($edges, $nodes)",
+    const queryS1 = new OptionalQuery(
+      new AstGrepQuery(
+        "QueryS1",
+        "const $sname = new StateMaschine($edges, $nodes)",
+        new SingleNode(),
+      ),
     );
-    const queryS2 = new AstGrepQuery(
-      "QueryS2",
-      "const $sname = new StateMaschine($nodes)",
+    const queryS2 = new OptionalQuery(
+      new AstGrepQuery(
+        "QueryS2",
+        "const $sname = new StateMaschine($nodes)",
+        new SingleNode(),
+      ),
     );
-    const queryS3 = new AstGrepQuery(
-      "QueryS3",
-      "const $sname = new StateMaschine()",
+    const queryS3 = new OptionalQuery(
+      new AstGrepQuery(
+        "QueryS3",
+        "const $sname = new StateMaschine()",
+        new SingleNode(),
+      ),
     );
     const pipeline = new Pipeline();
     pipeline.addNode(queryS1);
@@ -375,8 +389,16 @@ describe("PipelineExecution", async () => {
     const res = simSbMatching(tree, pipeline);
 
     assertEq(res[0].captures.size, 3);
+    assertEq(res[0].captures.get("sname").text, "s1");
+    assertEq(res[0].captures.get("edges").text, "edges");
+    assertEq(res[0].captures.get("nodes").text, "nodes");
+
     assertEq(res[1].captures.size, 2);
+    assertEq(res[1].captures.get("sname").text, "s2");
+    assertEq(res[1].captures.get("nodes").text, "nodes");
+
     assertEq(res[2].captures.size, 1);
+    assertEq(res[2].captures.get("sname").text, "s3");
   });
 });
 
