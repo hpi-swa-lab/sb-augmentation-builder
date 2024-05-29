@@ -18,6 +18,7 @@ function takeBackwardWhile(list, start, condition) {
   return list.slice(index + 1, list.indexOf(start));
 }
 
+//ignore this
 const removeIndent = new Extension().registerReplacement({
   query: [(x) => x.isText && x.text.includes("\n") && x.text.length > 2],
   queryDepth: 1,
@@ -43,14 +44,18 @@ const removeIndent = new Extension().registerReplacement({
   name: "remove-indent",
 });
 
+//rebuild this with QueryBuilder
 export const javascript = new Extension().registerReplacement({
   query: [(x) => x.type === "program"],
   queryDepth: 1,
   rerender: () => true,
   component: ({ node, replacement }) => {
+    //this are the top level elements
     const symbols = node.childBlocks;
+    //ignore all react specifics
     const [selectedSymbol, setSelectedSymbol] = useState(symbols[0]);
 
+    //check if statement has members (i.e. get everything in {})
     let selectedBody = selectedSymbol;
     if (selectedBody?.type === "export_statement")
       selectedBody = selectedBody.childBlock(0);
@@ -74,6 +79,7 @@ export const javascript = new Extension().registerReplacement({
       replacement.style.height = "100%";
     }, []);
 
+    //create semantic groups (comments belong to code beneath)
     const shownSymbol = selectedMember ?? selectedSymbol;
     const shownSymbolList = shownSymbol
       ? [
@@ -96,6 +102,7 @@ export const javascript = new Extension().registerReplacement({
       h(
         "div",
         { style: { display: "flex" } },
+        //top level (many top level statement import, classes, etc.)
         List({
           style: listStyles,
           items: symbols,
@@ -134,6 +141,8 @@ export const javascript = new Extension().registerReplacement({
             return label;
           },
         }),
+        //nested (currently only classes)
+        //if class, parse members and add to second list
         List({
           style: listStyles,
           items: members,
@@ -157,6 +166,7 @@ export const javascript = new Extension().registerReplacement({
         }),
       ),
 
+      //source code for selected item
       h(
         "div",
         {

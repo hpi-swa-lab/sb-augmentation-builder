@@ -3,12 +3,20 @@ import {
   AllNodes,
   AstGrepQuery,
   OptionalQuery,
+  RootQuery,
   Pipeline,
   PipelineNode,
   SingleNode,
   Filter,
+  CodeMatchQuery,
+  TypeQuery,
+  Children,
+  SubNodes,
 } from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
+import { SBBlock } from "../../core/model.js";
+import { caseOf } from "../../utils.js";
+import { exec } from "./functionQueries.js";
 
 const tests = [];
 const configStack = [{}];
@@ -75,14 +83,120 @@ function tick() {
 
 function simSbMatching(tree, pipeline, replacements = []) {
   let res = pipeline.execute(tree);
-  if (res[0]) {
-    replacements.push(res[1]);
+  if (res.success) {
+    replacements.push(res.replacement);
   }
   tree.children.forEach((child) =>
     simSbMatching(child, pipeline, replacements),
   );
   return replacements;
 }
+
+describe("New Execution Test", async () => {
+  test("test1", async () => {
+    function simSbMatching2(tree, pipeline) {
+      //console.log(tree);
+      const res = pipeline(tree);
+      if (res) {
+        console.log(res);
+        //replacements.push(res);
+      }
+      tree.children.forEach((child) => simSbMatching2(child, pipeline));
+    }
+
+    const code = `
+import { useState } from 'react'
+// this is my top class!
+export class MyCls {
+
+  constructor() {}
+
+  execute(input) {}
+  
+  const x = 1
+
+  const y = 2
+}
+`;
+
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+
+    const tree = typescript.parseSync(code);
+
+    let capture = {
+      topLevel: [],
+    };
+
+    const findTopLevel = (node) => {
+      //debugger;
+      /*
+      try {
+        const res = [node]
+          .filter((it) => it.type == "program")
+          .map((it) => it.children)[0]
+          .filter((it) => it.named)
+          .map((it) => isExported(it, {}))
+          .forEach((it) => capture["topLevel"].push(it));
+        return capture;
+      } catch {
+        return null;
+      }
+      */
+
+      const res = exec(
+        [node],
+        (it) => it.filter((it) => it.type == "program"),
+        (it) => it.map((it) => it.children)[0],
+        (it) => it.filter((it) => it.named),
+        (it) => it.map((it) => isExported(it, {})),
+        (it) =>
+          it.map((it) => {
+            capture["topLevel"].push(it);
+            return it;
+          }),
+      );
+      if (res) {
+        return capture;
+      } else {
+        return null;
+      }
+    };
+
+    const isExported = (node, capture) => {
+      const exported = node.type == "export_statement";
+      capture["exported"] = exported;
+      if (exported) {
+        //TODO: remove hardcoded index
+        return getNodeInfo(node.children[2], capture);
+      } else {
+        return getNodeInfo(node, capture);
+      }
+    };
+
+    const getNodeInfo = (node, capture) => {
+      //TODO: Make custom methode orderFork
+      switch (node.type) {
+        case "class_declaration":
+          capture["name"] = node.children[2].children[0].text;
+          capture["members"] = node.children[4].children.filter(
+            (it) => it.named && !it.isWhitespace(),
+          );
+          //node.children.filter(it => it.type == "class_body")[0].Children.filter(it => it.named && !it.isWhiteSpace())
+          break;
+        case "import_statement":
+          capture["name"] = Array.from(node.allNodes()).filter(
+            (it) => it.type == "identifier",
+          )[0].text;
+          capture["members"] = [];
+          break;
+      }
+      return capture;
+    };
+
+    console.log(simSbMatching2(tree, findTopLevel));
+  });
+});
 
 describe("check validity of DAG", () => {
   test("validDAG", async () => {
@@ -252,7 +366,6 @@ describe("PipelineExecution", async () => {
 
     pipeline.addNode(query);
     const res = simSbMatching(tree, pipeline);
-
     assertEq(res.length, 2);
   });
 
@@ -280,8 +393,8 @@ describe("PipelineExecution", async () => {
     pipeline.addNode(query);
     pipeline.addNode(filter);
     const res = simSbMatching(tree, pipeline);
-    assertEq(res[0].captures.get("a").type, "array");
     assertEq(res.length, 1);
+    assertEq(res[0].captures.get("a").type, "array");
   });
 
   /**
@@ -315,6 +428,10 @@ describe("PipelineExecution", async () => {
 
     const tree = typescript.parseSync(code);
 
+    const rootQuery = new RootQuery(
+      new CodeMatchQuery("RootQuery", "mood[$_]", new SingleNode()),
+    );
+
     const query1 = new AstGrepQuery(
       "AstGrepQuery1",
       "mood[$a]",
@@ -331,22 +448,25 @@ describe("PipelineExecution", async () => {
       new AllNodes(),
     );
 
+    rootQuery.addConnection(query1);
     query1.addConnection(query2);
     query1.addConnection(moodQuery);
 
     const pipeline = new Pipeline();
+    pipeline.addNode(rootQuery);
     pipeline.addNode(query1);
     pipeline.addNode(query2);
     pipeline.addNode(moodQuery);
 
     const res = simSbMatching(tree, pipeline);
+    console.log(res);
     assertEq(res.length, 2);
 
-    assertEq(res[0].captures.size, 3);
+    assertEq(res[0].captures.size, 4);
     assertEq(res[0].captures.get("a").text, "y");
     assertEq(res[0].captures.get("pos").text, "1");
 
-    assertEq(res[1].captures.size, 3);
+    assertEq(res[1].captures.size, 4);
     assertEq(res[1].captures.get("a").text, "x");
     assertEq(res[1].captures.get("pos").text, "0");
   });
@@ -398,6 +518,66 @@ describe("PipelineExecution", async () => {
 
     assertEq(res[2].captures.size, 1);
     assertEq(res[2].captures.get("sname").text, "s3");
+  });
+
+  test("ComplexExample", async () => {
+    console.log("ComplexExample");
+
+    const code = `
+import { useState } from 'react'
+// this is my top class!
+export class MyCls {
+
+  constructor() {}
+
+  execute(input) {}
+  
+  const x = 1
+
+  const y = 2
+}
+`;
+
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+
+    const tree = typescript.parseSync(code);
+    const rootQuery = new OptionalQuery(
+      new RootQuery(
+        new TypeQuery(
+          "findProgrammRoot",
+          "program",
+          "root_node",
+          new SingleNode(),
+        ),
+      ),
+    );
+
+    const pipeline = new Pipeline();
+
+    pipeline.addNode(rootQuery);
+
+    const res = simSbMatching(tree, pipeline);
+
+    const allCaptures = new Map();
+    allCaptures.set("root", res[0].captures.get("root"));
+    allCaptures.set("topLevelElements", []);
+
+    const pipeline2 = new Pipeline();
+    const namedFilter = new Filter("named", "input.named");
+
+    pipeline2.addNode(namedFilter);
+
+    for (const node of res[0].captures.get("root").children) {
+      console.log("node:");
+      console.log(node);
+
+      const res2 = pipeline2.execute(node);
+      if (res2.success) allCaptures.get("topLevelElements").push(res2);
+    }
+
+    debugger;
+    console.log(res);
   });
 });
 

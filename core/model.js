@@ -373,6 +373,10 @@ class SBNode {
     else return this.parent?.orParentThat(predicate);
   }
 
+  prependString(string) {
+    this.editor.insertTextFromCommand(this.range[0], string);
+  }
+
   insert(string, type, index) {
     const list = this.childBlocks.filter(
       (child) =>
@@ -698,9 +702,7 @@ export class SBBlock extends SBNode {
   }
 
   get text() {
-    return this.children.length === 1 && this.children[0].isText
-      ? this.children[0].text
-      : "";
+    return this.children.length === 1 ? this.children[0].text : "";
   }
 
   get structureHash() {

@@ -6,7 +6,7 @@ import { matchesKey, withDo } from "../utils.js";
 import { choose, openComponentInWindow } from "./window.js";
 import {} from "./file-project/search.js";
 import { loadUserPreferences, openPreferences } from "./preference-window.js";
-import {} from "./query-builder/test.js";
+import {} from "./query-builder/functionQueryTest.js";
 await loadUserPreferences();
 
 const PROJECT_TYPES = {

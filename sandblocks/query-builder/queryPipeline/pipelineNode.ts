@@ -23,19 +23,20 @@ export abstract class Node {
 }
 
 export class PipelineNode extends Node {
-  task: (input: SBBlock, captures: any) => boolean;
+  task: (input: SBBlock, captures: Map<string, SBBlock>) => Object | null;
 
   constructor(
     name: string,
-    task: (input: SBBlock, captures: Map<string, SBBlock[]>) => boolean,
+    task: (input: SBBlock, captures: Map<string, SBBlock>) => Object | null,
     connections: PipelineNode[] = [],
   ) {
     super(name, connections);
     this.task = task;
   }
 
-  execute(input: SBBlock, captures: any): boolean {
-    return true;
+  execute(input: SBBlock, captures: Map<string, SBBlock>): boolean {
+    //check if execution was successfull i.e. at at least one match found
+    return false;
   }
 }
 
@@ -86,27 +87,28 @@ export class Pipeline {
     return edges;
   }
 
-  execute(input: SBBlock) {
-    //let currentResult: Object | null = null;
+  execute(input: SBBlock): { success: boolean; replacement: Replacement } {
     const captures = new Map<string, SBBlock>();
     const executionOrder = getExecutionOrder(this);
     let allMatch = true;
     if (executionOrder) {
       executionOrder.forEach((node: PipelineNode) => {
-        if (
-          allMatch &&
-          (node instanceof Query ||
-            node instanceof OptionalQuery ||
-            node instanceof Filter)
-        ) {
+        if (allMatch) {
           allMatch = node.execute(input, captures);
         }
       });
-
-      return captures.size != 0 && allMatch
-        ? [true, new Replacement(new SBBlock(), captures)]
-        : [false, new Replacement(new SBBlock(), new Map())];
+    } else {
+      allMatch = false;
     }
+
+    console.log(`captures.size: ${captures.size}, allMatch: ${allMatch}`);
+
+    return captures.size != 0 && allMatch
+      ? { success: true, replacement: new Replacement(captures) }
+      : {
+          success: false,
+          replacement: new Replacement(new Map()),
+        };
   }
 }
 
@@ -118,9 +120,30 @@ export class OptionalQuery extends PipelineNode {
     this.query = query;
   }
 
-  execute(input: SBBlock, captures) {
+  execute(input: SBBlock, captures: Map<string, SBBlock>) {
     this.query.execute(input, captures);
     return true;
+  }
+}
+
+export class RootQuery extends PipelineNode {
+  query: Query;
+
+  constructor(query: Query) {
+    super(query.name, query.task);
+    this.query = query;
+  }
+
+  execute(input: SBBlock, captures: Map<string, SBBlock>) {
+    let fakeCaptures = new Map<string, SBBlock>();
+    this.query.execute(input, fakeCaptures);
+    if (fakeCaptures.size == 1) {
+      const key = Array.from(fakeCaptures.keys())[0];
+      captures.set("root", fakeCaptures.get(key)!!);
+      return true;
+    } else {
+      return false;
+    }
   }
 }
 
@@ -129,7 +152,7 @@ export class Query extends PipelineNode {
 
   constructor(
     name: string,
-    task,
+    task: (input: SBBlock, captures: Map<string, SBBlock>) => Object | null,
     scope: AbstractSearchScope,
     connections: PipelineNode[] = [],
   ) {
@@ -137,9 +160,10 @@ export class Query extends PipelineNode {
     this.scope = scope;
   }
 
-  execute(input: SBBlock, captures: any): boolean {
+  execute(input: SBBlock, captures: Map<string, SBBlock>): boolean {
     let anyMatch = false;
-    for (let node of this.scope.nodes(input)) {
+    captures.set("self", input);
+    for (let node of this.scope.nodes(captures)) {
       const res = this.task(node, captures);
       if (res != null) {
         Object.keys(res).forEach((key) => {
@@ -148,6 +172,8 @@ export class Query extends PipelineNode {
         anyMatch = true;
       }
     }
+    captures.delete("self");
+    console.log(`anyMatch: ${anyMatch}`);
     return anyMatch;
   }
 }
@@ -161,7 +187,7 @@ export class AstGrepQuery extends Query {
   ) {
     super(
       name,
-      (root: SBBlock, captures) => {
+      (root: SBBlock, captures: Map<string, SBBlock>) => {
         let evalPreable = "";
         for (const [key, _] of captures) {
           evalPreable += `const ${key} = captures.get("${key}");\n`;
@@ -176,7 +202,7 @@ export class AstGrepQuery extends Query {
             query_copy = query_copy.replace(match[index], rep.toString());
           });
         }
-        const res = root.query(query_copy);
+        const res = root.query(query_copy) as Object;
         return res;
       },
       scope,
@@ -185,57 +211,139 @@ export class AstGrepQuery extends Query {
   }
 }
 
-export class Filter extends PipelineNode {
-  constructor(name: string, filter: string, connections = []) {
+export class CodeMatchQuery extends Query {
+  constructor(
+    name: string,
+    query: string,
+    scope: AbstractSearchScope,
+    connections = [],
+  ) {
     super(
       name,
-      (input, captures) => {
+      (root: SBBlock, captures: Map<string, SBBlock>) => {
+        let evalPreable = "";
+        for (const [key, _] of captures) {
+          evalPreable += `const ${key} = captures.get("${key}");\n`;
+        }
+        let query_copy = query;
+        const match = query.match(/€(\S)*€/gm);
+        if (match) {
+          const replacements = match
+            .map((it) => it.substring(1, it.length - 1))
+            .map((it) => eval(evalPreable + it));
+          replacements.forEach((rep, index) => {
+            query_copy = query_copy.replace(match[index], rep.toString());
+          });
+        }
+        return root.matches(query_copy) ? { node: root } : null;
+      },
+      scope,
+      connections,
+    );
+  }
+}
+
+export class TypeQuery extends Query {
+  constructor(
+    name: string,
+    query: string,
+    matchName: string,
+    scope: AbstractSearchScope,
+    connections = [],
+  ) {
+    super(
+      name,
+      (root: SBBlock, captures: Map<string, SBBlock>) => {
+        return root.type == query ? { matchName: root } : null;
+      },
+      scope,
+      connections,
+    );
+  }
+}
+
+export class MapNode extends PipelineNode {
+  constructor(name: string, map: string, connections: PipelineNode[] = []) {
+    super(
+      name,
+      (root: SBBlock, captures: Map<string, SBBlock>) => {
+        return null;
+      },
+      connections,
+    );
+  }
+}
+
+export class Filter extends PipelineNode {
+  constructor(name: string, filter: string, connections: PipelineNode[] = []) {
+    super(
+      name,
+      (input: SBBlock, captures: Map<string, SBBlock>): any => {
         let evalPreable = "";
         for (const [key, _] of captures) {
           evalPreable += `const ${key} = captures.get("${key}");\n`;
         }
         const res = eval(evalPreable + filter);
+        console.log(res);
+        console.log(input);
+        console.log(`named: ${input.named}`);
         return res;
       },
       connections,
     );
   }
-  execute(input: SBBlock, captures: any): boolean {
-    return this.task(input, captures);
+  execute(input: SBBlock, captures: Map<string, SBBlock>): boolean {
+    return this.task(input, captures) == true;
   }
 }
 
 export class Replacement {
-  root: SBBlock;
   captures: Map<string, SBBlock>;
-  constructor(root: SBBlock = new SBBlock(), captures = new Map()) {
-    this.root = root;
+  constructor(captures = new Map()) {
     this.captures = captures;
   }
 }
 
 abstract class AbstractSearchScope {
-  node: SBBlock;
-  *nodes(node: SBBlock): IterableIterator<SBBlock> {
+  *nodes(captures: Map<string, SBBlock>): IterableIterator<SBBlock> {
     throw "subclass responsibility";
   }
 }
 
 export class SingleNode extends AbstractSearchScope {
-  constructor(node: SBBlock) {
+  nodeName: string;
+  constructor(nodeName: string = "self") {
     super();
+    this.nodeName = nodeName;
   }
-  *nodes(node: SBBlock) {
-    yield node;
+  *nodes(captures: Map<string, SBBlock>) {
+    const node = captures.get(this.nodeName);
+    if (node) yield node;
   }
 }
 
 export class SubNodes extends AbstractSearchScope {
-  constructor() {
+  nodeName: string;
+  constructor(nodeName: string = "self") {
     super();
+    this.nodeName = nodeName;
   }
-  *nodes(node: SBBlock) {
-    yield* node.allNodes();
+  *nodes(captures: Map<string, SBBlock>) {
+    const node = captures.get(this.nodeName);
+    if (node) yield* node.allNodes();
+  }
+}
+
+export class Children extends AbstractSearchScope {
+  nodeName: string;
+  constructor(nodeName: string = "self") {
+    super();
+    this.nodeName = nodeName;
+  }
+
+  *nodes(captures: Map<string, SBBlock>) {
+    const node = captures.get(this.nodeName);
+    if (node) yield* node.children;
   }
 }
 
@@ -243,7 +351,8 @@ export class AllNodes extends AbstractSearchScope {
   constructor() {
     super();
   }
-  *nodes(node: SBBlock) {
-    yield* node.root.allNodes();
+  *nodes(captures: Map<string, SBBlock>) {
+    const node = Array.from(captures.values())[0];
+    if (node) yield* node.root.allNodes();
   }
 }
