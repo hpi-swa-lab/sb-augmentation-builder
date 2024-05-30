@@ -16,9 +16,6 @@ function exec(arg, ...script) {
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
-    //console.log(current);
-    //console.log(predicate);
-    //debugger;
     let next = predicate(current);
     if (!next) return null;
     if (_isEmptyObject(next)) return null;
@@ -37,16 +34,17 @@ export function spawnArray(pipeline) {
     it.map((node) => pipeline(node)).filter((node) => node != null);
 }
 
-export function first(pipelines) {
+export function first(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
       const res = exec(it, ...pipeline);
       if (res) return res;
     }
+    return null;
   };
 }
 
-export function all(pipelines) {
+export function all(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
       exec(it, ...pipeline);
@@ -56,6 +54,15 @@ export function all(pipelines) {
   };
 }
 
+export function log(prefix = null) {
+  return (it) => {
+    if (prefix) console.log(prefix);
+    console.log(it);
+    return it;
+  };
+}
+
+//TODO: Think about Views in JSX
 export class BoolBinding {
   constructor(val) {
     this.val = val;
@@ -89,17 +96,3 @@ export class ExportBinding {
     }
   }
 }
-
-//obj === True
-
-//export function capture(captures, identifier, value) {
-//  captures[identifier] = value;
-//  return value;
-//}
-
-//Array.prototype.captureAdd = (capture, name) => {
-//  debugger;
-//  this.forEach((elem) => {
-//    capture[name].push(elem);
-//  });
-//};

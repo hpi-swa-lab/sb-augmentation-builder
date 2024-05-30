@@ -21,9 +21,18 @@ import {
   ExportBinding,
   all,
   first,
+  log,
   metaexec,
   spawnArray,
 } from "./functionQueries.js";
+import { drawSelection } from "../../codemirror6/external/codemirror.bundle.js";
+import { html, render } from "../../view/widgets.js";
+import {
+  signal,
+  useComputed,
+  useSignal,
+} from "../../external/preact-signals.mjs";
+import { editor } from "../../view/widgets.js";
 
 const tests = [];
 const configStack = [{}];
@@ -94,14 +103,152 @@ function simSbMatching2(tree, pipeline, replacements = []) {
   if (res) {
     replacements.push(res);
   }
-  tree.children.forEach((child) =>
-    simSbMatching2(child, pipeline, replacements),
-  );
+  tree.children.forEach((child) => {
+    simSbMatching2(child, pipeline, replacements);
+  });
   return replacements;
 }
 
+async function queryForBrowser(code) {
+  const typescript = languageFor("typescript");
+  await typescript.ready();
+
+  const tree = typescript.parseSync(code);
+
+  //whitspaces need to be included (has to be consecutive range)
+  const getDisplayNodes = (node) => {
+    const displayNodes = [];
+    let current = node;
+    do {
+      displayNodes.push(current);
+      current = current.previousSiblingNode;
+    } while (current && !current.isWhitespace() && current.type == "comment");
+    return displayNodes.reverse();
+  };
+
+  function collectMembers(node) {
+    return metaexec(node, (capture) => [
+      (it) => it.named,
+      (it) => it.type != "comment",
+      all(
+        [(it) => getDisplayNodes(it), capture("displayNodes")],
+        [
+          (it) => {
+            return it.type;
+          },
+          capture("type"),
+        ],
+        [capture("node")],
+      ),
+    ]);
+  }
+
+  function collectToplevel(node) {
+    return metaexec(node, (capture) => [
+      (it) => it.named,
+      (it) => it.type != "comment",
+      all(
+        [
+          (it) => new ExportBinding(it.type == "export_statement"),
+          capture("exported"),
+        ],
+        [
+          all(
+            [(it) => getDisplayNodes(it), capture("displayNodes")],
+            [
+              (it) => (it.type == "export_statement" ? it.children[2] : it),
+              all(
+                [capture("node")],
+                [(it) => it.type, capture("type")],
+                [
+                  first(
+                    [
+                      (it) => it.type == "class_declaration",
+                      //Thing about queryAndCapture methode
+                      (it) => it.query("class $name {$$$members}"),
+                    ],
+                    [
+                      (it) => it.type == "import_statement",
+                      (it) => it.query("import {$$$members} from '$name'"),
+                    ],
+                    [
+                      (it) => it.type == "function_declaration",
+                      (it) => it.children.find((it) => it.type == "identifier"),
+                      (it) => ({ name: it, members: [] }),
+                    ],
+                  ),
+                  all(
+                    [(it) => it.name.text, capture("name")],
+                    [
+                      (it) => it.members,
+                      spawnArray(collectMembers),
+                      capture("members"),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      capture("node"),
+    ]);
+  }
+
+  const pipeline = (node) =>
+    metaexec(node, (capture) => [
+      (it) => it.type == "program",
+      (it) => it.children,
+      spawnArray(collectToplevel),
+      capture("topLevel"),
+    ]);
+
+  return simSbMatching2(tree, pipeline);
+}
+
 describe("New Execution Test", async () => {
-  test("test0", async () => {
+  test("TypeFilter", async () => {
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const tree = typescript.parseSync(
+      "const a = [[1,2],[3,4]]\nconst b = 5\nconst c = [1,2,3]",
+    );
+
+    const pipeline = (node) =>
+      metaexec(node, (capture) => [
+        (it) => it.query("const $name = $obj"),
+        (it) => it.obj.type == "array",
+        all(
+          [(it) => it.name.text, capture("name")],
+          [(it) => it.obj, capture("obj")],
+        ),
+      ]);
+
+    const res = simSbMatching2(tree, pipeline);
+
+    assertEq(res.length, 2);
+
+    assertEq(res[0].name, "a");
+    assertEq(res[0].obj.type, "array");
+    assertEq(
+      res[0].obj.children.filter((node) => node.type == "array").length,
+      2,
+    );
+
+    assertEq(res[1].name, "c");
+    assertEq(res[1].obj.type, "array");
+  });
+
+  test("StateMachines", async () => {
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const code =
+      "const s1 = new StateMaschine(edges,nodes)\nconst s2 = new StateMaschine(nodes)\nconst s3 = new StateMaschine()";
+    const tree = typescript.parseSync(code);
+    //TODO: finish
+  });
+
+  test("browser", async () => {
     const code = `
 import { useState } from 'react'
 // this is my top class!
@@ -119,134 +266,34 @@ function test(string) {
     return string
 }
 `;
-    const typescript = languageFor("typescript");
-    await typescript.ready();
-
-    const tree = typescript.parseSync(code);
-
-    const getDisplayNodes = (node) => {
-      //debugger;
-      const displayNodes = [];
-      let current = node;
-      do {
-        displayNodes.push(current);
-        current = current.previousSiblingNode;
-      } while (current && !current.isWhitespace() && current.type == "comment");
-      return displayNodes.reverse();
-    };
-
-    function collectMembers(node) {
-      return metaexec(node, (capture) => [
-        (it) => it.named,
-        all([
-          [(it) => getDisplayNodes(it), capture("displayNodes")],
-          [
-            (it) => {
-              return it.type;
-            },
-            capture("type"),
-          ],
-          [capture("node")],
-        ]),
-      ]);
-    }
-
-    function collectToplevel(node) {
-      return metaexec(node, (capture) => [
-        (it) => it.named,
-        all([
-          [
-            (it) => new ExportBinding(it.type == "export_statement"),
-            capture("exported"),
-          ],
-          [
-            all([
-              [(it) => getDisplayNodes(it), capture("displayNodes")],
-              [
-                (it) => (it.type == "export_statement" ? it.children[2] : it),
-                all([
-                  [capture("node")],
-                  [(it) => it.type, capture("type")],
-                  [
-                    first([
-                      [
-                        (it) => it.type == "class_declaration",
-                        (it) => it.query("class $name {$$$members}"),
-                      ],
-                      [
-                        (it) => it.type == "import_statement",
-                        (it) => it.query("import {$$$members} from '$name'"),
-                      ],
-                      [
-                        (it) => it.type == "function_declaration",
-                        (it) =>
-                          it.children.filter(
-                            (it) => it.type == "identifier",
-                          )[0],
-                        (it) => ({ name: it, members: [] }),
-                      ],
-                      [(it) => null],
-                    ]),
-                    all([
-                      [(it) => it.name.text, capture("name")],
-                      [
-                        (it) => it.members,
-                        spawnArray(collectMembers),
-                        capture("members"),
-                      ],
-                    ]),
-
-                    // all([
-                    //   [(it) => it.name.text, capture("name")],
-                    //   [
-                    //     (it) => it.members,
-                    //     all([
-                    //       ([
-                    //         (it) => getDisplayNodes(it),
-                    //         capture("displayNodes"),
-                    //       ],
-                    //       [capture("node")],
-                    //       [(it) => it.type, capture("type")]),
-                    //     ]),
-                    //   ],
-                    // ]),
-                  ],
-                ]),
-              ],
-            ]),
-          ],
-          //TODO: Test Binding implementation
-          //(it) => new Binding(it)
-          //capture("node", ExportBinding),
-          //fork([[(it) => it.type, capture("type")], []]),
-
-          //(it) =>
-          //  metaexec(it, (capture, spawnArray) => [
-          //    (it) => it.type,
-          //    capture("type"),
-          //  ]),
-        ]),
-        capture("node"),
-      ]);
-    }
-
-    const pipeline = (node) =>
-      metaexec(node, (capture) => [
-        (it) => it.type == "program",
-        (it) => it.children,
-        spawnArray(collectToplevel),
-        capture("topLevel"),
-        //(it) => it.named,
-        //capture("named"),
-      ]);
-
-    const res = simSbMatching2(tree, pipeline);
-
+    const res = queryForBrowser(code);
+    debugger;
+    assertEq(res.length, 1);
+    assertEq(res[0].topLevel.length, 3);
+    assertEq(
+      res[0].topLevel.map((it) => it.type),
+      ["import_statement", "class_declaration", "function_declaration"],
+    );
+    assertEq(res[0].topLevel[1].members.length, 3);
+    assertEq(
+      res[0].topLevel[1].members.map((it) => it.type),
+      ["method_definition", "method_definition", "public_field_definition"],
+    );
     console.log(res);
   });
+});
 
-  test("test1", async () => {
-    return;
+describe("UI-Test", () => {
+  let container;
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+  afterEach(() => {
+    debugger;
+    container.remove();
+  });
+  test.view("Ui1", async () => {
     const code = `
 import { useState } from 'react'
 // this is my top class!
@@ -254,107 +301,102 @@ export class MyCls {
 
   constructor() {}
 
+  //I love the function!
   execute(input) {}
   
-  const x = 1
-
   const y = 2
+}
+
+function test(string) {
+    return string
 }
 `;
 
-    const typescript = languageFor("typescript");
-    await typescript.ready();
+    //const browserData = [["1", "2"]];
+    const browserData = (await queryForBrowser(code))[0];
+    // const browserData = [
+    //   {
+    //     topLevel: [
+    //       { name: "class", members: ["function 1", "function 2"] },
+    //       { name: "comment", members: ["function 3", "function 4"] },
+    //     ],
+    //   },
+    // ];
 
-    const tree = typescript.parseSync(code);
+    function Browser() {
+      const topLevelPos = useSignal(0);
+      const membersPos = useSignal(0);
+      const members = useComputed(
+        () => browserData.topLevel[topLevelPos.value].members,
+      );
+      const member = useComputed(() =>
+        members.value && members.value[membersPos.value]
+          ? members.value[membersPos.value]
+          : null,
+      );
+      const currentSourceString = useComputed(() => {
+        return member.value ? member.value.node.sourceString : "";
+      });
+      return html`
+        <div
+          style=${{
+            display: "flex",
+            "column-gap": "15px",
+          }}
+        >
+          <div>
+            <div>
+              <h2>top level</h3>
+            </div>
+            ${browserData.topLevel.map((it, index) => {
+              return html`<div
+                style=${{
+                  cursor: "pointer",
+                  "background-color":
+                    index == topLevelPos.value ? "#ADD8E6" : "#FFFFFF",
+                }}
+                onclick=${() => {
+                  topLevelPos.value = index;
+                  membersPos.value = 0;
+                }}
+              >
+                <input type="checkbox" /> ${it.name}
+              </div>`;
+            })}
+          </div>
+          <div>
+            <div>
+              <h2>second level</h3>
+            </div>
+            ${
+              members.value
+                ? members.value.map((it, index) => {
+                    return html`<div
+                      style=${{
+                        cursor: "pointer",
+                        "background-color":
+                          index == membersPos.value ? "#ADD8E6" : "#FFFFFF",
+                      }}
+                      onclick="${() => {
+                        membersPos.value = index;
+                      }}"
+                    >
+                      ${it.type}
+                    </div>`;
+                  })
+                : null
+            }
+          </div>
+        </div>
+        ${editor({
+          sourceString: currentSourceString.value,
+          language: "javascript",
+          extensions: ["base:base", "javascript:base"],
+        })}
+      `;
+    }
 
-    let capture = {
-      topLevel: [],
-    };
-
-    const findTopLevel = (node) => {
-      //nodeList.captureAdd = (capture, name) => {
-      //  debugger;
-      //  this.forEach((elem) => {
-      //    capture[name].push(elem);
-      //  });
-      //};
-      //debugger;
-      /*
-      try {
-        const res = [node]
-          .filter((it) => it.type == "program")
-          .map((it) => it.children)[0]
-          .filter((it) => it.named)
-          .map((it) => isExported(it, {}))
-          .forEach((it) => capture["topLevel"].push(it));
-        return capture;
-      } catch {
-        return null;
-      }
-      */
-
-      function collectToplevel(node) {
-        return exec(
-          (it) => it.named,
-          (it) => isExported(it, {}),
-        );
-      }
-
-      const res = exec(node, (capture) => [
-        (it) => it.type == "program",
-        fork(
-          [
-            (it) => it.children,
-            spawnArray(collectToplevel),
-            capture("topLevel"),
-          ],
-          [
-            (it) => it.name,
-            capture("topLevelName"),
-            (it) => 1111111111111111111,
-          ],
-        ),
-        //(it) =>
-        //  it.map((it) => {
-        //    capture["topLevel"].push(it);
-        //    return it;
-        //  }),
-      ]);
-      return res ? capture : null;
-    };
-
-    const isExported = (node, capture) => {
-      const exported = node.type == "export_statement";
-      capture["exported"] = exported;
-      if (exported) {
-        //TODO: remove hardcoded index
-        return getNodeInfo(node.children[2], capture);
-      } else {
-        return getNodeInfo(node, capture);
-      }
-    };
-
-    const getNodeInfo = (node, capture) => {
-      //TODO: Make custom methode orderFork
-      switch (node.type) {
-        case "class_declaration":
-          capture["name"] = node.children[2].children[0].text;
-          capture["members"] = node.children[4].children.filter(
-            (it) => it.named && !it.isWhitespace(),
-          );
-          //node.children.filter(it => it.type == "class_body")[0].Children.filter(it => it.named && !it.isWhiteSpace())
-          break;
-        case "import_statement":
-          capture["name"] = PipelineArray.from(node.allNodes()).filter(
-            (it) => it.type == "identifier",
-          )[0].text;
-          capture["members"] = [];
-          break;
-      }
-      return capture;
-    };
-
-    console.log(simSbMatching2(tree, findTopLevel));
+    render(html`<${Browser} />`, container);
   });
 });
 
