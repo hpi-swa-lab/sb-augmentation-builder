@@ -22,6 +22,11 @@ export class BaseShard extends HTMLElement {
 
   extensions = () => this.parentShard?.extensions() ?? [];
 
+  currentStartIndex = -1;
+  get currentString() {
+    throw "subclass responsibility";
+  }
+
   initResolve = null;
   initPromise = new Promise((resolve) => (this.initResolve = resolve));
 

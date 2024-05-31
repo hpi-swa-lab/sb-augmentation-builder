@@ -28,6 +28,7 @@ export {
   bracketMatching,
   foldGutter,
   foldKeymap,
+  HighlightStyle,
 } from "@codemirror/language";
 export { lintKeymap } from "@codemirror/lint";
 export {
@@ -37,3 +38,4 @@ export {
   closeBracketsKeymap,
   completionKeymap,
 } from "@codemirror/autocomplete";
+export { tags } from "@lezer/highlight";

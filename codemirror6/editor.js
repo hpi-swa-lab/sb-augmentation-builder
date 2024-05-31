@@ -43,6 +43,7 @@ import {
   highlightActiveLineGutter,
   foldGutter,
 } from "./external/codemirror.bundle.js";
+import { ayuLight } from "./theme.js";
 
 class CodeMirrorReplacementWidget extends WidgetType {
   constructor(replacement) {
@@ -87,6 +88,7 @@ const baseCMExtensions = [
   rectangularSelection(),
   crosshairCursor(),
   highlightSelectionMatches(),
+  ayuLight,
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,
