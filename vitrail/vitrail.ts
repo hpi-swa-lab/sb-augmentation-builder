@@ -16,8 +16,8 @@ import {
   UpdateOp,
 } from "../core/diff.js";
 import { SBLanguage, SBNode } from "../core/model.js";
-import { signal } from "../external/preact-signals-core.mjs";
-import { render } from "../external/preact.mjs";
+import { effect, signal } from "../external/preact-signals-core.mjs";
+import { h, render } from "../external/preact.mjs";
 import {
   adjustIndex,
   last,
@@ -34,8 +34,14 @@ interface Replacement<
   view: HTMLElement;
   augmentation: Augmentation<Props>;
 }
-function replacementRange(replacement: Replacement<any>) {
-  return [replacement.nodes[0].range[0], last(replacement.nodes).range[1]];
+function replacementRange(
+  replacement: Replacement<any>,
+  vitrail: Vitrail<any>,
+) {
+  return vitrail.adjustRange([
+    replacement.nodes[0].range[0],
+    last(replacement.nodes).range[1],
+  ]);
 }
 
 type JSX = any;
@@ -55,16 +61,16 @@ interface Model {
   canBeDefault: boolean;
 }
 
-interface Change<T> {
+interface ReversibleChange<T> {
   from: number;
   to: number;
   insert: string;
-  inverse: InvertedChange<T>;
+  inverse: Change<T>;
   sourcePane?: Pane<T>;
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
 }
-type InvertedChange<T> = Omit<Change<T>, "inverse">;
+type Change<T> = Omit<ReversibleChange<T>, "inverse">;
 
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc,
@@ -80,7 +86,7 @@ type PaneFetchAugmentationsFunc = (parent: Pane<any>) => Augmentation<any>[];
 type ValidatorFunc<T> = (
   root: SBNode,
   diff: EditBuffer,
-  changes: Change<T>[],
+  changes: ReversibleChange<T>[],
 ) => boolean;
 
 function assertNever(x: never): never {
@@ -96,7 +102,7 @@ class Vitrail<T> {
   _sourceString: string;
 
   _createPane: CreatePaneFunc<T>;
-  _showValidationPending: () => void;
+  _showValidationPending: (show: boolean) => void;
   _editableFocusAdjacent: EditableFocusAdjacentFunc;
   _editableGetCursorCandidate: EditableGetCursorCandidateFunc;
 
@@ -114,7 +120,7 @@ class Vitrail<T> {
     editableGetCursorCandidate,
   }: {
     createPane: CreatePaneFunc<T>;
-    showValidationPending: () => void;
+    showValidationPending: (show: boolean) => void;
     editableFocusAdjacent: EditableFocusAdjacentFunc;
     editableGetCursorCandidate: EditableGetCursorCandidateFunc;
   }) {
@@ -122,9 +128,14 @@ class Vitrail<T> {
     this._showValidationPending = showValidationPending;
     this._editableFocusAdjacent = editableFocusAdjacent;
     this._editableGetCursorCandidate = editableGetCursorCandidate;
+
+    this._pendingChanges = signal([]);
+    effect(() => {
+      this._showValidationPending(this._pendingChanges.value.length > 0);
+    });
   }
 
-  async registerValidator(model, cb) {
+  async registerValidator(model: Model, cb: ValidatorFunc<T>) {
     if (!(model instanceof SBLanguage)) throw new Error("no model given");
     const p: [Model, ValidatorFunc<T>] = [model, cb];
     this._validators.add(p);
@@ -146,11 +157,11 @@ class Vitrail<T> {
     }
   }
 
-  activeTransactionList: Change<T>[] | null = null;
-  pendingChanges = signal([]);
-  revertChanges: InvertedChange<T>[] = [];
+  activeTransactionList: ReversibleChange<T>[] | null = null;
+  _pendingChanges: ReturnType<typeof signal>;
+  _revertChanges: Change<T>[] = [];
 
-  applyChanges(changes: Change<T>[], forceApply = false) {
+  applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
     if (this.activeTransactionList) {
       this.activeTransactionList.push(
         ...changes.map((c) => ({
@@ -164,7 +175,7 @@ class Vitrail<T> {
 
     const oldSource = this._sourceString;
     let newSource = oldSource;
-    const allChanges = [...this.pendingChanges.value, ...changes];
+    const allChanges = [...this._pendingChanges.value, ...changes];
     for (const { from, to, insert } of allChanges) {
       newSource =
         newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
@@ -178,19 +189,21 @@ class Vitrail<T> {
             root.language === validateModel &&
             !validator(root, diff, allChanges)
           ) {
-            this.determineSideAffinity(root, allChanges);
+            this._determineSideAffinity(root, allChanges);
 
             for (const { tx } of update) tx.rollback();
-            this.pendingChanges.value = [
-              ...this.pendingChanges.value,
+            this._pendingChanges.value = [
+              ...this._pendingChanges.value,
               ...changes,
             ];
             for (const pane of this._panes) {
               // TODO
-              pane.applyLocalChanges(changes);
-              this.revertChanges.push(...changes.map((c) => c.inverse));
+              pane.applyLocalChanges(
+                changes.filter((c) => c.sourcePane !== pane),
+              );
               pane.syncReplacements();
             }
+            this._revertChanges.push(...changes.map((c) => c.inverse));
             // TODO
             // this.selectRange( last(allChanges).selectionRange ?? this.selectionRange,);
             return false;
@@ -202,6 +215,8 @@ class Vitrail<T> {
     for (const { tx } of update) tx.commit();
     this._models = new Map(update.map(({ root }) => [root.language, root]));
     this._sourceString = newSource;
+    this._pendingChanges.value = [];
+    this._revertChanges = [];
 
     // may create or delete panes while iterating, so iterate over a copy
     for (const pane of [...this._panes]) {
@@ -215,11 +230,15 @@ class Vitrail<T> {
       }
     }
 
-    this.pendingChanges.value = [];
-    this.revertChanges = [];
-
     // TODO
     // this.selectRange(last(allChanges).selectionRange ?? this.selectionRange);
+  }
+
+  adjustRange(range: [number, number]) {
+    return [
+      adjustIndex(range[0], this._pendingChanges.value, 1),
+      adjustIndex(range[1], this._pendingChanges.value, -1),
+    ];
   }
 
   // if we have a pending change, we need to figure out to which node it contributed to.
@@ -230,7 +249,7 @@ class Vitrail<T> {
   // Note that a text inserted in a shard will automatically set its affinity based on the
   // shard boundaries, so this function will only be used to set the affinity for changes
   // that are caused independent of views.
-  determineSideAffinity(root: SBNode, changes: Change<T>[]) {
+  _determineSideAffinity(root: SBNode, changes: ReversibleChange<T>[]) {
     for (const change of changes) {
       if (change.sideAffinity !== undefined) continue;
       const leaf = root.leafForPosition(change.from, true);
@@ -242,9 +261,25 @@ class Vitrail<T> {
             : 0;
     }
   }
+
+  applyPendingChanges() {
+    this.applyChanges([], true);
+  }
+
+  revertPendingChanges() {
+    if (this._pendingChanges.value.length == 0) return;
+    for (const pane of this._panes) {
+      // TODO
+      pane.applyLocalChanges(this._revertChanges.reverse());
+      pane.syncReplacements();
+    }
+    this._revertChanges = [];
+    this._pendingChanges.value = [];
+  }
 }
 
 class Pane<T> {
+  vitrail: Vitrail<T>;
   view: HTMLElement;
   host: T;
   nodes: SBNode[];
@@ -261,6 +296,7 @@ class Pane<T> {
   }
 
   constructor({
+    vitrail,
     view,
     host,
     syncReplacements,
@@ -268,6 +304,7 @@ class Pane<T> {
     fetchAugmentations,
     applyLocalChanges,
   }: {
+    vitrail: Vitrail<T>;
     view: HTMLElement;
     host: T;
     syncReplacements: () => void;
@@ -275,6 +312,7 @@ class Pane<T> {
     applyLocalChanges: PaneApplyLocalChangesFunc<T>;
     getText: PaneGetTextFunc;
   }) {
+    this.vitrail = vitrail;
     this.view = view;
     this.host = host;
     this.syncReplacements = syncReplacements;
@@ -394,7 +432,9 @@ class Pane<T> {
     if (!rangeContains(this.range, node.range)) return false;
 
     for (const replacement of this.replacements) {
-      if (rangeIntersects(replacementRange(replacement), node.range))
+      if (
+        rangeIntersects(replacementRange(replacement, this.vitrail), node.range)
+      )
         return false;
     }
 
@@ -459,6 +499,20 @@ class CodeMirrorReplacementWidget extends WidgetType {
   }
 }
 
+function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
+  box.className = "sb-pending-hint";
+  render(
+    h(
+      "span",
+      {},
+      "Pending changes",
+      h("button", { onClick: () => v.revertPendingChanges() }, "Revert"),
+      h("button", { onClick: () => v.applyPendingChanges() }, "Apply"),
+    ),
+    box,
+  );
+}
+
 export async function codeMirror6WithVitrail(
   cm: EditorView,
   augmentations: Augmentation<any>[],
@@ -471,7 +525,10 @@ export async function codeMirror6WithVitrail(
         return RangeSet.of(
           pane.replacements
             .map((r) => {
-              const range = rangeShift(replacementRange(r), -pane.range[0]);
+              const range = rangeShift(
+                replacementRange(r, pane.vitrail),
+                -pane.range[0],
+              );
               return (
                 range[0] === range[1] ? Decoration.widget : Decoration.replace
               )({
@@ -514,7 +571,7 @@ export async function codeMirror6WithVitrail(
           update.docChanged &&
           !update.transactions.some((t) => t.isUserEvent("sync"))
         ) {
-          const changes: Change<EditorView>[] = [];
+          const changes: ReversibleChange<EditorView>[] = [];
           update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
             changes.push({
               from: fromA + pane.range[0],
@@ -525,7 +582,7 @@ export async function codeMirror6WithVitrail(
               inverse: null as any,
             });
           });
-          const inverse: Change<EditorView>["inverse"][] = [];
+          const inverse: ReversibleChange<EditorView>["inverse"][] = [];
           update.changes
             .invert(update.startState.doc)
             .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
@@ -559,9 +616,11 @@ export async function codeMirror6WithVitrail(
 
   function paneFromCM(
     host: EditorView,
+    vitrail: Vitrail<EditorView>,
     fetchAugmentations: PaneFetchAugmentationsFunc,
   ) {
     const pane = new Pane<EditorView>({
+      vitrail,
       view: host.dom,
       host,
       syncReplacements: () => host.dispatch({ userEvent: "sync" }),
@@ -576,19 +635,26 @@ export async function codeMirror6WithVitrail(
     return pane;
   }
 
+  const pendingChangesHint = document.createElement("div");
+
   const v = new Vitrail<EditorView>({
     createPane: (fetchAugmentations: PaneFetchAugmentationsFunc) => {
       const host = new EditorView({
         doc: "",
         parent: document.createElement("div"),
       });
-      return paneFromCM(host, fetchAugmentations);
+      return paneFromCM(host, v, fetchAugmentations);
     },
-    showValidationPending: () => {},
+    showValidationPending: (show) => {
+      if (show) document.body.appendChild(pendingChangesHint);
+      else pendingChangesHint.remove();
+    },
     editableFocusAdjacent: (direction) => {},
     editableGetCursorCandidate: () => ({ distance: 0, focus: () => {} }),
   });
-  await v.connectHost(paneFromCM(cm, () => augmentations));
+  await v.connectHost(paneFromCM(cm, v, () => augmentations));
+
+  buildPendingChangesHint(v, pendingChangesHint);
 
   return v;
 }

@@ -85,7 +85,7 @@
         parent: document.querySelector("#editor"),
       });
 
-      codeMirror6WithVitrail(
+      const vitrail = await codeMirror6WithVitrail(
         cm,
         [
           {
@@ -100,6 +100,7 @@
         ],
         baseCMExtensions,
       );
+      vitrail.registerValidator(languageFor("javascript"), (x) => false);
     </script>
   </body>
 </html>
