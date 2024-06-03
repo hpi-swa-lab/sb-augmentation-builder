@@ -6,7 +6,7 @@
   <body>
     <div id="editor"></div>
     <script type="module">
-      import { codeMirror6WithVitrail } from "./vitrail.ts";
+      import { codeMirror6WithVitrail, VitrailPane } from "./vitrail.ts";
       import {
         EditorView,
         indentWithTab,
@@ -75,7 +75,7 @@
       const extraCMExtensionsForRoot = [];
 
       const cm = new EditorView({
-        doc: "function a(b, c) {d}",
+        doc: "2; function abcdef(b, c) {d} 2 + 2",
         extensions: [
           ...baseCMExtensions,
           lineNumbers(),
@@ -93,14 +93,28 @@
             matcherDepth: 1,
             rerender: () => true,
             match: (x, _pane) =>
-              x.type === "identifier" ? { nodes: [x] } : null,
+              x.type === "function_declaration" ? { nodes: [x] } : null,
             view: ({ nodes }) =>
-              h("span", { style: { backgroundColor: "red" } }, nodes[0].text),
+              h(
+                "span",
+                {
+                  style: {
+                    backgroundColor: "red",
+                    display: "inline-block",
+                    padding: "0.01rem",
+                  },
+                },
+                h(VitrailPane, {
+                  fetchAugmentations: () => [],
+                  nodes: [nodes[0].atField("name")],
+                }),
+              ),
           },
         ],
         baseCMExtensions,
       );
-      vitrail.registerValidator(languageFor("javascript"), (x) => false);
+      console.log(vitrail);
+      // vitrail.registerValidator(languageFor("javascript"), (x) => false);
     </script>
   </body>
 </html>
