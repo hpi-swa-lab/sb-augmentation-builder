@@ -15,9 +15,17 @@ import {
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
-import { SBNode } from "../core/model.js";
+import { SBLanguage, SBNode } from "../core/model.js";
+import { signal } from "../external/preact-signals-core.mjs";
 import { render } from "../external/preact.mjs";
-import { last, rangeContains, rangeIntersects, rangeShift } from "../utils.js";
+import {
+  adjustIndex,
+  last,
+  parallelToSequentialChanges,
+  rangeContains,
+  rangeIntersects,
+  rangeShift,
+} from "../utils.js";
 
 interface Replacement<
   Props extends { [field: string]: any } & { nodes: SBNode[] },
@@ -47,6 +55,17 @@ interface Model {
   canBeDefault: boolean;
 }
 
+interface Change<T> {
+  from: number;
+  to: number;
+  insert: string;
+  inverse: InvertedChange<T>;
+  sourcePane?: Pane<T>;
+  sideAffinity?: -1 | 0 | 1;
+  selectionRange?: [number, number];
+}
+type InvertedChange<T> = Omit<Change<T>, "inverse">;
+
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc,
 ) => Pane<T>;
@@ -56,28 +75,35 @@ type EditableGetCursorCandidateFunc = () => {
 };
 type EditableFocusAdjacentFunc = (direction: number) => void;
 type PaneGetTextFunc = () => string;
-type PaneApplyLocalEditFunc = (from: number, to: number, text: string) => void;
+type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
 type PaneFetchAugmentationsFunc = (parent: Pane<any>) => Augmentation<any>[];
+type ValidatorFunc<T> = (
+  root: SBNode,
+  diff: EditBuffer,
+  changes: Change<T>[],
+) => boolean;
 
 function assertNever(x: never): never {
   throw new Error("Unexpected object: " + x);
 }
 
 class Vitrail<T> {
-  panes: Pane<T>[] = [];
-  models: Map<Model, SBNode> = new Map();
+  _panes: Pane<T>[] = [];
+  _models: Map<Model, SBNode> = new Map();
+  _validators = new Set<[Model, ValidatorFunc<T>]>();
 
-  rootPane: Pane<T>;
+  _rootPane: Pane<T>;
+  _sourceString: string;
 
-  createPane: CreatePaneFunc<T>;
-  showValidationPending: () => void;
-  editableFocusAdjacent: EditableFocusAdjacentFunc;
-  editableGetCursorCandidate: EditableGetCursorCandidateFunc;
+  _createPane: CreatePaneFunc<T>;
+  _showValidationPending: () => void;
+  _editableFocusAdjacent: EditableFocusAdjacentFunc;
+  _editableGetCursorCandidate: EditableGetCursorCandidateFunc;
 
   get defaultModel(): Model {
-    for (const model of this.models.keys())
+    for (const model of this._models.keys())
       if (model.canBeDefault) return model;
-    for (const model of this.models.keys()) return model;
+    for (const model of this._models.keys()) return model;
     throw new Error("No default model");
   }
 
@@ -92,22 +118,128 @@ class Vitrail<T> {
     editableFocusAdjacent: EditableFocusAdjacentFunc;
     editableGetCursorCandidate: EditableGetCursorCandidateFunc;
   }) {
-    this.createPane = createPane;
-    this.showValidationPending = showValidationPending;
-    this.editableFocusAdjacent = editableFocusAdjacent;
-    this.editableGetCursorCandidate = editableGetCursorCandidate;
+    this._createPane = createPane;
+    this._showValidationPending = showValidationPending;
+    this._editableFocusAdjacent = editableFocusAdjacent;
+    this._editableGetCursorCandidate = editableGetCursorCandidate;
+  }
+
+  async registerValidator(model, cb) {
+    if (!(model instanceof SBLanguage)) throw new Error("no model given");
+    const p: [Model, ValidatorFunc<T>] = [model, cb];
+    this._validators.add(p);
+    await this.loadModels();
+    return () => this._validators.delete(p);
   }
 
   async connectHost(pane: Pane<T>) {
-    this.rootPane = pane;
-    this.panes.push(this.rootPane);
-    await this.loadModels(this.rootPane.getText());
-    this.rootPane.connectNodes(this, [this.models.get(this.defaultModel)!]);
+    this._rootPane = pane;
+    this._panes.push(this._rootPane);
+    this._sourceString = this._rootPane.getText();
+    await this.loadModels();
+    this._rootPane.connectNodes(this, [this._models.get(this.defaultModel)!]);
   }
 
-  async loadModels(sourceString: string) {
-    for (const pane of this.panes) {
-      await pane.loadModels(this, sourceString);
+  async loadModels() {
+    for (const pane of this._panes) {
+      await pane.loadModels(this, this._sourceString);
+    }
+  }
+
+  activeTransactionList: Change<T>[] | null = null;
+  pendingChanges = signal([]);
+  revertChanges: InvertedChange<T>[] = [];
+
+  applyChanges(changes: Change<T>[], forceApply = false) {
+    if (this.activeTransactionList) {
+      this.activeTransactionList.push(
+        ...changes.map((c) => ({
+          ...c,
+          from: adjustIndex(c.from, this.activeTransactionList!),
+          to: adjustIndex(c.to, this.activeTransactionList!),
+        })),
+      );
+      return;
+    }
+
+    const oldSource = this._sourceString;
+    let newSource = oldSource;
+    const allChanges = [...this.pendingChanges.value, ...changes];
+    for (const { from, to, insert } of allChanges) {
+      newSource =
+        newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
+    }
+
+    const update = [...this._models.values()].map((n) => n.reParse(newSource));
+    if (!forceApply) {
+      for (const { diff, root } of update) {
+        for (const [validateModel, validator] of this._validators) {
+          if (
+            root.language === validateModel &&
+            !validator(root, diff, allChanges)
+          ) {
+            this.determineSideAffinity(root, allChanges);
+
+            for (const { tx } of update) tx.rollback();
+            this.pendingChanges.value = [
+              ...this.pendingChanges.value,
+              ...changes,
+            ];
+            for (const pane of this._panes) {
+              // TODO
+              pane.applyLocalChanges(changes);
+              this.revertChanges.push(...changes.map((c) => c.inverse));
+              pane.syncReplacements();
+            }
+            // TODO
+            // this.selectRange( last(allChanges).selectionRange ?? this.selectionRange,);
+            return false;
+          }
+        }
+      }
+    }
+
+    for (const { tx } of update) tx.commit();
+    this._models = new Map(update.map(({ root }) => [root.language, root]));
+    this._sourceString = newSource;
+
+    // may create or delete panes while iterating, so iterate over a copy
+    for (const pane of [...this._panes]) {
+      // if we are deleted while iterating, don't process diff
+      if (pane.nodes[0]?.connected) {
+        // TODO
+        pane.applyLocalChanges(changes.filter((c) => c.sourcePane !== pane));
+
+        for (const buffer of update.map((u) => u.diff))
+          pane.updateReplacements(buffer);
+      }
+    }
+
+    this.pendingChanges.value = [];
+    this.revertChanges = [];
+
+    // TODO
+    // this.selectRange(last(allChanges).selectionRange ?? this.selectionRange);
+  }
+
+  // if we have a pending change, we need to figure out to which node it contributed to.
+  // For example, if we have an expression like `1+3` and an insertion of `2` at index 1,
+  // we want the side affinity to be -1 to indicate that the `2` is part of the `1` node.
+  // This is relevant for shards to include or exclude pending changes.
+  //
+  // Note that a text inserted in a shard will automatically set its affinity based on the
+  // shard boundaries, so this function will only be used to set the affinity for changes
+  // that are caused independent of views.
+  determineSideAffinity(root: SBNode, changes: Change<T>[]) {
+    for (const change of changes) {
+      if (change.sideAffinity !== undefined) continue;
+      const leaf = root.leafForPosition(change.from, true);
+      change.sideAffinity =
+        leaf.range[0] === change.from
+          ? 1
+          : leaf.range[1] - change.insert.length === change.from
+            ? -1
+            : 0;
     }
   }
 }
@@ -120,7 +252,7 @@ class Pane<T> {
   markers: { nodes: SBNode[] }[] = [];
 
   fetchAugmentations: PaneFetchAugmentationsFunc;
-  applyLocalEdit: PaneApplyLocalEditFunc;
+  applyLocalChanges: PaneApplyLocalChangesFunc<T>;
   getText: PaneGetTextFunc;
   syncReplacements: () => void;
 
@@ -134,27 +266,27 @@ class Pane<T> {
     syncReplacements,
     getText,
     fetchAugmentations,
-    applyLocalEdit,
+    applyLocalChanges,
   }: {
     view: HTMLElement;
     host: T;
     syncReplacements: () => void;
     fetchAugmentations: (parent: Pane<T>) => Augmentation<any>[];
-    applyLocalEdit: PaneApplyLocalEditFunc;
+    applyLocalChanges: PaneApplyLocalChangesFunc<T>;
     getText: PaneGetTextFunc;
   }) {
     this.view = view;
     this.host = host;
     this.syncReplacements = syncReplacements;
     this.getText = getText;
-    this.applyLocalEdit = applyLocalEdit;
+    this.applyLocalChanges = applyLocalChanges;
     this.fetchAugmentations = fetchAugmentations;
   }
 
   async loadModels(v: Vitrail<T>, sourceString: string) {
     for (const augmentation of this.fetchAugmentations(this)) {
-      if (!v.models.has(augmentation.model)) {
-        v.models.set(
+      if (!v._models.has(augmentation.model)) {
+        v._models.set(
           augmentation.model,
           await augmentation.model.parse(sourceString, v),
         );
@@ -165,7 +297,7 @@ class Pane<T> {
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
     this.nodes = nodes;
 
-    const buffers = this.getInitEditBuffersForRoots([...v.models.values()]);
+    const buffers = this.getInitEditBuffersForRoots([...v._models.values()]);
     for (const buffer of buffers) this.updateReplacements(buffer);
   }
 
@@ -224,7 +356,7 @@ class Pane<T> {
   mayReplace(node: SBNode, augmentation: Augmentation<any>) {
     if (this.getReplacementFor(node)) return null;
     // TODO prevent recursion
-    // if (this.parentShard?.replacements.some((r) => r.node === node)) return false;
+    // if (this.parentPane?.replacements.some((r) => r.node === node)) return false;
     return augmentation.match(node, this);
   }
 
@@ -295,6 +427,20 @@ class Pane<T> {
   }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
 class CodeMirrorReplacementWidget extends WidgetType {
   replacement: Replacement<any>;
 
@@ -364,7 +510,49 @@ export async function codeMirror6WithVitrail(
       ),
       replacementsField,
       EditorView.updateListener.of((update) => {
-        // v.notifyEdit(update);
+        if (
+          update.docChanged &&
+          !update.transactions.some((t) => t.isUserEvent("sync"))
+        ) {
+          const changes: Change<EditorView>[] = [];
+          update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+            changes.push({
+              from: fromA + pane.range[0],
+              to: toA + pane.range[0],
+              insert: inserted.toString(),
+              sourcePane: pane,
+              // will be set below
+              inverse: null as any,
+            });
+          });
+          const inverse: Change<EditorView>["inverse"][] = [];
+          update.changes
+            .invert(update.startState.doc)
+            .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+              inverse.push({
+                from: fromA + pane.range[0],
+                to: toA + pane.range[0],
+                insert: inserted.toString(),
+              });
+            });
+          console.assert(inverse.length === changes.length);
+
+          parallelToSequentialChanges(changes);
+          parallelToSequentialChanges(inverse);
+          changes.forEach((c, i) => (c.inverse = inverse[i]));
+
+          last(changes).selectionRange = rangeShift(
+            [
+              update.state.selection.main.head,
+              update.state.selection.main.anchor,
+            ],
+            pane.range[0],
+          );
+          last(changes).sideAffinity =
+            pane.range[0] === last(changes).from ? 1 : -1;
+
+          v.applyChanges(changes);
+        }
       }),
     ];
   };
@@ -378,13 +566,8 @@ export async function codeMirror6WithVitrail(
       host,
       syncReplacements: () => host.dispatch({ userEvent: "sync" }),
       fetchAugmentations,
-      applyLocalEdit: (from, to, text) => {
-        host.dispatch(
-          host.state.update({
-            changes: { from, to, insert: text },
-          }),
-        );
-      },
+      applyLocalChanges: (changes: Change<EditorView>[]) =>
+        host.dispatch(host.state.update({ changes, sequential: true })),
       getText: () => host.state.doc.toString(),
     });
 

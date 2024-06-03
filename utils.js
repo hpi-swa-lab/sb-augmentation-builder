@@ -538,3 +538,23 @@ export function appendCss(text) {
   style.textContent = text;
   document.head.appendChild(style);
 }
+
+export function adjustIndex(index, changesList, sideAffinity = 0) {
+  for (const change of changesList) {
+    if (
+      (change.sideAffinity === sideAffinity && index >= change.from) ||
+      (change.sideAffinity !== sideAffinity && index > change.from)
+    )
+      index +=
+        (change.insert ?? "").length -
+        (clamp(index, change.from, change.to) - change.from);
+  }
+  return index;
+}
+
+export function parallelToSequentialChanges(changes) {
+  for (let i = 0; i < changes.length; i++) {
+    changes[i].from = adjustIndex(changes[i].from, changes.slice(0, i));
+    changes[i].to = adjustIndex(changes[i].to, changes.slice(0, i));
+  }
+}

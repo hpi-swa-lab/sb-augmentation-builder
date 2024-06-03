@@ -82,6 +82,10 @@ export class SBLanguage {
     return { tx, root, diff };
   }
 
+  get canBeDefault() {
+    return false;
+  }
+
   destroyRoot(root) {}
 
   _assignState(root, text, editor) {

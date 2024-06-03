@@ -91,6 +91,7 @@
           {
             model: languageFor("javascript"),
             matcherDepth: 1,
+            rerender: () => true,
             match: (x, _pane) =>
               x.type === "identifier" ? { nodes: [x] } : null,
             view: ({ nodes }) =>
