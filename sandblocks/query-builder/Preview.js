@@ -14,8 +14,6 @@ export default function Preview({ design, selectedNodes }) {
     }
   });
 
-  console.log(node);
-
   const updatePos = (step) => {
     if (step > 0) {
       pos.value = Math.min(selectedNodes.value.length - 1, pos.value + step);

@@ -395,6 +395,10 @@ class SBNode {
     else return this.parent?.orParentThat(predicate);
   }
 
+  prependString(string) {
+    this.editor.insertTextFromCommand(this.range[0], string);
+  }
+
   insert(string, type, index) {
     const list = this.childBlocks.filter(
       (child) =>
@@ -611,6 +615,16 @@ class SBNode {
     }
     return null;
   }
+
+  findQueryAll(string, extract = null, out = []) {
+    const res = this.query(string, extract);
+    if (res) out.push({ ...res, root: this });
+
+    for (const child of this.children) {
+      child.findQueryAll(string, extract, out);
+    }
+    return out;
+  }
 }
 
 const structureHashText = hash("text");
@@ -710,9 +724,7 @@ export class SBBlock extends SBNode {
   }
 
   get text() {
-    return this.children.length === 1 && this.children[0].isText
-      ? this.children[0].text
-      : "";
+    return this.children.length === 1 ? this.children[0].text : "";
   }
 
   get structureHash() {

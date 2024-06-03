@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "../external/preact-hooks.mjs";
-import { SBList } from "../core/model.js";
 import htm from "../external/htm.mjs";
 import { BaseEditor } from "../core/editor.js";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
