@@ -105,10 +105,19 @@
                   },
                 },
                 h(VitrailPane, {
-                  fetchAugmentations: () => [],
-                  nodes: [nodes[0].atField("name")],
+                  fetchAugmentations: (parent) => parent?.fetchAugmentations(),
+                  nodes: [nodes[0].atField("body")],
                 }),
               ),
+          },
+          {
+            model: languageFor("javascript"),
+            matcherDepth: 1,
+            rerender: () => true,
+            match: (x, _pane) =>
+              x.type === "identifier" ? { nodes: [x] } : null,
+            view: ({ nodes }) =>
+              h("span", { style: { backgroundColor: "green" } }, nodes[0].text),
           },
         ],
         baseCMExtensions,

@@ -31,6 +31,11 @@ import {
   rangeShift,
 } from "../utils.js";
 
+// TODO
+// marker (and not just replacement) support
+// navigating between arbitrary editables
+// deletion when the start index of a nested pane changes
+
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
 };
@@ -83,7 +88,7 @@ interface ReversibleChange<T> {
 type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
-  fetchAugmentations: PaneFetchAugmentationsFunc,
+  fetchAugmentations: PaneFetchAugmentationsFunc<T>,
 ) => Pane<T>;
 type EditableGetCursorCandidateFunc = () => {
   distance: number;
@@ -93,7 +98,9 @@ type EditableFocusAdjacentFunc = (direction: number) => void;
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
-type PaneFetchAugmentationsFunc = (parent: Pane<any>) => Augmentation<any>[];
+type PaneFetchAugmentationsFunc<T> = (
+  parent: Pane<T> | null,
+) => Augmentation<any>[] | null;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
 type PaneFocusRangeFunc = (head: number, anchor: number) => void;
 type ValidatorFunc<T> = (
@@ -154,6 +161,10 @@ class Vitrail<T> {
     else throw new Error("pane not found");
   }
 
+  paneForView(view: HTMLElement | null) {
+    return this._panes.find((p) => p.view === view) ?? null;
+  }
+
   async registerValidator(model: Model, cb: ValidatorFunc<T>) {
     if (!(model instanceof SBLanguage)) throw new Error("no model given");
     const p: [Model, ValidatorFunc<T>] = [model, cb];
@@ -164,7 +175,7 @@ class Vitrail<T> {
 
   async connectHost(pane: Pane<T>) {
     this._rootPane = pane;
-    this._panes.push(this._rootPane);
+    this.registerPane(pane);
     this._sourceString = this._rootPane.getText();
     await this.loadModels();
     this._rootPane.connectNodes(this, [this._models.get(this.defaultModel)!]);
@@ -331,7 +342,7 @@ class Pane<T> {
   replacements: Replacement<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
 
-  fetchAugmentations: PaneFetchAugmentationsFunc;
+  _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
   hasFocus: () => boolean;
   _applyLocalChanges: PaneApplyLocalChangesFunc<T>;
@@ -367,7 +378,7 @@ class Pane<T> {
     hasFocus: () => boolean;
     focusRange: PaneFocusRangeFunc;
     getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
-    fetchAugmentations: (parent: Pane<T>) => Augmentation<any>[];
+    fetchAugmentations: PaneFetchAugmentationsFunc<T>;
     applyLocalChanges: PaneApplyLocalChangesFunc<T>;
     getText: PaneGetTextFunc;
     setText: PaneSetTextFunc;
@@ -382,7 +393,7 @@ class Pane<T> {
     this.syncReplacements = syncReplacements;
     this._applyLocalChanges = applyLocalChanges;
     this.getLocalSelectionIndices = getLocalSelectionIndices;
-    this.fetchAugmentations = fetchAugmentations;
+    this._fetchAugmentations = fetchAugmentations;
 
     let pane = this;
     (this.view as any).cursorPositions = function* () {
@@ -393,8 +404,24 @@ class Pane<T> {
     };
   }
 
+  get parentPane() {
+    let current = this.view.parentElement;
+
+    while (current) {
+      const pane = this.vitrail.paneForView(current as HTMLElement);
+      if (pane) return pane;
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  fetchAugmentations() {
+    return this._fetchAugmentations(this.parentPane) ?? [];
+  }
+
   async loadModels(v: Vitrail<T>, sourceString: string) {
-    for (const augmentation of this.fetchAugmentations(this)) {
+    for (const augmentation of this.fetchAugmentations()) {
       if (!v._models.has(augmentation.model)) {
         v._models.set(
           augmentation.model,
@@ -496,7 +523,7 @@ class Pane<T> {
 
     // check for new replacements
     for (const root of changedNodes) {
-      for (const augmentation of this.fetchAugmentations(this)) {
+      for (const augmentation of this.fetchAugmentations()) {
         if (augmentation.model !== root.language) continue;
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
@@ -605,9 +632,9 @@ class Pane<T> {
     }
   }
 
-  moveCursor(forward: boolean) {
+  adjacentCursorPosition(forward: boolean) {
     const [head, _anchor] = this.getLocalSelectionIndices();
-    const pos = adjacentCursorPosition(
+    return adjacentCursorPosition(
       {
         root: this.vitrail._rootPane.view,
         element: this.view,
@@ -615,11 +642,40 @@ class Pane<T> {
       },
       forward,
     );
+  }
+
+  moveCursor(forward: boolean) {
+    const pos = this.adjacentCursorPosition(forward);
     if (pos && pos.element !== this.view)
       (pos.element as any).focusRange(pos.index, pos.index);
   }
 
-  handleDeleteAtBoundary(forward: boolean) {}
+  handleDeleteAtBoundary(forward: boolean) {
+    const [head, _anchor] = this.getLocalSelectionIndices();
+    const offset = forward ? 0 : -1;
+    const adjusted = head + this.range[0] + offset;
+    const pos = this.adjacentCursorPosition(forward);
+    if (pos && pos.element !== this.view) {
+      const deletedChar = this.getText().slice(
+        head + (forward ? 0 : -1),
+        head + (forward ? 1 : 0),
+      );
+      this.vitrail.applyChanges([
+        {
+          from: adjusted,
+          to: adjusted + 1,
+          insert: "",
+          sideAffinity: forward ? 1 : -1,
+          selectionRange: [adjusted, adjusted],
+          inverse: {
+            from: adjusted,
+            to: adjusted,
+            insert: deletedChar,
+          },
+        },
+      ]);
+    }
+  }
 }
 
 function adjacentCursorPosition({ root, element, index }, forward: boolean) {
@@ -634,6 +690,7 @@ function previousCursorPosition({ root, element, index }) {
     if (i === index && element === e) return previous;
     previous = { index: i, element: e };
   }
+  return previous;
 }
 
 function nextCursorPosition({ root, element, index }) {
@@ -642,6 +699,7 @@ function nextCursorPosition({ root, element, index }) {
     if (takeNext) return { index: i, element: e };
     if (i === index && element === e) takeNext = true;
   }
+  return null;
 }
 
 function cursorPositionsForIndex(root: HTMLElement, index: number) {
@@ -658,7 +716,6 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
     // fetchAugmentations may not change (or rather: we ignore any changes)
     () => {
       const pane = vitrail.createPane(fetchAugmentations);
-      pane.connectNodes(vitrail, nodes);
       return pane;
     },
     [vitrail],
@@ -666,6 +723,7 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
 
   useEffect(() => {
     vitrail.registerPane(pane);
+    pane.connectNodes(vitrail, nodes);
     return () => vitrail.unregisterPane(pane);
   }, [vitrail]);
 
@@ -773,6 +831,11 @@ export async function codeMirror6WithVitrail(
             run: () => pane.handleDeleteAtBoundary(false),
             preventDefault: true,
           },
+          {
+            key: "Delete",
+            run: () => pane.handleDeleteAtBoundary(true),
+            preventDefault: true,
+          },
         ]),
       ),
       replacementsField,
@@ -827,7 +890,7 @@ export async function codeMirror6WithVitrail(
   function paneFromCM(
     host: EditorView,
     vitrail: Vitrail<EditorView>,
-    fetchAugmentations: PaneFetchAugmentationsFunc,
+    fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
   ) {
     const pane = new Pane<EditorView>({
       vitrail,
@@ -866,7 +929,9 @@ export async function codeMirror6WithVitrail(
   const pendingChangesHint = document.createElement("div");
 
   const v = new Vitrail<EditorView>({
-    createPane: (fetchAugmentations: PaneFetchAugmentationsFunc) => {
+    createPane: (
+      fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
+    ) => {
       const host = new EditorView({
         doc: "",
         parent: document.createElement("div"),
