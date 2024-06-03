@@ -7,7 +7,7 @@ export function typescript(app, rootPath) {
     const path = fsPath.join(rootPath, relPath);
     const r = await transformFile(path, {
       jsc: {
-        target: "es2016",
+        target: "es2022",
         parser: {
           syntax: "typescript",
           tsx: path.endsWith(".tsx"),

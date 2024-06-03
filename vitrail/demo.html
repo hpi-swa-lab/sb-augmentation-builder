@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Vitrail Demo</title>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script type="module">
+      import { codeMirror6WithVitrail } from "./vitrail.ts";
+      import {
+        EditorView,
+        indentWithTab,
+        javascript,
+        autocompletion,
+        startCompletion,
+        highlightSpecialChars,
+        history,
+        drawSelection,
+        dropCursor,
+        EditorState,
+        indentOnInput,
+        syntaxHighlighting,
+        defaultHighlightStyle,
+        bracketMatching,
+        closeBrackets,
+        rectangularSelection,
+        crosshairCursor,
+        highlightSelectionMatches,
+        closeBracketsKeymap,
+        defaultKeymap,
+        searchKeymap,
+        historyKeymap,
+        foldKeymap,
+        completionKeymap,
+        lintKeymap,
+        lineNumbers,
+        highlightActiveLineGutter,
+        keymap,
+        foldGutter,
+      } from "../codemirror6/external/codemirror.bundle.js";
+      import { ayuLight } from "../codemirror6/theme.js";
+      import { languageFor } from "../core/languages.js";
+      import { config } from "../core/config.js";
+      import { h } from "../external/preact.js";
+
+      config.baseURL = "/";
+
+      const baseCMExtensions = [
+        highlightSpecialChars(),
+        history(),
+        drawSelection(),
+        dropCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        bracketMatching(),
+        closeBrackets(),
+        autocompletion(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightSelectionMatches(),
+        ayuLight,
+        javascript(),
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...foldKeymap,
+          ...completionKeymap,
+          ...lintKeymap,
+          indentWithTab,
+        ]),
+      ];
+      const extraCMExtensionsForRoot = [];
+
+      const cm = new EditorView({
+        doc: "function a(b, c) {d}",
+        extensions: [
+          ...baseCMExtensions,
+          lineNumbers(),
+          highlightActiveLineGutter(),
+          foldGutter(),
+        ],
+        parent: document.querySelector("#editor"),
+      });
+
+      codeMirror6WithVitrail(
+        cm,
+        [
+          {
+            model: languageFor("javascript"),
+            matcherDepth: 1,
+            match: (x, _pane) =>
+              x.type === "identifier" ? { nodes: [x] } : null,
+            view: ({ nodes }) =>
+              h("span", { style: { backgroundColor: "red" } }, nodes[0].text),
+          },
+        ],
+        baseCMExtensions,
+      );
+    </script>
+  </body>
+</html>

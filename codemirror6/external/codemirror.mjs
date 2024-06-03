@@ -1,6 +1,12 @@
 export { javascript } from "@codemirror/lang-javascript";
 export { EditorView, basicSetup, minimalSetup } from "codemirror";
-export { RangeSet, StateField, Prec, EditorState } from "@codemirror/state";
+export {
+  RangeSet,
+  StateField,
+  Prec,
+  EditorState,
+  StateEffect,
+} from "@codemirror/state";
 export { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 export {
   Decoration,

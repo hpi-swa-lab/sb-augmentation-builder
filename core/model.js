@@ -112,7 +112,7 @@ function _nextNodeId() {
   return _nodeId++;
 }
 
-class SBNode {
+export class SBNode {
   _parent = null;
   shards = new WeakArray();
 
