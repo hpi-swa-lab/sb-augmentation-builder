@@ -26,7 +26,6 @@ import {
   parallelToSequentialChanges,
   rangeContains,
   rangeDistance,
-  rangeEqual,
   rangeIntersects,
   rangeShift,
 } from "../utils.js";
@@ -90,11 +89,6 @@ type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
 ) => Pane<T>;
-type EditableGetCursorCandidateFunc = () => {
-  distance: number;
-  focus: () => void;
-};
-type EditableFocusAdjacentFunc = (direction: number) => void;
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
@@ -119,8 +113,6 @@ class Vitrail<T> {
 
   createPane: CreatePaneFunc<T>;
   _showValidationPending: (show: boolean) => void;
-  _editableFocusAdjacent: EditableFocusAdjacentFunc;
-  _editableGetCursorCandidate: EditableGetCursorCandidateFunc;
 
   get defaultModel(): Model {
     for (const model of this._models.keys())
@@ -132,18 +124,12 @@ class Vitrail<T> {
   constructor({
     createPane,
     showValidationPending,
-    editableFocusAdjacent,
-    editableGetCursorCandidate,
   }: {
     createPane: CreatePaneFunc<T>;
     showValidationPending: (show: boolean) => void;
-    editableFocusAdjacent: EditableFocusAdjacentFunc;
-    editableGetCursorCandidate: EditableGetCursorCandidateFunc;
   }) {
     this.createPane = createPane;
     this._showValidationPending = showValidationPending;
-    this._editableFocusAdjacent = editableFocusAdjacent;
-    this._editableGetCursorCandidate = editableGetCursorCandidate;
 
     this._pendingChanges = signal([]);
     effect(() => {
@@ -942,8 +928,6 @@ export async function codeMirror6WithVitrail(
       if (show) document.body.appendChild(pendingChangesHint);
       else pendingChangesHint.remove();
     },
-    editableFocusAdjacent: (direction) => {},
-    editableGetCursorCandidate: () => ({ distance: 0, focus: () => {} }),
   });
   await v.connectHost(paneFromCM(cm, v, () => augmentations));
 
