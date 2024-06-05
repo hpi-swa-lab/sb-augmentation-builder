@@ -33,6 +33,7 @@ import {
   useSignal,
 } from "../../external/preact-signals.mjs";
 import { editor } from "../../view/widgets.js";
+import { offscreenVitrail } from "../../vitrail/vitrail.ts";
 
 const tests = [];
 const configStack = [{}];
@@ -110,10 +111,12 @@ function simSbMatching2(tree, pipeline, replacements = []) {
 }
 
 async function queryForBrowser(code) {
-  const typescript = languageFor("typescript");
-  await typescript.ready();
-
-  const tree = typescript.parseSync(code);
+  // create editor instance
+  const offscreenTest = await offscreenVitrail(code);
+  // make sure it knows that we need a javascript parser
+  await offscreenTest.registerValidator(languageFor("typescript"), () => true);
+  // access the root node of the javascript model
+  const tree = offscreenTest.getModels().get(languageFor("typescript"));
 
   //whitspaces need to be included (has to be consecutive range)
   const getDisplayNodes = (node) => {
