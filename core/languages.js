@@ -118,6 +118,24 @@ registerLanguage(
 );
 
 registerLanguage(
+  new TreeSitterLanguage({
+    repo: "tree-sitter/tree-sitter-python",
+    branch: "71778c2a472ed00a64abf4219544edbf8e4b86d7",
+    extensions: ["py"],
+    defaultExtensions: [],
+  }),
+);
+
+registerLanguage(
+  new TreeSitterLanguage({
+    repo: "tree-sitter/tree-sitter-haskell",
+    branch: "a50070d5bb5bd5c1281740a6102ecf1f4b0c4f19",
+    extensions: ["hs"],
+    defaultExtensions: [],
+  }),
+);
+
+registerLanguage(
   new TreeSitterComposedLanguage({
     name: "markdown",
     extensions: ["md"],
