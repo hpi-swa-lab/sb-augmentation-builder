@@ -15,7 +15,7 @@ import {
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
-import { SBLanguage, SBNode } from "../core/model.js";
+import { SBBaseLanguage, SBBlock, SBLanguage, SBNode } from "../core/model.js";
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
@@ -114,6 +114,10 @@ class Vitrail<T> {
   createPane: CreatePaneFunc<T>;
   _showValidationPending: (show: boolean) => void;
 
+  get sourceString() {
+    return this._sourceString;
+  }
+
   get defaultModel(): Model {
     for (const model of this._models.keys())
       if (model.canBeDefault) return model;
@@ -137,6 +141,10 @@ class Vitrail<T> {
     });
   }
 
+  getModels() {
+    return this._models;
+  }
+
   registerPane(pane: Pane<T>) {
     this._panes.push(pane);
   }
@@ -155,7 +163,7 @@ class Vitrail<T> {
     if (!(model instanceof SBLanguage)) throw new Error("no model given");
     const p: [Model, ValidatorFunc<T>] = [model, cb];
     this._validators.add(p);
-    await this.loadModels();
+    await this._loadModels();
     return () => this._validators.delete(p);
   }
 
@@ -163,13 +171,23 @@ class Vitrail<T> {
     this._rootPane = pane;
     this.registerPane(pane);
     this._sourceString = this._rootPane.getText();
-    await this.loadModels();
+    await this._loadModels();
     this._rootPane.connectNodes(this, [this._models.get(this.defaultModel)!]);
   }
 
-  async loadModels() {
+  async _loadModel(model: Model) {
+    if (!this._models.has(model)) {
+      this._models.set(model, await model.parse(this.sourceString, this));
+    }
+  }
+
+  async _loadModels() {
+    await this._loadModel(SBBaseLanguage);
+    for (const validator of this._validators) {
+      await this._loadModel(validator[0]);
+    }
     for (const pane of this._panes) {
-      await pane.loadModels(this, this._sourceString);
+      await pane.loadModels(this);
     }
   }
 
@@ -318,6 +336,39 @@ class Vitrail<T> {
       pane.syncReplacements();
     }
   }
+
+  replaceTextFromCommand(range: [number, number], text: string) {
+    const previousText = this._rootPane.getText().slice(range[0], range[1]);
+    this.applyChanges([
+      {
+        from: range[0],
+        to: range[1],
+        insert: text,
+        selectionRange: [range[0] + text.length, range[0] + text.length],
+        inverse: {
+          from: range[0],
+          to: range[0] + text.length,
+          insert: previousText,
+        },
+      },
+    ]);
+  }
+
+  insertTextFromCommand(position: number, text: string) {
+    this.applyChanges([
+      {
+        from: position,
+        to: position,
+        insert: text,
+        selectionRange: [position + text.length, position + text.length],
+        inverse: {
+          from: position,
+          to: position + text.length,
+          insert: "",
+        },
+      },
+    ]);
+  }
 }
 
 class Pane<T> {
@@ -406,14 +457,9 @@ class Pane<T> {
     return this._fetchAugmentations(this.parentPane) ?? [];
   }
 
-  async loadModels(v: Vitrail<T>, sourceString: string) {
+  async loadModels(v: Vitrail<T>) {
     for (const augmentation of this.fetchAugmentations()) {
-      if (!v._models.has(augmentation.model)) {
-        v._models.set(
-          augmentation.model,
-          await augmentation.model.parse(sourceString, v),
-        );
-      }
+      v._loadModel(augmentation.model);
     }
   }
 
@@ -457,6 +503,8 @@ class Pane<T> {
   applyChanges(changes: Change<T>[]) {
     const range = this.range;
     // TODO range changes as we process the changes list
+    // make sure not to use the nodes ranges directly but keep track of
+    // custom range including pending changes
     const length = range[1] - range[0];
     this._applyLocalChanges(
       changes
@@ -932,6 +980,35 @@ export async function codeMirror6WithVitrail(
   await v.connectHost(paneFromCM(cm, v, () => augmentations));
 
   buildPendingChangesHint(v, pendingChangesHint);
+
+  return v;
+}
+
+export async function offscreenVitrail(sourceString: string) {
+  function createPane(init: string) {
+    let text = init;
+    return new Pane({
+      vitrail: v,
+      view: document.createElement("div"),
+      host: null as any,
+      fetchAugmentations: () => null,
+      getLocalSelectionIndices: () => [0, 0],
+      focusRange: () => {},
+      applyLocalChanges: (changes) => {
+        debugger;
+      },
+      setText: (s) => (text = s),
+      getText: () => text,
+      hasFocus: () => false,
+      syncReplacements: () => {},
+    });
+  }
+
+  const v = new Vitrail({
+    createPane: () => createPane(""),
+    showValidationPending: () => {},
+  });
+  await v.connectHost(createPane(sourceString));
 
   return v;
 }

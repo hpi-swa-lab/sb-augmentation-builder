@@ -6,7 +6,11 @@
   <body>
     <div id="editor"></div>
     <script type="module">
-      import { codeMirror6WithVitrail, VitrailPane } from "./vitrail.ts";
+      import {
+        codeMirror6WithVitrail,
+        VitrailPane,
+        offscreenVitrail,
+      } from "./vitrail.ts";
       import {
         EditorView,
         indentWithTab,
@@ -117,13 +121,33 @@
             match: (x, _pane) =>
               x.type === "identifier" ? { nodes: [x] } : null,
             view: ({ nodes }) =>
-              h("span", { style: { backgroundColor: "green" } }, nodes[0].text),
+              h(
+                "span",
+                {
+                  style: { backgroundColor: "#ff77ff" },
+                  onClick: () => nodes[0].replaceWith("testtext"),
+                },
+                nodes[0].text,
+              ),
           },
         ],
         baseCMExtensions,
       );
       console.log(vitrail);
-      // vitrail.registerValidator(languageFor("javascript"), (x) => false);
+      vitrail.registerValidator(languageFor("javascript"), (x) => false);
+
+      // create editor instance
+      const offscreenTest = await offscreenVitrail("2 + 2");
+      // make sure it knows that we need a javascript parser
+      await offscreenTest.registerValidator(
+        languageFor("javascript"),
+        (x) => true,
+      );
+      // access the root node of the javascript model
+      const rootNode = offscreenTest.getModels().get(languageFor("javascript"));
+      // replace the first number
+      rootNode.childBlock(0).childBlock(0).childBlock(0).replaceWith("321");
+      console.log(offscreenTest.sourceString);
     </script>
   </body>
 </html>
