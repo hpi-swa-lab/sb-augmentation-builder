@@ -1,23 +1,6 @@
 import { checkIfDAG, getExecutionOrder } from "./queryPipeline/dag.js";
-import {
-  AllNodes,
-  AstGrepQuery,
-  OptionalQuery,
-  RootQuery,
-  Pipeline,
-  PipelineNode,
-  SingleNode,
-  Filter,
-  CodeMatchQuery,
-  TypeQuery,
-  Children,
-  SubNodes,
-} from "./queryPipeline/pipelineNode.ts";
 import { languageFor } from "../../core/languages.js";
-import { SBBlock } from "../../core/model.js";
-import { caseOf, exec } from "../../utils.js";
 import {
-  BoolBinding,
   ExportBinding,
   all,
   first,
@@ -26,13 +9,8 @@ import {
   spawnArray,
 } from "./functionQueries.js";
 import { drawSelection } from "../../codemirror6/external/codemirror.bundle.js";
-import { html, render } from "../../view/widgets.js";
-import {
-  signal,
-  useComputed,
-  useSignal,
-} from "../../external/preact-signals.mjs";
-import { editor } from "../../view/widgets.js";
+import { html, render, editor } from "../../view/widgets.js";
+import { useComputed, useSignal } from "../../external/preact-signals.mjs";
 import { offscreenVitrail } from "../../vitrail/vitrail.ts";
 
 const tests = [];
@@ -151,10 +129,7 @@ async function queryForBrowser(code) {
       (it) => it.named,
       (it) => it.type != "comment",
       all(
-        [
-          (it) => new ExportBinding(it.type == "export_statement"),
-          capture("exported"),
-        ],
+        [(it) => new ExportBinding(it), capture("exported")],
         [
           all(
             [(it) => getDisplayNodes(it), capture("displayNodes")],
@@ -363,7 +338,7 @@ function test(string) {
                   membersPos.value = 0;
                 }}
               >
-                <input type="checkbox" /> ${it.name}
+                <${it.exported.component} /> ${it.name}
               </div>`;
             })}
           </div>
@@ -391,16 +366,11 @@ function test(string) {
             }
           </div>
         </div>
-        ${editor({
-          sourceString: currentSourceString.value,
-          language: "javascript",
-          extensions: ["base:base", "javascript:base"],
-        })}
+        ${currentSourceString.value.toString()}
       `;
     }
 
     render(html`<${Browser} />`, container);
   });
 });
-
 run();

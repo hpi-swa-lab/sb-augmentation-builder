@@ -1,3 +1,5 @@
+import { html } from "../../view/widgets.js";
+
 export function orderFork() {}
 
 export function metaexec(obj, makeScript) {
@@ -72,7 +74,6 @@ export class BoolBinding {
 export class NodeInfoBinding {
   constructor(node) {
     this.name = node.text;
-    this.tpe;
   }
 }
 
@@ -90,9 +91,21 @@ export class ExportBinding {
   set value(newVal) {
     if (newVal == this.value) return;
     if (newVal) {
+      const parent = this.node.parent;
       this.node.prependString("export ");
+      this.node = parent;
     } else {
-      this.node.replaceWith(this.node.childBlock(0));
+      this.node.replaceWith(this.node.childBlock(0).sourceString);
     }
   }
+
+  component = () => {
+    return html`<input
+      type="checkbox"
+      checked=${this.value}
+      onChange=${(e) => {
+        this.value = e.target.checked;
+      }}
+    />`;
+  };
 }
