@@ -88,6 +88,13 @@ export function log(prefix = null) {
   };
 }
 
+export function getObjectField(obj, fieldName) {
+  const res = obj.childBlocks.filter(
+    (it) => it.childBlocks[0].text == fieldName,
+  )[0].childBlocks[1];
+  return res ? res : "";
+}
+
 //TODO: Think about Views in JSX
 export class BoolBinding {
   constructor(val) {

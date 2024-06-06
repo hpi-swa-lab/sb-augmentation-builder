@@ -404,6 +404,7 @@ function test(string) {
           [languageSpecific("typescript", (it) => it.type == "array")],
           [languageSpecific(["haskell", "python"], (it) => it.type == "list")],
         ),
+        //(it) => new ArrayBinding(it),
         capture("array"),
       ]);
     };
