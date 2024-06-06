@@ -22,7 +22,7 @@ function isAbortReason(next) {
 }
 
 function exec(arg, ...script) {
-  console.log(script);
+  //console.log(script);
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
@@ -108,6 +108,62 @@ export class NodeInfoBinding {
   }
 }
 
+export class ArrayBinding {
+  constructor(node) {
+    this.node = node;
+    this.nodeArr = this.getArrayFromNode(node, node.type);
+  }
+
+  get array() {
+    return eval(this.node.sourceString);
+  }
+
+  getArrayFromNode(node, listname) {
+    if (node.childBlocks.map((it) => it.type).includes(listname)) {
+      return node.childBlocks
+        .filter((it) => it.type == listname)
+        .map((it) => this.getArrayFromNode(it));
+    } else {
+      return node.childBlocks;
+    }
+  }
+
+  setCell(col, row, value) {
+    this.node.childBlocks[col].childBlocks[row].replaceWith(value);
+  }
+
+  addCell(index, column) {
+    this.node.editor.transaction(() => {
+      if (column)
+        for (const row of node.childBlocks) {
+          row.insert(PLACEHOLDER, "expression", index);
+        }
+      else
+        node.insert(
+          "[" +
+            (PLACEHOLDER + ",").repeat(
+              this.node.childBlocks[0].childBlocks.length,
+            ) +
+            "]",
+          "expression",
+          index,
+        );
+    });
+  }
+
+  component() {
+    return html`
+      <table>
+        ${nodeArr.map((element) => {
+          `<tr>
+          ${element.map((element) => `<td>${element.text}</td>`)}
+        </tr>`;
+        })}
+      </table>
+    `;
+  }
+}
+
 export class ExportBinding {
   constructor(node) {
     this.node = node;
@@ -120,16 +176,16 @@ export class ExportBinding {
   //Might work
   //TODO: Write test
   set value(newVal) {
-    console.log(newVal);
+    //console.log(newVal);
     if (newVal == this.value) return;
     if (newVal) {
-      console.log(this.node);
+      //console.log(this.node);
       //const parent = this.node.parent;
       this.node.prependString("export ");
-      debugger;
+      //debugger;
       //this.node = parent;
     } else {
-      console.log(this.node);
+      //console.log(this.node);
       this.node.replaceWith(this.node.children[0].sourceString);
     }
   }
