@@ -119,18 +119,11 @@ export function markInputEditable(input) {
 
   // codemirror sets css that hides the caret
   input.style.cssText += "caret-color: black !important";
-  function update() {
-    nextEditor(input).onSelectionChange({
-      head: { element: input, elementOffset: input.selectionStart },
-      anchor: { element: input, elementOffset: input.selectionEnd },
-    });
-  }
   function move(forward, e) {
     e.preventDefault();
     e.stopPropagation();
-    nextEditor(input).moveCursor(forward, e.shiftKey);
+    // nextEditor(input).moveCursor(forward, e.shiftKey);
   }
-  input.resync = update;
   input.cursorPositions = function* () {
     for (let i = 0; i <= input.value.length; i++)
       yield {
@@ -157,7 +150,6 @@ export function markInputEditable(input) {
   };
 
   input.setAttribute("sb-editable", "");
-  input.addEventListener("focus", update);
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
       move(true, e);

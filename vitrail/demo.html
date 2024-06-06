@@ -6,148 +6,74 @@
   <body>
     <div id="editor"></div>
     <script type="module">
-      import {
-        codeMirror6WithVitrail,
-        VitrailPane,
-        offscreenVitrail,
-      } from "./vitrail.ts";
-      import {
-        EditorView,
-        indentWithTab,
-        javascript,
-        autocompletion,
-        startCompletion,
-        highlightSpecialChars,
-        history,
-        drawSelection,
-        dropCursor,
-        EditorState,
-        indentOnInput,
-        syntaxHighlighting,
-        defaultHighlightStyle,
-        bracketMatching,
-        closeBrackets,
-        rectangularSelection,
-        crosshairCursor,
-        highlightSelectionMatches,
-        closeBracketsKeymap,
-        defaultKeymap,
-        searchKeymap,
-        historyKeymap,
-        foldKeymap,
-        completionKeymap,
-        lintKeymap,
-        lineNumbers,
-        highlightActiveLineGutter,
-        keymap,
-        foldGutter,
-      } from "../codemirror6/external/codemirror.bundle.js";
-      import { ayuLight } from "../codemirror6/theme.js";
-      import { languageFor } from "../core/languages.js";
+      import { createDefaultCodeMirror } from "./codemirror6.ts";
       import { config } from "../core/config.js";
-      import { h } from "../external/preact.js";
+      import { xstate } from "./demo.ts";
 
       config.baseURL = "/";
 
-      const baseCMExtensions = [
-        highlightSpecialChars(),
-        history(),
-        drawSelection(),
-        dropCursor(),
-        EditorState.allowMultipleSelections.of(true),
-        indentOnInput(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        bracketMatching(),
-        closeBrackets(),
-        autocompletion(),
-        rectangularSelection(),
-        crosshairCursor(),
-        highlightSelectionMatches(),
-        ayuLight,
-        javascript(),
-        keymap.of([
-          ...closeBracketsKeymap,
-          ...defaultKeymap,
-          ...searchKeymap,
-          ...historyKeymap,
-          ...foldKeymap,
-          ...completionKeymap,
-          ...lintKeymap,
-          indentWithTab,
-        ]),
-      ];
-      const extraCMExtensionsForRoot = [];
+      createDefaultCodeMirror(
+        `
+import { createMachine, createActor } from 'xstate';
 
-      const cm = new EditorView({
-        doc: "2; function abcdef(b, c) {d} 2 + 2",
-        extensions: [
-          ...baseCMExtensions,
-          lineNumbers(),
-          highlightActiveLineGutter(),
-          foldGutter(),
-        ],
-        parent: document.querySelector("#editor"),
-      });
+const textMachine = createMachine({
+  context: {
+    committedValue: '',
+    value: '',
+  },
+  initial: 'reading',
+  states: {
+    reading: {
+      on: {
+        'text.edit': { target: 'editing' },
+      },
+    },
+    editing: {
+      on: {
+        'text.change': {
+          actions: assign({
+            value: ({ event }) => event.value,
+          }),
+        },
+        'text.commit': {
+          actions: assign({
+            committedValue: ({ context }) => context.value,
+          }),
+          target: 'reading',
+        },
+        'text.cancel': {
+          actions: assign({
+            value: ({ context }) => context.committedValue,
+          }),
+          target: 'reading',
+        },
+      },
+    },
+  },
+});
 
-      const vitrail = await codeMirror6WithVitrail(
-        cm,
-        [
-          {
-            model: languageFor("javascript"),
-            matcherDepth: 1,
-            rerender: () => true,
-            match: (x, _pane) =>
-              x.type === "function_declaration" ? { nodes: [x] } : null,
-            view: ({ nodes }) =>
-              h(
-                "span",
-                {
-                  style: {
-                    backgroundColor: "red",
-                    display: "inline-block",
-                    padding: "0.01rem",
-                  },
-                },
-                h(VitrailPane, {
-                  fetchAugmentations: (parent) => parent?.fetchAugmentations(),
-                  nodes: [nodes[0].atField("body")],
-                }),
-              ),
-          },
-          {
-            model: languageFor("javascript"),
-            matcherDepth: 1,
-            rerender: () => true,
-            match: (x, _pane) =>
-              x.type === "identifier" ? { nodes: [x] } : null,
-            view: ({ nodes }) =>
-              h(
-                "span",
-                {
-                  style: { backgroundColor: "#ff77ff" },
-                  onClick: () => nodes[0].replaceWith("testtext"),
-                },
-                nodes[0].text,
-              ),
-          },
-        ],
-        baseCMExtensions,
+const textActor = createActor(textMachine).start();
+
+textActor.subscribe((state) => {
+  console.log(state.context.value);
+});
+
+textActor.send({ type: 'text.edit' });
+// logs ''
+textActor.send({ type: 'text.change', value: 'Hello' });
+// logs 'Hello'
+textActor.send({ type: 'text.commit' });
+// logs 'Hello'
+textActor.send({ type: 'text.edit' });
+// logs 'Hello'
+textActor.send({ type: 'text.change', value: 'Hello world' });
+// logs 'Hello world'
+textActor.send({ type: 'text.cancel' });
+// logs 'Hello'
+      `,
+        document.querySelector("#editor"),
+        [xstate],
       );
-      console.log(vitrail);
-      vitrail.registerValidator(languageFor("javascript"), (x) => false);
-
-      // create editor instance
-      const offscreenTest = await offscreenVitrail("2 + 2");
-      // make sure it knows that we need a javascript parser
-      await offscreenTest.registerValidator(
-        languageFor("javascript"),
-        (x) => true,
-      );
-      // access the root node of the javascript model
-      const rootNode = offscreenTest.getModels().get(languageFor("javascript"));
-      // replace the first number
-      rootNode.childBlock(0).childBlock(0).childBlock(0).replaceWith("321");
-      console.log(offscreenTest.sourceString);
     </script>
   </body>
 </html>

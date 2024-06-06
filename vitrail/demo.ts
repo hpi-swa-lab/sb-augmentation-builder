@@ -1,0 +1,147 @@
+import { languageFor } from "../core/languages.js";
+import { extractType } from "../core/model.js";
+import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
+import {
+  untracked,
+  useSignal,
+  useSignalEffect,
+} from "../external/preact-signals.mjs";
+import { h } from "../external/preact.mjs";
+import {
+  all,
+  first,
+  metaexec,
+  spawnArray,
+} from "../sandblocks/query-builder/functionQueries.js";
+import { appendCss, clsx } from "../utils.js";
+import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
+import { ForceLayout } from "./force-layout.ts";
+import { VitrailPane } from "./vitrail.ts";
+
+const objectField = (field) => (it) =>
+  it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
+
+const objectKeyName = (keyOrString) =>
+  keyOrString.type === "string"
+    ? keyOrString.childBlock(0).text
+    : keyOrString.text;
+
+const optional = (pipeline) => first(pipeline, (it) => true);
+
+const query = (query, extract?) => (it) => it.query(query, extract);
+const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
+
+const collectState = (it) =>
+  metaexec(it, (capture) => [
+    all(
+      [
+        (it) => it.atField("key"),
+        all(
+          [(it) => it.text, capture("name")],
+          [(it) => h(AutoSizeTextArea, { node: it }), capture("nameView")],
+        ),
+      ],
+      [
+        queryDeep("let a = {on: {$$$transitions}}", extractType("pair")),
+        // FIXME shouldn't need the ??
+        (it) => it.transitions,
+        spawnArray(collectTransition),
+        capture("transitions"),
+      ],
+    ),
+  ]);
+
+const collectTransition = (it) =>
+  metaexec(it, (capture) => [
+    all(
+      [(it) => it.atField("key"), objectKeyName, capture("event")],
+      [
+        (it) => it.atField("value"),
+        all(
+          [
+            objectField("actions"),
+            (it) => h(VitrailPane, { nodes: [it] }),
+            capture("actions"),
+          ],
+          [
+            objectField("target"),
+            (it) => it.childBlock(0).text,
+            capture("target"),
+          ],
+        ),
+      ],
+    ),
+  ]);
+
+const xstatePipeline = (it) =>
+  metaexec(it, (capture) => [
+    query("createMachine($expr)"),
+    all(
+      [(it) => [it.expr.parent.parent], capture("nodes")],
+      [
+        (it) => it.expr,
+        all(
+          [objectField("context"), capture("context")],
+          [
+            optional([
+              objectField("initial"),
+              (it) => it.childBlock(0).text,
+              capture("initial"),
+            ]),
+          ],
+          [
+            queryDeep("let a = {states: {$$$states}}", extractType("pair")),
+            (it) => it.states,
+            spawnArray(collectState),
+            capture("states"),
+          ],
+        ),
+      ],
+    ),
+  ]);
+
+appendCss(`
+    .xstate-statemachine {
+        display: inline-block;
+        padding: 0.5rem;
+        border: 1px solid black;
+    }
+    .xstate-state {
+        display: inline-block;
+        padding: 0.5rem;
+        margin: 0.5rem;
+        border: 1px solid black;
+    }
+    .xstate-state.initial {
+        border: 4px double black;
+    }
+`);
+
+export const xstate = {
+  model: languageFor("javascript"),
+  matcherDepth: 1,
+  rerender: () => true,
+  match: (x, _pane) => xstatePipeline(x),
+  view: ({ states, initial }) => {
+    return h(ForceLayout, {
+      className: "xstate-statemachine",
+      nodes: states.map(({ name, nameView }) => ({
+        name,
+        node: h(
+          "div",
+          { class: clsx("xstate-state", name === initial && "initial") },
+          h("strong", {}, nameView),
+        ),
+        key: name,
+      })),
+      edges: states.flatMap(({ name: from, transitions }) =>
+        (transitions ?? []).map(({ event, target: to }) => ({
+          label: h("div", {}, event),
+          from,
+          to,
+          key: `${event}-${from}-${to}`,
+        })),
+      ),
+    });
+  },
+};

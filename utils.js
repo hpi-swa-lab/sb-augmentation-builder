@@ -539,6 +539,10 @@ export function appendCss(text) {
   document.head.appendChild(style);
 }
 
+export function clsx(...args) {
+  return args.filter(Boolean).join(" ");
+}
+
 export function adjustIndex(index, changesList, sideAffinity = 0) {
   for (const change of changesList) {
     if (

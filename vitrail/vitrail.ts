@@ -454,12 +454,14 @@ class Pane<T> {
   }
 
   fetchAugmentations() {
-    return this._fetchAugmentations(this.parentPane) ?? [];
+    if (!this._fetchAugmentations)
+      return this.parentPane?.fetchAugmentations() ?? [];
+    else return this._fetchAugmentations(this.parentPane) ?? [];
   }
 
   async loadModels(v: Vitrail<T>) {
     for (const augmentation of this.fetchAugmentations()) {
-      v._loadModel(augmentation.model);
+      await v._loadModel(augmentation.model);
     }
   }
 
