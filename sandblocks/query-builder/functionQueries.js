@@ -22,6 +22,7 @@ function isAbortReason(next) {
 }
 
 function exec(arg, ...script) {
+  console.log(script);
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
@@ -39,6 +40,17 @@ function _isEmptyObject(obj) {
 export function spawnArray(pipeline) {
   return (it) =>
     it.map((node) => pipeline(node)).filter((node) => node != null);
+}
+
+export function languageSpecific(language, ...pipeline) {
+  return (it) => {
+    const language_list = Array.isArray(language) ? language : [language];
+    const mod_pipeline = [
+      (it) => language_list.includes(it.language.name),
+      ...pipeline,
+    ];
+    return exec(it, ...mod_pipeline);
+  };
 }
 
 export function first(...pipelines) {
@@ -101,13 +113,17 @@ export class ExportBinding {
   //Might work
   //TODO: Write test
   set value(newVal) {
+    console.log(newVal);
     if (newVal == this.value) return;
     if (newVal) {
-      const parent = this.node.parent;
+      console.log(this.node);
+      //const parent = this.node.parent;
       this.node.prependString("export ");
-      this.node = parent;
+      debugger;
+      //this.node = parent;
     } else {
-      this.node.replaceWith(this.node.childBlock(0).sourceString);
+      console.log(this.node);
+      this.node.replaceWith(this.node.children[0].sourceString);
     }
   }
 
@@ -116,7 +132,8 @@ export class ExportBinding {
       type="checkbox"
       checked=${this.value}
       onChange=${(e) => {
-        this.value = e.target.checked;
+        //this.value = e.target.checked;
+        this.value = !this.value;
       }}
     />`;
   };

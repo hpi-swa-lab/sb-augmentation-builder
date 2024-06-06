@@ -1,9 +1,10 @@
 import { checkIfDAG, getExecutionOrder } from "./queryPipeline/dag.js";
-import { languageFor } from "../../core/languages.js";
+import { languageFor, languageForPath } from "../../core/languages.js";
 import {
   ExportBinding,
   all,
   first,
+  languageSpecific,
   log,
   metaexec,
   spawnArray,
@@ -271,7 +272,7 @@ describe("UI-Test", () => {
     debugger;
     container.remove();
   });
-  test.view("Ui1", async () => {
+  test("Ui1", async () => {
     const code = `
 import { useState } from 'react'
 // this is my top class!
@@ -371,6 +372,49 @@ function test(string) {
     }
 
     render(html`<${Browser} />`, container);
+  });
+
+  test.view("List", async () => {
+    const code_ts = `const list = [1,2,3]`;
+    const code_hsk = `[1,2,3]`;
+    const code_py = `list = [1,2,3]`;
+
+    const offscreenTest_ts = await offscreenVitrail(code_ts);
+    await offscreenTest_ts.registerValidator(
+      languageFor("typescript"),
+      () => true,
+    );
+    const tree_ts = offscreenTest_ts.getModels().get(languageFor("typescript"));
+
+    const offscreenTest_hsk = await offscreenVitrail(code_hsk);
+    await offscreenTest_hsk.registerValidator(
+      languageFor("haskell"),
+      () => true,
+    );
+    const tree_hsk = offscreenTest_hsk.getModels().get(languageFor("haskell"));
+
+    const offscreenTest_py = await offscreenVitrail(code_py);
+    await offscreenTest_py.registerValidator(languageFor("python"), () => true);
+
+    const tree_py = offscreenTest_py.getModels().get(languageFor("python"));
+
+    const pipeline = (tree) => {
+      return metaexec(tree, (capture) => [
+        first(
+          [languageSpecific("typescript", (it) => it.type == "array")],
+          [languageSpecific(["haskell", "python"], (it) => it.type == "list")],
+        ),
+        capture("array"),
+      ]);
+    };
+
+    const res_ts = simSbMatching2(tree_ts, pipeline);
+    const res_hsk = simSbMatching2(tree_hsk, pipeline);
+    const res_py = simSbMatching2(tree_py, pipeline);
+
+    assertEq(res_ts.length, 1);
+    assertEq(res_hsk.length, 1);
+    assertEq(res_py.length, 1);
   });
 });
 run();
