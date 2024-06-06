@@ -1,6 +1,11 @@
 import "../external/preact-debug.js";
 import { h, render } from "../external/preact.mjs";
-import { orParentThat, parentWithTag, rangeDistance } from "../utils.js";
+import {
+  appendCss,
+  orParentThat,
+  parentWithTag,
+  rangeDistance,
+} from "../utils.js";
 import {
   useEffect,
   useMemo,
@@ -10,6 +15,7 @@ import {
 import htm from "../external/htm.mjs";
 import { BaseEditor } from "../core/editor.js";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+export { markInputEditable } from "./focus.ts";
 
 export const html = htm.bind(h);
 export { h, render, Component } from "../external/preact.mjs";
@@ -112,51 +118,6 @@ export function useJSONComparedState(initialState) {
 
 function nextEditor(element) {
   return orParentThat(element, (p) => p instanceof BaseEditor);
-}
-
-export function markInputEditable(input) {
-  if (input.hasAttribute("sb-editable")) return;
-
-  // codemirror sets css that hides the caret
-  input.style.cssText += "caret-color: black !important";
-  function move(forward, e) {
-    e.preventDefault();
-    e.stopPropagation();
-    // nextEditor(input).moveCursor(forward, e.shiftKey);
-  }
-  input.cursorPositions = function* () {
-    for (let i = 0; i <= input.value.length; i++)
-      yield {
-        element: input,
-        elementOffset: i,
-        index: !!input.range ? i + input.range[0] : undefined,
-      };
-  };
-  input.candidatePositionForIndex = function (index) {
-    if (!input.range) return null;
-    return {
-      distance: rangeDistance(input.range, [index, index]),
-      position: {
-        element: input,
-        elementOffset: index - input.range[0],
-        index,
-      },
-    };
-  };
-  input.select = function ({ head, anchor }) {
-    input.focus();
-    input.selectionStart = head.elementOffset;
-    input.selectionEnd = anchor.elementOffset;
-  };
-
-  input.setAttribute("sb-editable", "");
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
-      move(true, e);
-    if (e.key === "ArrowLeft" && input.selectionStart === 0) move(false, e);
-    // make sure it doesn't bubble up to replacements or similar
-    e.stopPropagation();
-  });
 }
 
 Element.prototype.cursorPositions = function* () {

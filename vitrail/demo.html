@@ -30,7 +30,7 @@ const textMachine = createMachine({
     },
     editing: {
       on: {
-        'text.change': {
+        /*'text.change': {
           actions: assign({
             value: ({ event }) => event.value,
           }),
@@ -46,7 +46,7 @@ const textMachine = createMachine({
             value: ({ context }) => context.committedValue,
           }),
           target: 'reading',
-        },
+        },*/
       },
     },
   },

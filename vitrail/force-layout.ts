@@ -6,11 +6,6 @@ import {
 } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 
-interface Node {
-  node: any;
-  name: string;
-  key: string;
-}
 type Vec = [number, number];
 function vecAdd(a: Vec, b: Vec): Vec {
   return [a[0] + b[0], a[1] + b[1]];
@@ -74,7 +69,11 @@ export function ForceLayout({
   edges,
 }: {
   className: string;
-  nodes: Node[];
+  nodes: {
+    node: any;
+    name: string;
+    key: string;
+  }[];
   edges: { label: any; from: string; to: string; key: string }[];
 }) {
   const nodeSizes: { value: Map<string, DOMRectReadOnly> } = useSignal(
@@ -111,15 +110,13 @@ export function ForceLayout({
 
   const observer: ResizeObserver = useMemo(
     () =>
-      new ResizeObserver(
-        (entries) =>
-          (nodeSizes.value = new Map(
-            entries.map(({ target, contentRect: box }) => [
-              target.getAttribute("data-key")!,
-              box,
-            ]),
-          )),
-      ),
+      new ResizeObserver((entries) => {
+        const out = new Map(nodeSizes.value.entries());
+        for (const entry of entries) {
+          out.set(entry.target.getAttribute("data-key")!, entry.contentRect);
+        }
+        nodeSizes.value = out;
+      }),
     [],
   );
 
@@ -149,10 +146,12 @@ export function ForceLayout({
       let result;
       untracked(() => {
         result = new Map(
-          [...forces.entries()].map(([node, force]) => [
-            node,
-            vecAdd(force, nodePositions.value.get(node) ?? [0, 0]),
-          ]),
+          [...forces.entries()].map(([node, force]) => {
+            return [
+              node,
+              vecAdd(force, nodePositions.value.get(node) ?? [0, 0]),
+            ];
+          }),
         );
       });
       nodePositions.value = result;

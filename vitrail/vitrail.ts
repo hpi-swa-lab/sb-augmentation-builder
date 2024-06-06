@@ -29,6 +29,10 @@ import {
   rangeIntersects,
   rangeShift,
 } from "../utils.js";
+import {
+  adjacentCursorPosition,
+  cursorPositionsForIndex,
+} from "../view/focus.ts";
 
 // TODO
 // marker (and not just replacement) support
@@ -169,6 +173,7 @@ class Vitrail<T> {
 
   async connectHost(pane: Pane<T>) {
     this._rootPane = pane;
+    (this._rootPane.view as any).isFocusHost = true;
     this.registerPane(pane);
     this._sourceString = this._rootPane.getText();
     await this._loadModels();
@@ -270,8 +275,8 @@ class Vitrail<T> {
 
     const target = last(allChanges).selectionRange;
     const candidates = cursorPositionsForIndex(this._rootPane.view, target[0]);
-    const focused = this._panes.find((p) => p.hasFocus())?.view;
-    if (!focused || !candidates.find((c) => c.element === focused)) {
+    const focused = candidates.find((p) => (p.element as any).hasFocus());
+    if (!focused) {
       const best = candidates.reduce<{
         distance: number;
         candidate: { element: HTMLElement; index: number } | null;
@@ -439,6 +444,9 @@ class Pane<T> {
     (this.view as any).focusRange = function (head: number, anchor: number) {
       pane.focusRange(head - pane.range[0], anchor - pane.range[0]);
     };
+    (this.view as any).hasFocus = function () {
+      pane.hasFocus();
+    };
   }
 
   get parentPane() {
@@ -590,7 +598,7 @@ class Pane<T> {
       h(
         VitrailContext.Provider,
         { value: this.vitrail },
-        augmentation.view(match),
+        h(augmentation.view, match),
       ),
       parent,
     );
@@ -682,8 +690,10 @@ class Pane<T> {
 
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
-    if (pos && pos.element !== this.view)
+    if (pos && pos.element !== this.view) {
+      //debugger;
       (pos.element as any).focusRange(pos.index, pos.index);
+    }
   }
 
   handleDeleteAtBoundary(forward: boolean) {
@@ -712,38 +722,6 @@ class Pane<T> {
       ]);
     }
   }
-}
-
-function adjacentCursorPosition({ root, element, index }, forward: boolean) {
-  return forward
-    ? nextCursorPosition({ root, element, index })
-    : previousCursorPosition({ root, element, index });
-}
-
-function previousCursorPosition({ root, element, index }) {
-  let previous: { index: number; element: HTMLElement } | null = null;
-  for (const { index: i, element: e } of root.cursorPositions()) {
-    if (i === index && element === e) return previous;
-    previous = { index: i, element: e };
-  }
-  return previous;
-}
-
-function nextCursorPosition({ root, element, index }) {
-  let takeNext = false;
-  for (const { index: i, element: e } of root.cursorPositions()) {
-    if (takeNext) return { index: i, element: e };
-    if (i === index && element === e) takeNext = true;
-  }
-  return null;
-}
-
-function cursorPositionsForIndex(root: HTMLElement, index: number) {
-  let candidates: { index: number; element: HTMLElement }[] = [];
-  for (const { index: i, element: e } of (root as any).cursorPositions()) {
-    if (i === index) candidates.push({ index: i, element: e });
-  }
-  return candidates;
 }
 
 export function VitrailPane({ fetchAugmentations, nodes }) {

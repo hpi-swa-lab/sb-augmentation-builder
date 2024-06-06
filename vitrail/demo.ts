@@ -26,7 +26,7 @@ const objectKeyName = (keyOrString) =>
     ? keyOrString.childBlock(0).text
     : keyOrString.text;
 
-const optional = (pipeline) => first(pipeline, (it) => true);
+const optional = (pipeline) => first(pipeline, () => true);
 
 const query = (query, extract?) => (it) => it.query(query, extract);
 const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
@@ -41,6 +41,7 @@ const collectState = (it) =>
           [(it) => h(AutoSizeTextArea, { node: it }), capture("nameView")],
         ),
       ],
+      [(it) => it.id, capture("id")],
       [
         queryDeep("let a = {on: {$$$transitions}}", extractType("pair")),
         // FIXME shouldn't need the ??
@@ -54,6 +55,7 @@ const collectState = (it) =>
 const collectTransition = (it) =>
   metaexec(it, (capture) => [
     all(
+      [(it) => it.id, capture("id")],
       [(it) => it.atField("key"), objectKeyName, capture("event")],
       [
         (it) => it.atField("value"),
@@ -85,7 +87,9 @@ const xstatePipeline = (it) =>
           [
             optional([
               objectField("initial"),
-              (it) => it.childBlock(0).text,
+              (it) => it.childBlock(0),
+              capture("initialNode"),
+              (it) => it.text,
               capture("initial"),
             ]),
           ],
@@ -122,26 +126,31 @@ export const xstate = {
   matcherDepth: 1,
   rerender: () => true,
   match: (x, _pane) => xstatePipeline(x),
-  view: ({ states, initial }) => {
-    return h(ForceLayout, {
-      className: "xstate-statemachine",
-      nodes: states.map(({ name, nameView }) => ({
-        name,
-        node: h(
-          "div",
-          { class: clsx("xstate-state", name === initial && "initial") },
-          h("strong", {}, nameView),
-        ),
-        key: name,
-      })),
-      edges: states.flatMap(({ name: from, transitions }) =>
-        (transitions ?? []).map(({ event, target: to }) => ({
-          label: h("div", {}, event),
-          from,
-          to,
-          key: `${event}-${from}-${to}`,
+  view: ({ states, initial, initialNode }) => {
+    return h(
+      "div",
+      {},
+      h(AutoSizeTextArea, { node: initialNode }),
+      h(ForceLayout, {
+        className: "xstate-statemachine",
+        nodes: states.map(({ name, nameView, id }) => ({
+          name,
+          node: h(
+            "div",
+            { class: clsx("xstate-state", name === initial && "initial") },
+            h("strong", {}, nameView),
+          ),
+          key: id,
         })),
-      ),
-    });
+        edges: states.flatMap(({ name: from, transitions }) =>
+          (transitions ?? []).map(({ event, target: to, id }) => ({
+            label: h("div", {}, event),
+            from,
+            to,
+            key: id,
+          })),
+        ),
+      }),
+    );
   },
 };
