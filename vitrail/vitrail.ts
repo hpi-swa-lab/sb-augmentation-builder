@@ -1,21 +1,11 @@
 import {
-  EditorView,
-  StateEffect,
-  RangeSet,
-  StateField,
-  Prec,
-  Decoration,
-  WidgetType,
-  keymap,
-} from "../codemirror6/external/codemirror.bundle.js";
-import {
   AttachOp,
   DetachOp,
   EditBuffer,
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
-import { SBBaseLanguage, SBBlock, SBLanguage, SBNode } from "../core/model.js";
+import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
@@ -23,11 +13,9 @@ import {
   adjustIndex,
   clamp,
   last,
-  parallelToSequentialChanges,
   rangeContains,
   rangeDistance,
   rangeIntersects,
-  rangeShift,
 } from "../utils.js";
 import {
   adjacentCursorPosition,
@@ -45,14 +33,14 @@ import {
 
 const VitrailContext = createContext(null);
 
-interface Replacement<
+export interface Replacement<
   Props extends { [field: string]: any } & { nodes: SBNode[] },
 > {
   nodes: SBNode[];
   view: HTMLElement;
   augmentation: Augmentation<Props>;
 }
-function replacementRange(
+export function replacementRange(
   replacement: Replacement<any>,
   vitrail: Vitrail<any>,
 ) {
@@ -64,7 +52,7 @@ function replacementRange(
 
 type JSX = any;
 
-interface Augmentation<
+export interface Augmentation<
   Props extends { [field: string]: any } & { nodes: SBNode[] },
 > {
   model: Model;
@@ -79,7 +67,7 @@ interface Model {
   canBeDefault: boolean;
 }
 
-interface ReversibleChange<T> {
+export interface ReversibleChange<T> {
   from: number;
   to: number;
   insert: string;
@@ -88,7 +76,7 @@ interface ReversibleChange<T> {
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
 }
-type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
+export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
@@ -96,7 +84,7 @@ type CreatePaneFunc<T> = (
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
-type PaneFetchAugmentationsFunc<T> = (
+export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
 ) => Augmentation<any>[] | null;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
@@ -107,7 +95,7 @@ type ValidatorFunc<T> = (
   changes: ReversibleChange<T>[],
 ) => boolean;
 
-class Vitrail<T> {
+export class Vitrail<T> {
   _panes: Pane<T>[] = [];
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
@@ -376,7 +364,7 @@ class Vitrail<T> {
   }
 }
 
-class Pane<T> {
+export class Pane<T> {
   vitrail: Vitrail<T>;
   view: HTMLElement;
   host: T;
@@ -690,10 +678,8 @@ class Pane<T> {
 
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
-    if (pos && pos.element !== this.view) {
-      //debugger;
+    if (pos && pos.element !== this.view)
       (pos.element as any).focusRange(pos.index, pos.index);
-    }
   }
 
   handleDeleteAtBoundary(forward: boolean) {
@@ -747,248 +733,4 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
       if (!pane.view.isConnected) el.appendChild(pane.view);
     },
   });
-}
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-
-class CodeMirrorReplacementWidget extends WidgetType {
-  replacement: Replacement<any>;
-
-  constructor(replacement: Replacement<any>) {
-    super();
-    this.replacement = replacement;
-  }
-  eq(other: CodeMirrorReplacementWidget) {
-    return other.replacement === this.replacement;
-  }
-  toDOM() {
-    return this.replacement.view;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
-
-function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
-  box.className = "sb-pending-hint";
-  render(
-    h(
-      "span",
-      {},
-      "Pending changes",
-      h("button", { onClick: () => v.revertPendingChanges() }, "Revert"),
-      h("button", { onClick: () => v.applyPendingChanges() }, "Apply"),
-    ),
-    box,
-  );
-}
-
-export async function codeMirror6WithVitrail(
-  cm: EditorView,
-  augmentations: Augmentation<any>[],
-  extensionsForPane: any[],
-) {
-  const extensions = (pane: Pane<EditorView>) => {
-    const replacementsField = StateField.define({
-      create: () => Decoration.none,
-      update: () => {
-        return RangeSet.of(
-          pane.replacements
-            .map((r) => {
-              const range = rangeShift(
-                replacementRange(r, pane.vitrail),
-                -pane.range[0],
-              );
-              return (
-                range[0] === range[1] ? Decoration.widget : Decoration.replace
-              )({
-                widget: new CodeMirrorReplacementWidget(r),
-              }).range(...range);
-            })
-            .sort((a, b) => a.from - b.from),
-        );
-      },
-      provide: (f) => [
-        EditorView.decorations.from(f),
-        // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),
-      ],
-    });
-
-    return [
-      ...extensionsForPane,
-      Prec.highest(
-        keymap.of([
-          {
-            key: "ArrowLeft",
-            run: () => pane.moveCursor(false),
-            preventDefault: true,
-          },
-          {
-            key: "ArrowRight",
-            run: () => pane.moveCursor(true),
-            preventDefault: true,
-          },
-          {
-            key: "Backspace",
-            run: () => pane.handleDeleteAtBoundary(false),
-            preventDefault: true,
-          },
-          {
-            key: "Delete",
-            run: () => pane.handleDeleteAtBoundary(true),
-            preventDefault: true,
-          },
-        ]),
-      ),
-      replacementsField,
-      EditorView.updateListener.of((update) => {
-        if (
-          update.docChanged &&
-          !update.transactions.some((t) => t.isUserEvent("sync"))
-        ) {
-          const changes: ReversibleChange<EditorView>[] = [];
-          update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            changes.push({
-              from: fromA + pane.range[0],
-              to: toA + pane.range[0],
-              insert: inserted.toString(),
-              sourcePane: pane,
-              // will be set below
-              inverse: null as any,
-            });
-          });
-          const inverse: ReversibleChange<EditorView>["inverse"][] = [];
-          update.changes
-            .invert(update.startState.doc)
-            .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-              inverse.push({
-                from: fromA + pane.range[0],
-                to: toA + pane.range[0],
-                insert: inserted.toString(),
-              });
-            });
-          console.assert(inverse.length === changes.length);
-
-          parallelToSequentialChanges(changes);
-          parallelToSequentialChanges(inverse);
-          changes.forEach((c, i) => (c.inverse = inverse[i]));
-
-          last(changes).selectionRange = rangeShift(
-            [
-              update.state.selection.main.head,
-              update.state.selection.main.anchor,
-            ],
-            pane.range[0],
-          );
-          last(changes).sideAffinity =
-            pane.range[0] === last(changes).from ? 1 : -1;
-
-          v.applyChanges(changes);
-        }
-      }),
-    ];
-  };
-
-  function paneFromCM(
-    host: EditorView,
-    vitrail: Vitrail<EditorView>,
-    fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
-  ) {
-    const pane = new Pane<EditorView>({
-      vitrail,
-      view: host.dom,
-      host,
-      fetchAugmentations,
-      getLocalSelectionIndices: () => [
-        host.state.selection.main.head,
-        host.state.selection.main.anchor,
-      ],
-      syncReplacements: () => host.dispatch({ userEvent: "sync" }),
-      focusRange: (head, anchor) => {
-        host.focus();
-        host.dispatch({ selection: { anchor: head, head: anchor } });
-      },
-      applyLocalChanges: (changes: Change<EditorView>[]) =>
-        host.dispatch(
-          host.state.update({ userEvent: "sync", changes, sequential: true }),
-        ),
-      getText: () => host.state.doc.toString(),
-      hasFocus: () => host.hasFocus,
-      setText: (text: string) =>
-        host.dispatch(
-          host.state.update({
-            userEvent: "sync",
-            changes: [{ from: 0, to: host.state.doc.length, insert: text }],
-          }),
-        ),
-    });
-
-    host.dispatch({ effects: StateEffect.appendConfig.of(extensions(pane)) });
-
-    return pane;
-  }
-
-  const pendingChangesHint = document.createElement("div");
-
-  const v = new Vitrail<EditorView>({
-    createPane: (
-      fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
-    ) => {
-      const host = new EditorView({
-        doc: "",
-        parent: document.createElement("div"),
-      });
-      return paneFromCM(host, v, fetchAugmentations);
-    },
-    showValidationPending: (show) => {
-      if (show) document.body.appendChild(pendingChangesHint);
-      else pendingChangesHint.remove();
-    },
-  });
-  await v.connectHost(paneFromCM(cm, v, () => augmentations));
-
-  buildPendingChangesHint(v, pendingChangesHint);
-
-  return v;
-}
-
-export async function offscreenVitrail(sourceString: string) {
-  function createPane(init: string) {
-    let text = init;
-    return new Pane({
-      vitrail: v,
-      view: document.createElement("div"),
-      host: null as any,
-      fetchAugmentations: () => null,
-      getLocalSelectionIndices: () => [0, 0],
-      focusRange: () => {},
-      applyLocalChanges: (changes) => {
-        debugger;
-      },
-      setText: (s) => (text = s),
-      getText: () => text,
-      hasFocus: () => false,
-      syncReplacements: () => {},
-    });
-  }
-
-  const v = new Vitrail({
-    createPane: () => createPane(""),
-    showValidationPending: () => {},
-  });
-  await v.connectHost(createPane(sourceString));
-
-  return v;
 }

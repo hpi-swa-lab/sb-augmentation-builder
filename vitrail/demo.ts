@@ -88,7 +88,6 @@ const xstatePipeline = (it) =>
             optional([
               objectField("initial"),
               (it) => it.childBlock(0),
-              capture("initialNode"),
               (it) => it.text,
               capture("initial"),
             ]),
@@ -126,31 +125,26 @@ export const xstate = {
   matcherDepth: 1,
   rerender: () => true,
   match: (x, _pane) => xstatePipeline(x),
-  view: ({ states, initial, initialNode }) => {
-    return h(
-      "div",
-      {},
-      h(AutoSizeTextArea, { node: initialNode }),
-      h(ForceLayout, {
-        className: "xstate-statemachine",
-        nodes: states.map(({ name, nameView, id }) => ({
-          name,
-          node: h(
-            "div",
-            { class: clsx("xstate-state", name === initial && "initial") },
-            h("strong", {}, nameView),
-          ),
+  view: ({ states, initial }) => {
+    return h(ForceLayout, {
+      className: "xstate-statemachine",
+      nodes: states.map(({ name, nameView, id }) => ({
+        name,
+        node: h(
+          "div",
+          { class: clsx("xstate-state", name === initial && "initial") },
+          h("strong", {}, nameView),
+        ),
+        key: id,
+      })),
+      edges: states.flatMap(({ name: from, transitions }) =>
+        (transitions ?? []).map(({ event, target: to, id }) => ({
+          label: h("div", {}, event),
+          from,
+          to,
           key: id,
         })),
-        edges: states.flatMap(({ name: from, transitions }) =>
-          (transitions ?? []).map(({ event, target: to, id }) => ({
-            label: h("div", {}, event),
-            from,
-            to,
-            key: id,
-          })),
-        ),
-      }),
-    );
+      ),
+    });
   },
 };
