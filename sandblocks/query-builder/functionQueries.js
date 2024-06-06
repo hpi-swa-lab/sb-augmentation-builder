@@ -14,14 +14,19 @@ export function metaexec(obj, makeScript) {
   return Object.keys(captures).length > 0 ? captures : null;
 }
 
+function isAbortReason(next) {
+  if (!next) return true;
+  if (_isEmptyObject(next)) return true;
+  if (Array.isArray(next) && next.length < 1) return true;
+  return false;
+}
+
 function exec(arg, ...script) {
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
     let next = predicate(current);
-    if (!next) return null;
-    if (_isEmptyObject(next)) return null;
-    if (Array.isArray(next) && next.length < 1) return null;
+    if (isAbortReason(next)) return null;
     if (next !== true) current = next;
   }
   return current;
@@ -46,13 +51,20 @@ export function first(...pipelines) {
   };
 }
 
+export const optional = (pipeline) => first(pipeline, [() => true]);
+
+export const debugIt = (it) => {
+  console.log(it);
+  return it;
+};
+
 export function all(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
-      exec(it, ...pipeline);
+      if (isAbortReason(exec(it, ...pipeline))) return null;
     }
-    //endure that this is the last step in pipeline
-    return null;
+    // signal that we completed, but return no sensible value
+    return true;
   };
 }
 

@@ -371,6 +371,7 @@ export class Pane<T> {
   nodes: SBNode[];
   replacements: Replacement<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
+  startIndex: number = -1;
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
@@ -490,6 +491,7 @@ export class Pane<T> {
   }
 
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
+    this.startIndex = nodes[0].range[0];
     this.nodes = nodes;
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]));
@@ -513,6 +515,7 @@ export class Pane<T> {
           insert: c.insert,
         })),
     );
+    // console.assert(this.startIndex === this.nodes[0].range[0]);
   }
 
   updateReplacements(editBuffer: EditBuffer) {

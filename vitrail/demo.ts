@@ -1,16 +1,10 @@
 import { languageFor } from "../core/languages.js";
 import { extractType } from "../core/model.js";
-import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
-import {
-  untracked,
-  useSignal,
-  useSignalEffect,
-} from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   all,
-  first,
   metaexec,
+  optional,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
@@ -25,8 +19,6 @@ const objectKeyName = (keyOrString) =>
   keyOrString.type === "string"
     ? keyOrString.childBlock(0).text
     : keyOrString.text;
-
-const optional = (pipeline) => first(pipeline, () => true);
 
 const query = (query, extract?) => (it) => it.query(query, extract);
 const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
@@ -44,7 +36,6 @@ const collectState = (it) =>
       [(it) => it.id, capture("id")],
       [
         queryDeep("let a = {on: {$$$transitions}}", extractType("pair")),
-        // FIXME shouldn't need the ??
         (it) => it.transitions,
         spawnArray(collectTransition),
         capture("transitions"),
@@ -61,9 +52,11 @@ const collectTransition = (it) =>
         (it) => it.atField("value"),
         all(
           [
-            objectField("actions"),
-            (it) => h(VitrailPane, { nodes: [it] }),
-            capture("actions"),
+            optional([
+              objectField("actions"),
+              (it) => h(VitrailPane, { nodes: [it] }),
+              capture("actions"),
+            ]),
           ],
           [
             objectField("target"),
@@ -126,6 +119,7 @@ export const xstate = {
   rerender: () => true,
   match: (x, _pane) => xstatePipeline(x),
   view: ({ states, initial }) => {
+    console.log(states);
     return h(ForceLayout, {
       className: "xstate-statemachine",
       nodes: states.map(({ name, nameView, id }) => ({
@@ -147,4 +141,18 @@ export const xstate = {
       ),
     });
   },
+};
+
+export const importDemo = {
+  model: languageFor("javascript"),
+  matcherDepth: 1,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      all(
+        [query("import $value from $module"), capture("value")],
+        [capture("nodes")],
+      ),
+    ]),
+  view: ({ value }) => h("div", {}, `import ${value.sourceString}`),
 };
