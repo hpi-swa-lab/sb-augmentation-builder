@@ -8,7 +8,7 @@
     <script type="module">
       import { createDefaultCodeMirror } from "./codemirror6.ts";
       import { config } from "../core/config.js";
-      import { xstate, importDemo } from "./demo.ts";
+      import { xstate, sendAction } from "./demo.ts";
 
       config.baseURL = "/";
 
@@ -72,7 +72,7 @@ textActor.send({ type: 'text.cancel' });
 // logs 'Hello'
       `,
         document.querySelector("#editor"),
-        [xstate, importDemo],
+        [xstate, sendAction],
       );
     </script>
   </body>

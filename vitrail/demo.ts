@@ -115,11 +115,10 @@ appendCss(`
 
 export const xstate = {
   model: languageFor("javascript"),
-  matcherDepth: 1,
+  matcherDepth: 100,
   rerender: () => true,
   match: (x, _pane) => xstatePipeline(x),
   view: ({ states, initial }) => {
-    console.log(states);
     return h(ForceLayout, {
       className: "xstate-statemachine",
       nodes: states.map(({ name, nameView, id }) => ({
@@ -143,16 +142,17 @@ export const xstate = {
   },
 };
 
-export const importDemo = {
+export const sendAction = {
   model: languageFor("javascript"),
-  matcherDepth: 1,
+  matcherDepth: 3,
   rerender: () => true,
   match: (x, _pane) =>
     metaexec(x, (capture) => [
       all(
-        [query("import $value from $module"), capture("value")],
+        [query("textActor.send($obj)"), (it) => it.obj, capture("obj")],
         [capture("nodes")],
       ),
     ]),
-  view: ({ value }) => h("div", {}, `import ${value.sourceString}`),
+  view: ({ obj }) =>
+    h("span", {}, ":rocket: ", h(VitrailPane, { nodes: [obj] })),
 };

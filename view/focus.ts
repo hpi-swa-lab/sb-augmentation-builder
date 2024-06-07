@@ -75,10 +75,17 @@ function nextCursorPosition({ root, element, index }) {
   return null;
 }
 
-export function cursorPositionsForIndex(root: HTMLElement, index: number) {
+export function cursorPositionsForIndex(element: HTMLElement, index: number) {
+  let bestDistance = Infinity;
   let candidates: { index: number; element: HTMLElement }[] = [];
-  for (const { index: i, element: e } of (root as any).cursorPositions()) {
-    if (i === index) candidates.push({ index: i, element: e });
+
+  for (const { index: i, element: e } of (element as any).cursorPositions()) {
+    const distance = Math.abs(i - index);
+    if (distance < bestDistance) {
+      candidates = [];
+      bestDistance = distance;
+    }
+    if (distance === bestDistance) candidates.push({ index: i, element: e });
   }
   return candidates;
 }

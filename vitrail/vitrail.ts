@@ -6,7 +6,12 @@ import {
   UpdateOp,
 } from "../core/diff.js";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
-import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+} from "../external/preact-hooks.mjs";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import {
@@ -265,25 +270,10 @@ export class Vitrail<T> {
     const candidates = cursorPositionsForIndex(this._rootPane.view, target[0]);
     const focused = candidates.find((p) => (p.element as any).hasFocus());
     if (!focused) {
-      const best = candidates.reduce<{
-        distance: number;
-        candidate: { element: HTMLElement; index: number } | null;
-      }>(
-        (best, candidate) => {
-          const distance = rangeDistance(
-            [candidate.index, candidate.index],
-            target,
-          );
-          return distance < best.distance ? { distance, candidate } : best;
-        },
-        { distance: Infinity, candidate: null },
+      (candidates[0].element as any).focusRange(
+        candidates[0].index,
+        candidates[0].index,
       );
-
-      if (best.candidate)
-        (best.candidate.element as any).focusRange(
-          best.candidate.index,
-          best.candidate.index,
-        );
     }
   }
 
@@ -292,6 +282,10 @@ export class Vitrail<T> {
       adjustIndex(range[0], this._pendingChanges.value, 1),
       adjustIndex(range[1], this._pendingChanges.value, -1),
     ];
+  }
+
+  get hasPendingChanges() {
+    return this._pendingChanges.value.length > 0;
   }
 
   // if we have a pending change, we need to figure out to which node it contributed to.
@@ -502,20 +496,31 @@ export class Pane<T> {
 
   applyChanges(changes: Change<T>[]) {
     const range = this.range;
-    // TODO range changes as we process the changes list
-    // make sure not to use the nodes ranges directly but keep track of
-    // custom range including pending changes
     const length = range[1] - range[0];
-    this._applyLocalChanges(
-      changes
-        .filter((c) => rangeIntersects([c.from, c.to], range))
-        .map((c) => ({
-          from: clamp(c.from - range[0], 0, length),
-          to: clamp(c.to - range[0], 0, length),
-          insert: c.insert,
-        })),
-    );
-    // console.assert(this.startIndex === this.nodes[0].range[0]);
+    const translated: Change<T>[] = [];
+    for (const change of changes) {
+      const from = change.from - this.startIndex;
+      const to = change.to - this.startIndex;
+      if (from >= length && to <= 0) continue;
+
+      translated.push({
+        from: clamp(from, 0, length),
+        to: clamp(to, 0, length),
+        insert: from > 0 ? change.insert : "",
+      });
+      this.startIndex = adjustIndex(this.startIndex, [change], -1);
+    }
+    this._applyLocalChanges(translated);
+
+    if (!this.vitrail.hasPendingChanges) {
+      // depending on how the AST shifted, we may be off; if we have
+      // pendingChanges, the AST won't update.
+      const targetText = this.nodes.map((n) => n.sourceString).join("");
+      if (this.getText() !== targetText) {
+        this.setText(targetText);
+      }
+      this.startIndex = this.nodes[0].range[0];
+    }
   }
 
   updateReplacements(editBuffer: EditBuffer) {
@@ -602,7 +607,7 @@ export class Pane<T> {
     this.renderAugmentation(augmentation, match, view);
 
     this.replacements.push({
-      nodes: match.nodes,
+      nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
       augmentation,
     });
@@ -724,11 +729,13 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
     [vitrail],
   );
 
-  useEffect(() => {
+  // trigger this as early as possible, such that the pane is synchronously
+  // available as a target during cursor enumeration after a change
+  useLayoutEffect(() => {
     vitrail.registerPane(pane);
     pane.connectNodes(vitrail, nodes);
     return () => vitrail.unregisterPane(pane);
-  }, [vitrail]);
+  }, [vitrail, ...nodes]);
 
   return h("span", {
     key: "stable",
