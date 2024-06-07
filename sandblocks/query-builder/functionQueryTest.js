@@ -374,7 +374,7 @@ function test(string) {
   });
 
   test.view("List", async () => {
-    const code_ts = `const list = [[1,2],[3,4]]`;
+    const code_ts = `const list = [[[1],[2]],[[3],[4]]]`;
     const code_hsk = `[[1,2],[3,4]]`;
     const code_py = `list = [[1,2],[3,4]]`;
 
@@ -428,9 +428,11 @@ function test(string) {
     assertEq(res_ts.length, 1);
     assertEq(res_hsk.length, 1);
     assertEq(res_py.length, 1);
-    debugger;
-    const component_ts = res_ts[0].array.component;
-    render(html`<${component_ts} />`, container);
+    render(
+      html`<${res_ts[0].array.component} /> <${res_hsk[0].array.component} />
+        <${res_py[0].array.component} />`,
+      container,
+    );
   });
 });
 

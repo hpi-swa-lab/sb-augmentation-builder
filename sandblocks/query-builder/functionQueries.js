@@ -26,9 +26,14 @@ function exec(arg, ...script) {
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
-    let next = predicate(current);
-    if (isAbortReason(next)) return null;
-    if (next !== true) current = next;
+    try {
+      let next = predicate(current);
+      if (isAbortReason(next)) return null;
+      if (next !== true) current = next;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   }
   return current;
 }
@@ -112,20 +117,57 @@ export class ArrayBinding {
   constructor(node) {
     this.node = node;
     this.nodeArr = this.getArrayFromNode(node, node.type);
+    this.depth = this.getArrayDepth(this.nodeArr);
+    this.component = () => {
+      if (this.depth < 3) {
+        return html`${node.language.name}
+          <table>
+            ${this.nodeArr.array.map((element) => {
+              return html`<tr>
+                ${element.elements.map((element1) => {
+                  return html`<td>${element1.text}</td>`;
+                })}
+              </tr>`;
+            })}
+          </table> `;
+      } else {
+        return html`${node.language.name}
+          <table>
+            <tr>
+              <td>
+                Array of depth ${this.depth} found. No visualisaztion
+                implemented
+              </td>
+            </tr>
+          </table>`;
+      }
+    };
   }
 
   get array() {
     return eval(this.node.sourceString);
   }
 
-  getArrayFromNode(node, listname) {
-    if (node.childBlocks.map((it) => it.type).includes(listname)) {
-      return node.childBlocks
-        .filter((it) => it.type == listname)
-        .map((it) => this.getArrayFromNode(it));
+  getArrayDepth(nodeArr) {
+    if (Object.keys(nodeArr).includes("elements")) {
+      return 1;
     } else {
-      return node.childBlocks;
+      return 1 + Math.max(...nodeArr.array.map((it) => this.getArrayDepth(it)));
     }
+  }
+
+  getArrayFromNode(node, listname) {
+    return metaexec(node, (capture) => [
+      first(
+        [
+          (it) => it.childBlocks.map((it) => it.type).includes(listname),
+          (it) => it.childBlocks.filter((it) => it.type == listname),
+          spawnArray((it) => this.getArrayFromNode(it, listname)),
+          capture("array"),
+        ],
+        [(it) => it.childBlocks, capture("elements")],
+      ),
+    ]);
   }
 
   setCell(col, row, value) {
@@ -149,18 +191,6 @@ export class ArrayBinding {
           index,
         );
     });
-  }
-
-  component() {
-    return html`
-      <table>
-        ${nodeArr.map((element) => {
-          `<tr>
-          ${element.map((element) => `<td>${element.text}</td>`)}
-        </tr>`;
-        })}
-      </table>
-    `;
   }
 }
 
