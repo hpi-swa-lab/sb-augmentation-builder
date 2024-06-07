@@ -1,9 +1,10 @@
-import { Vitrail, Pane } from "./vitrail";
+import { Vitrail, Pane, replacementRange } from "./vitrail.ts";
 
 export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
   function paneFromLively(livelyEditor, vitrail, fetchAugmentations) {
+    if (!livelyEditor.editor) livelyEditor.editView('');
     let isMyChange = false;
-    const cm = livelyEditor.cm;
+    const cm = livelyEditor.editor;
     const markers = new Map();
 
     const doChange = (func) => {
@@ -23,21 +24,22 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       ],
       syncReplacements: () => {
         for (const replacement of pane.replacements) {
+          const range = replacementRange(replacement, vitrail)
           if (markers.has(replacement)) {
             const marker = markers.get(replacement);
-            const range = replacement.range;
-            const { from, to } = marker.find();
+            const pos = marker.find();
             if (
-              range[0] - pane.startIndex === cm.indexFromPos(from) &&
-              range[1] - pane.startIndex === cm.indexFromPos(to)
+              pos &&
+              range[0] - pane.startIndex === cm.indexFromPos(pos.from) &&
+              range[1] - pane.startIndex === cm.indexFromPos(pos.to)
             ) {
               continue;
             }
             marker.clear();
           }
           const marker = cm.doc.markText(
-            cm.posFromIndex(replacement.range[0]),
-            cm.posFromIndex(replacement.range[1]),
+            cm.posFromIndex(range[0] - pane.startIndex),
+            cm.posFromIndex(range[1] - pane.startIndex),
             { replacedWith: replacement.view },
           );
           markers.set(replacement, marker);
@@ -122,7 +124,6 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
     createPane: (fetchAugmentations) => {
       const editor = document.createElement("lively-code-mirror");
       editor.style = "display:inline-block; border: 1px solid gray";
-      editor.className = node == node.root ? "" : "shard";
       return paneFromLively(editor, v, fetchAugmentations);
     },
     showValidationPending: () => {
