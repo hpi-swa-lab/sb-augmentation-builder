@@ -1,34 +1,33 @@
 import {
-  EditorView,
-  StateEffect,
-  RangeSet,
-  StateField,
-  Prec,
-  Decoration,
-  WidgetType,
-  keymap,
-} from "../codemirror6/external/codemirror.bundle.js";
-import {
   AttachOp,
   DetachOp,
   EditBuffer,
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
-import { SBBaseLanguage, SBBlock, SBLanguage, SBNode } from "../core/model.js";
-import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+} from "../external/preact-hooks.mjs";
 import { effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import {
   adjustIndex,
   clamp,
   last,
-  parallelToSequentialChanges,
   rangeContains,
   rangeDistance,
   rangeIntersects,
   rangeShift,
+  takeWhile,
 } from "../utils.js";
+import {
+  adjacentCursorPosition,
+  cursorPositionsForIndex,
+} from "../view/focus.ts";
 
 // TODO
 // marker (and not just replacement) support
@@ -41,14 +40,17 @@ import {
 
 const VitrailContext = createContext(null);
 
-interface Replacement<
-  Props extends { [field: string]: any } & { nodes: SBNode[] },
-> {
+type ReplacementProps = { [field: string]: any } & {
+  nodes: SBNode[];
+  replacement: Replacement<any>;
+};
+
+export interface Replacement<Props extends ReplacementProps> {
   nodes: SBNode[];
   view: HTMLElement;
   augmentation: Augmentation<Props>;
 }
-function replacementRange(
+export function replacementRange(
   replacement: Replacement<any>,
   vitrail: Vitrail<any>,
 ) {
@@ -60,9 +62,7 @@ function replacementRange(
 
 type JSX = any;
 
-interface Augmentation<
-  Props extends { [field: string]: any } & { nodes: SBNode[] },
-> {
+export interface Augmentation<Props extends ReplacementProps> {
   model: Model;
   matcherDepth: number;
   match: (node: SBNode, pane: Pane<any>) => Props | null;
@@ -75,7 +75,7 @@ interface Model {
   canBeDefault: boolean;
 }
 
-interface ReversibleChange<T> {
+export interface ReversibleChange<T> {
   from: number;
   to: number;
   insert: string;
@@ -84,7 +84,7 @@ interface ReversibleChange<T> {
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
 }
-type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
+export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
@@ -92,7 +92,7 @@ type CreatePaneFunc<T> = (
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
-type PaneFetchAugmentationsFunc<T> = (
+export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
 ) => Augmentation<any>[] | null;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
@@ -103,7 +103,7 @@ type ValidatorFunc<T> = (
   changes: ReversibleChange<T>[],
 ) => boolean;
 
-class Vitrail<T> {
+export class Vitrail<T> {
   _panes: Pane<T>[] = [];
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
@@ -169,6 +169,7 @@ class Vitrail<T> {
 
   async connectHost(pane: Pane<T>) {
     this._rootPane = pane;
+    (this._rootPane.view as any).isFocusHost = true;
     this.registerPane(pane);
     this._sourceString = this._rootPane.getText();
     await this._loadModels();
@@ -213,6 +214,18 @@ class Vitrail<T> {
     for (const { from, to, insert } of allChanges) {
       newSource =
         newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
+    }
+
+    if (!last(allChanges).selectionRange && last(allChanges).sourcePane) {
+      const pane = last(allChanges).sourcePane;
+      last(allChanges).selectionRange = rangeShift(
+        pane.getLocalSelectionIndices(),
+        pane.startIndex,
+      );
+    }
+    if (!last(allChanges).sideAffinity && last(allChanges).sourcePane) {
+      last(changes).sideAffinity =
+        last(allChanges).sourcePane.startIndex === last(changes).from ? 1 : -1;
     }
 
     const update = [...this._models.values()].map((n) => n.reParse(newSource));
@@ -270,27 +283,12 @@ class Vitrail<T> {
 
     const target = last(allChanges).selectionRange;
     const candidates = cursorPositionsForIndex(this._rootPane.view, target[0]);
-    const focused = this._panes.find((p) => p.hasFocus())?.view;
-    if (!focused || !candidates.find((c) => c.element === focused)) {
-      const best = candidates.reduce<{
-        distance: number;
-        candidate: { element: HTMLElement; index: number } | null;
-      }>(
-        (best, candidate) => {
-          const distance = rangeDistance(
-            [candidate.index, candidate.index],
-            target,
-          );
-          return distance < best.distance ? { distance, candidate } : best;
-        },
-        { distance: Infinity, candidate: null },
+    const focused = candidates.find((p) => (p.element as any).hasFocus());
+    if (!focused) {
+      (candidates[0].element as any).focusRange(
+        candidates[0].index,
+        candidates[0].index,
       );
-
-      if (best.candidate)
-        (best.candidate.element as any).focusRange(
-          best.candidate.index,
-          best.candidate.index,
-        );
     }
   }
 
@@ -299,6 +297,10 @@ class Vitrail<T> {
       adjustIndex(range[0], this._pendingChanges.value, 1),
       adjustIndex(range[1], this._pendingChanges.value, -1),
     ];
+  }
+
+  get hasPendingChanges() {
+    return this._pendingChanges.value.length > 0;
   }
 
   // if we have a pending change, we need to figure out to which node it contributed to.
@@ -371,13 +373,14 @@ class Vitrail<T> {
   }
 }
 
-class Pane<T> {
+export class Pane<T> {
   vitrail: Vitrail<T>;
   view: HTMLElement;
   host: T;
   nodes: SBNode[];
   replacements: Replacement<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
+  startIndex: number = -1;
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
@@ -439,9 +442,18 @@ class Pane<T> {
     (this.view as any).focusRange = function (head: number, anchor: number) {
       pane.focusRange(head - pane.range[0], anchor - pane.range[0]);
     };
+    (this.view as any).hasFocus = function () {
+      pane.hasFocus();
+    };
   }
 
   get parentPane() {
+    if (!this.view.isConnected)
+      // FIXME I think this may not return the closest parent
+      return this.vitrail._panes.find((p) =>
+        p.replacements.some((r) => r.view.contains(this.view)),
+      );
+
     let current = this.view.parentElement;
 
     while (current) {
@@ -494,6 +506,7 @@ class Pane<T> {
   }
 
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
+    this.startIndex = nodes[0].range[0];
     this.nodes = nodes;
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]));
@@ -504,19 +517,34 @@ class Pane<T> {
 
   applyChanges(changes: Change<T>[]) {
     const range = this.range;
-    // TODO range changes as we process the changes list
-    // make sure not to use the nodes ranges directly but keep track of
-    // custom range including pending changes
     const length = range[1] - range[0];
-    this._applyLocalChanges(
-      changes
-        .filter((c) => rangeIntersects([c.from, c.to], range))
-        .map((c) => ({
-          from: clamp(c.from - range[0], 0, length),
-          to: clamp(c.to - range[0], 0, length),
-          insert: c.insert,
-        })),
-    );
+    const translated: Change<T>[] = [];
+    for (const change of changes) {
+      const from = change.from - this.startIndex;
+      const to = change.to - this.startIndex;
+      if (from >= length && to <= 0) continue;
+
+      translated.push({
+        from: clamp(from, 0, length),
+        to: clamp(to, 0, length),
+        insert: from > 0 ? change.insert : "",
+      });
+      this.startIndex = adjustIndex(this.startIndex, [change], -1);
+    }
+    this._applyLocalChanges(translated);
+
+    if (
+      this.nodes.every((n) => n.connected) &&
+      !this.vitrail.hasPendingChanges
+    ) {
+      // depending on how the AST shifted, we may be off; if we have
+      // pendingChanges, the AST won't update.
+      const targetText = this.nodes.map((n) => n.sourceString).join("");
+      if (this.getText() !== targetText) {
+        this.setText(targetText);
+      }
+      this.startIndex = this.nodes[0].range[0];
+    }
   }
 
   updateReplacements(editBuffer: EditBuffer) {
@@ -548,11 +576,7 @@ class Pane<T> {
         if (replacement && !match) {
           this.uninstallReplacement(replacement);
         } else if (replacement) {
-          this.renderAugmentation(
-            replacement.augmentation,
-            match,
-            replacement.view,
-          );
+          this.renderAugmentation(replacement, match);
         }
       }
     }
@@ -582,31 +606,34 @@ class Pane<T> {
     return augmentation.match(node, this);
   }
 
-  renderAugmentation<
-    Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(augmentation: Augmentation<Props>, match: Props, parent: HTMLElement) {
+  renderAugmentation<Props extends Omit<ReplacementProps, "replacement">>(
+    replacement: Replacement<
+      Props & { nodes: SBNode[]; replacement: Replacement<any> }
+    >,
+    match: Props,
+  ) {
     console.assert(!!this.vitrail);
     render(
       h(
         VitrailContext.Provider,
-        { value: this.vitrail },
-        augmentation.view(match),
+        { value: { vitrail: this.vitrail, pane: this } },
+        h(replacement.augmentation.view, { ...match, replacement }),
       ),
-      parent,
+      replacement.view,
     );
   }
 
   installReplacement<
     Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(augmentation: Augmentation<Props>, match: Props) {
-    const view = document.createElement("span");
-    this.renderAugmentation(augmentation, match, view);
-
-    this.replacements.push({
-      nodes: match.nodes,
-      view,
+  >(augmentation: Augmentation<ReplacementProps>, match: Props) {
+    const replacement = {
+      nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
+      view: document.createElement("span"),
       augmentation,
-    });
+    };
+    this.replacements.push(replacement);
+
+    this.renderAugmentation(replacement, match);
   }
 
   uninstallReplacement(replacement: Replacement<any>) {
@@ -682,8 +709,11 @@ class Pane<T> {
 
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
-    if (pos && pos.element !== this.view)
+    if (pos && pos.element !== this.view) {
       (pos.element as any).focusRange(pos.index, pos.index);
+      return true;
+    }
+    return false;
   }
 
   handleDeleteAtBoundary(forward: boolean) {
@@ -710,44 +740,14 @@ class Pane<T> {
           },
         },
       ]);
+      return true;
     }
+    return false;
   }
-}
-
-function adjacentCursorPosition({ root, element, index }, forward: boolean) {
-  return forward
-    ? nextCursorPosition({ root, element, index })
-    : previousCursorPosition({ root, element, index });
-}
-
-function previousCursorPosition({ root, element, index }) {
-  let previous: { index: number; element: HTMLElement } | null = null;
-  for (const { index: i, element: e } of root.cursorPositions()) {
-    if (i === index && element === e) return previous;
-    previous = { index: i, element: e };
-  }
-  return previous;
-}
-
-function nextCursorPosition({ root, element, index }) {
-  let takeNext = false;
-  for (const { index: i, element: e } of root.cursorPositions()) {
-    if (takeNext) return { index: i, element: e };
-    if (i === index && element === e) takeNext = true;
-  }
-  return null;
-}
-
-function cursorPositionsForIndex(root: HTMLElement, index: number) {
-  let candidates: { index: number; element: HTMLElement }[] = [];
-  for (const { index: i, element: e } of (root as any).cursorPositions()) {
-    if (i === index) candidates.push({ index: i, element: e });
-  }
-  return candidates;
 }
 
 export function VitrailPane({ fetchAugmentations, nodes }) {
-  const vitrail: Vitrail<any> = useContext(VitrailContext);
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
     () => {
@@ -757,11 +757,13 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
     [vitrail],
   );
 
-  useEffect(() => {
+  // trigger this as early as possible, such that the pane is synchronously
+  // available as a target during cursor enumeration after a change
+  useLayoutEffect(() => {
     vitrail.registerPane(pane);
     pane.connectNodes(vitrail, nodes);
     return () => vitrail.unregisterPane(pane);
-  }, [vitrail]);
+  }, [vitrail, ...nodes]);
 
   return h("span", {
     key: "stable",
@@ -771,246 +773,40 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
   });
 }
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-
-class CodeMirrorReplacementWidget extends WidgetType {
-  replacement: Replacement<any>;
-
-  constructor(replacement: Replacement<any>) {
-    super();
-    this.replacement = replacement;
-  }
-  eq(other: CodeMirrorReplacementWidget) {
-    return other.replacement === this.replacement;
-  }
-  toDOM() {
-    return this.replacement.view;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
-
-function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
-  box.className = "sb-pending-hint";
-  render(
-    h(
-      "span",
-      {},
-      "Pending changes",
-      h("button", { onClick: () => v.revertPendingChanges() }, "Revert"),
-      h("button", { onClick: () => v.applyPendingChanges() }, "Apply"),
+export function VitrailPaneWithWhitespace({ nodes, ...props }) {
+  const list = [
+    ...takeWhile(
+      nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+      (c) => c.isWhitespace(),
     ),
-    box,
-  );
+    ...nodes,
+    ...takeWhile(
+      last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
+      (c) => c.isWhitespace(),
+    ),
+  ];
+
+  return h(VitrailPane, { nodes: list, ...props });
 }
 
-export async function codeMirror6WithVitrail(
-  cm: EditorView,
-  augmentations: Augmentation<any>[],
-  extensionsForPane: any[],
+export function useValidator(
+  model: Model,
+  func: ValidatorFunc<any>,
+  deps: any[],
 ) {
-  const extensions = (pane: Pane<EditorView>) => {
-    const replacementsField = StateField.define({
-      create: () => Decoration.none,
-      update: () => {
-        return RangeSet.of(
-          pane.replacements
-            .map((r) => {
-              const range = rangeShift(
-                replacementRange(r, pane.vitrail),
-                -pane.range[0],
-              );
-              return (
-                range[0] === range[1] ? Decoration.widget : Decoration.replace
-              )({
-                widget: new CodeMirrorReplacementWidget(r),
-              }).range(...range);
-            })
-            .sort((a, b) => a.from - b.from),
-        );
-      },
-      provide: (f) => [
-        EditorView.decorations.from(f),
-        // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),
-      ],
-    });
-
-    return [
-      ...extensionsForPane,
-      Prec.highest(
-        keymap.of([
-          {
-            key: "ArrowLeft",
-            run: () => pane.moveCursor(false),
-            preventDefault: true,
-          },
-          {
-            key: "ArrowRight",
-            run: () => pane.moveCursor(true),
-            preventDefault: true,
-          },
-          {
-            key: "Backspace",
-            run: () => pane.handleDeleteAtBoundary(false),
-            preventDefault: true,
-          },
-          {
-            key: "Delete",
-            run: () => pane.handleDeleteAtBoundary(true),
-            preventDefault: true,
-          },
-        ]),
-      ),
-      replacementsField,
-      EditorView.updateListener.of((update) => {
-        if (
-          update.docChanged &&
-          !update.transactions.some((t) => t.isUserEvent("sync"))
-        ) {
-          const changes: ReversibleChange<EditorView>[] = [];
-          update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            changes.push({
-              from: fromA + pane.range[0],
-              to: toA + pane.range[0],
-              insert: inserted.toString(),
-              sourcePane: pane,
-              // will be set below
-              inverse: null as any,
-            });
-          });
-          const inverse: ReversibleChange<EditorView>["inverse"][] = [];
-          update.changes
-            .invert(update.startState.doc)
-            .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-              inverse.push({
-                from: fromA + pane.range[0],
-                to: toA + pane.range[0],
-                insert: inserted.toString(),
-              });
-            });
-          console.assert(inverse.length === changes.length);
-
-          parallelToSequentialChanges(changes);
-          parallelToSequentialChanges(inverse);
-          changes.forEach((c, i) => (c.inverse = inverse[i]));
-
-          last(changes).selectionRange = rangeShift(
-            [
-              update.state.selection.main.head,
-              update.state.selection.main.anchor,
-            ],
-            pane.range[0],
-          );
-          last(changes).sideAffinity =
-            pane.range[0] === last(changes).from ? 1 : -1;
-
-          v.applyChanges(changes);
-        }
-      }),
-    ];
-  };
-
-  function paneFromCM(
-    host: EditorView,
-    vitrail: Vitrail<EditorView>,
-    fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
-  ) {
-    const pane = new Pane<EditorView>({
-      vitrail,
-      view: host.dom,
-      host,
-      fetchAugmentations,
-      getLocalSelectionIndices: () => [
-        host.state.selection.main.head,
-        host.state.selection.main.anchor,
-      ],
-      syncReplacements: () => host.dispatch({ userEvent: "sync" }),
-      focusRange: (head, anchor) => {
-        host.focus();
-        host.dispatch({ selection: { anchor: head, head: anchor } });
-      },
-      applyLocalChanges: (changes: Change<EditorView>[]) =>
-        host.dispatch(
-          host.state.update({ userEvent: "sync", changes, sequential: true }),
-        ),
-      getText: () => host.state.doc.toString(),
-      hasFocus: () => host.hasFocus,
-      setText: (text: string) =>
-        host.dispatch(
-          host.state.update({
-            userEvent: "sync",
-            changes: [{ from: 0, to: host.state.doc.length, insert: text }],
-          }),
-        ),
-    });
-
-    host.dispatch({ effects: StateEffect.appendConfig.of(extensions(pane)) });
-
-    return pane;
-  }
-
-  const pendingChangesHint = document.createElement("div");
-
-  const v = new Vitrail<EditorView>({
-    createPane: (
-      fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
-    ) => {
-      const host = new EditorView({
-        doc: "",
-        parent: document.createElement("div"),
-      });
-      return paneFromCM(host, v, fetchAugmentations);
-    },
-    showValidationPending: (show) => {
-      if (show) document.body.appendChild(pendingChangesHint);
-      else pendingChangesHint.remove();
-    },
-  });
-  await v.connectHost(paneFromCM(cm, v, () => augmentations));
-
-  buildPendingChangesHint(v, pendingChangesHint);
-
-  return v;
+  if (deps === undefined)
+    throw new Error("no dependencies for useValidator provided");
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+  useEffect(() => vitrail.registerValidator(model, func), [vitrail, ...deps]);
 }
 
-export async function offscreenVitrail(sourceString: string) {
-  function createPane(init: string) {
-    let text = init;
-    return new Pane({
-      vitrail: v,
-      view: document.createElement("div"),
-      host: null as any,
-      fetchAugmentations: () => null,
-      getLocalSelectionIndices: () => [0, 0],
-      focusRange: () => {},
-      applyLocalChanges: (changes) => {
-        debugger;
-      },
-      setText: (s) => (text = s),
-      getText: () => text,
-      hasFocus: () => false,
-      syncReplacements: () => {},
-    });
-  }
-
-  const v = new Vitrail({
-    createPane: () => createPane(""),
-    showValidationPending: () => {},
-  });
-  await v.connectHost(createPane(sourceString));
-
-  return v;
+export function useValidateKeepReplacement(replacement: Replacement<any>) {
+  const { pane }: { pane: Pane<any> } = useContext(VitrailContext);
+  useValidator(
+    replacement.augmentation.model,
+    () =>
+      replacement.nodes[0]?.connected &&
+      replacement.augmentation.match(replacement.nodes[0], pane) !== null,
+    [...replacement.nodes, replacement.augmentation],
+  );
 }

@@ -1,22 +1,21 @@
 import { languageFor } from "../core/languages.js";
 import { extractType } from "../core/model.js";
-import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
-import {
-  untracked,
-  useSignal,
-  useSignalEffect,
-} from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   all,
-  first,
   metaexec,
+  optional,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
-import { VitrailPane } from "./vitrail.ts";
+import {
+  Augmentation,
+  VitrailPane,
+  VitrailPaneWithWhitespace,
+  useValidateKeepReplacement,
+} from "./vitrail.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -25,8 +24,6 @@ const objectKeyName = (keyOrString) =>
   keyOrString.type === "string"
     ? keyOrString.childBlock(0).text
     : keyOrString.text;
-
-const optional = (pipeline) => first(pipeline, (it) => true);
 
 const query = (query, extract?) => (it) => it.query(query, extract);
 const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
@@ -41,9 +38,9 @@ const collectState = (it) =>
           [(it) => h(AutoSizeTextArea, { node: it }), capture("nameView")],
         ),
       ],
+      [(it) => it.id, capture("id")],
       [
         queryDeep("let a = {on: {$$$transitions}}", extractType("pair")),
-        // FIXME shouldn't need the ??
         (it) => it.transitions,
         spawnArray(collectTransition),
         capture("transitions"),
@@ -54,14 +51,17 @@ const collectState = (it) =>
 const collectTransition = (it) =>
   metaexec(it, (capture) => [
     all(
+      [(it) => it.id, capture("id")],
       [(it) => it.atField("key"), objectKeyName, capture("event")],
       [
         (it) => it.atField("value"),
         all(
           [
-            objectField("actions"),
-            (it) => h(VitrailPane, { nodes: [it] }),
-            capture("actions"),
+            optional([
+              objectField("actions"),
+              (it) => h(VitrailPane, { nodes: [it] }),
+              capture("actions"),
+            ]),
           ],
           [
             objectField("target"),
@@ -85,7 +85,8 @@ const xstatePipeline = (it) =>
           [
             optional([
               objectField("initial"),
-              (it) => it.childBlock(0).text,
+              (it) => it.childBlock(0),
+              (it) => it.text,
               capture("initial"),
             ]),
           ],
@@ -119,29 +120,78 @@ appendCss(`
 
 export const xstate = {
   model: languageFor("javascript"),
-  matcherDepth: 1,
+  matcherDepth: 100,
   rerender: () => true,
   match: (x, _pane) => xstatePipeline(x),
   view: ({ states, initial }) => {
     return h(ForceLayout, {
       className: "xstate-statemachine",
-      nodes: states.map(({ name, nameView }) => ({
+      nodes: states.map(({ name, nameView, id }) => ({
         name,
         node: h(
           "div",
           { class: clsx("xstate-state", name === initial && "initial") },
           h("strong", {}, nameView),
         ),
-        key: name,
+        key: id,
       })),
       edges: states.flatMap(({ name: from, transitions }) =>
-        (transitions ?? []).map(({ event, target: to }) => ({
+        (transitions ?? []).map(({ event, target: to, id }) => ({
           label: h("div", {}, event),
           from,
           to,
-          key: `${event}-${from}-${to}`,
+          key: id,
         })),
       ),
     });
+  },
+};
+
+export const sendAction = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      all(
+        [query("textActor.send($obj)"), (it) => it.obj, capture("obj")],
+        [capture("nodes")],
+      ),
+    ]),
+  view: ({ obj }) =>
+    h("span", {}, ":rocket: ", h(VitrailPane, { nodes: [obj] })),
+};
+
+export const watch = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      all(
+        [
+          query("sbWatch($expr, $id)"),
+          all(
+            [(it) => it.id, capture("id")],
+            [(it) => it.expr, capture("expr")],
+          ),
+        ],
+        [capture("nodes")],
+      ),
+    ]),
+  view: ({ id, expr, replacement }) => {
+    useValidateKeepReplacement(replacement);
+    return h(
+      "span",
+      {
+        style: {
+          padding: "3px",
+          borderRadius: "5px",
+          display: "inline-block",
+          background: "#333",
+        },
+      },
+      h(VitrailPaneWithWhitespace, { nodes: [expr] }),
+    );
   },
 };
