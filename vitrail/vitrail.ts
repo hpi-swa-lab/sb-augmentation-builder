@@ -780,7 +780,7 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
   return h("span", {
     key: "stable",
     ref: (el: HTMLElement) => {
-      if (!pane.view.isConnected) el.appendChild(pane.view);
+      if (el && !pane.view.isConnected) el.appendChild(pane.view);
     },
   });
 }

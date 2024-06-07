@@ -10,7 +10,6 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
     const doChange = (func) => {
       isMyChange = true;
       func();
-      isMyChange = false;
     };
 
     const pane = new Pane({
@@ -53,7 +52,8 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         }
       },
       focusRange: (head, anchor) => {
-        cm.focus();
+        // lively.sleep().then(() => cm.focus());
+        queueMicrotask(() => cm.focus()) 
         cm.setSelection(cm.posFromIndex(anchor), cm.posFromIndex(head));
       },
       applyLocalChanges: (changes) => {
@@ -68,7 +68,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       hasFocus: () => cm.hasFocus(),
     });
 
-    cm.on("beforeSelectionChange", (cm, e, sel) => {
+    /*cm.on("beforeSelectionChange", (cm, e, sel) => {
       if (e.origin !== "+move") return;
       let delta = Math.sign(
         cm.indexFromPos(e.ranges[0].head) -
@@ -82,21 +82,34 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       }
 
       pane.moveCursor(delta > 0);
-    });
-
-    cm.on("keypress", (cm, e) => {
+      
+      e.preventDefault()
+      e.stopPropagation()
+      return false
+    });*/
+    cm.on("keydown", (cm, e) => {
+      if (e.key === "ArrowLeft") {
+        if (pane.moveCursor(false)) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }
+      if (e.key === "ArrowRight") {
+        if (pane.moveCursor(true)) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+      }
       if (e.key === "Backspace") {
-        pane.handleDeleteAtBoundary(false);
-        e.preventDefault();
+        if (pane.handleDeleteAtBoundary(false)) e.preventDefault();
       }
       if (e.key === "Delete") {
-        pane.handleDeleteAtBoundary(true);
-        e.preventDefault();
+        if (pane.handleDeleteAtBoundary(true)) e.preventDefault();
       }
     });
 
-    cm.on("change", (cm, e) => {
-      if (isMyChange) return;
+    livelyEditor.addEventListener("change", ({ detail: e }) => {
+      if (isMyChange) return (isMyChange = false);
 
       const from = cm.indexFromPos(e.from);
       const to = cm.indexFromPos(e.to);
@@ -123,6 +136,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
   const v = new Vitrail({
     createPane: (fetchAugmentations) => {
       const editor = document.createElement("lively-code-mirror");
+      editor.classList.add("shard")
       editor.style = "display:inline-block; border: 1px solid gray";
       return paneFromLively(editor, v, fetchAugmentations);
     },

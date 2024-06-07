@@ -16,7 +16,7 @@ import {
 
   import {setConfig} from "../core/config.js"
 
-  import { h } from "../external/preact.js";
+  import { h } from "../external/preact.mjs";
 
   var baseDir = lively.query(this, "lively-container").getDir()
   setConfig({baseURL: baseDir + '../'})
@@ -34,7 +34,7 @@ const editor = await (<lively-code-mirror style="width:400px; height: 500px; dis
 editor.value = source
 
 const query = (query, extract) => (it) => it.query(query, extract);
-debugger
+
 const watch = {
   model: languageFor("javascript"),
   matcherDepth: 3,
@@ -53,7 +53,7 @@ const watch = {
       ),
     ]),
   view: ({ id, expr, replacement }) => {
-    // useValidateKeepReplacement(replacement);
+    useValidateKeepReplacement(replacement);
     return h(
       "span",
       {

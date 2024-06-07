@@ -2,7 +2,7 @@
 <script>
       import { createDefaultCodeMirror } from "./codemirror6.ts";
       import { config } from "../core/config.js";
-      import { xstate } from "./demo.ts";
+      import { xstate, watch } from "./demo.ts";
       
       config.baseURL = "https://lively-kernel.org/lively4/sandblocks-text/";
       
@@ -60,7 +60,7 @@ textActor.subscribe((state) => {
   console.log(state.context.value);
 });
 
-textActor.send({ type: 'text.edit' });
+textActor.send(sbWatch({ type: 'text.edit' }, '123'));
 // logs ''
 textActor.send({ type: 'text.change', value: 'Hello' });
 // logs 'Hello'
@@ -74,7 +74,7 @@ textActor.send({ type: 'text.cancel' });
 // logs 'Hello'
       `,
         editor,
-        [xstate],
+        [xstate, watch],
       );      
   })
   editor
