@@ -22,6 +22,7 @@ import {
   rangeDistance,
   rangeIntersects,
   rangeShift,
+  takeWhile,
 } from "../utils.js";
 import {
   adjacentCursorPosition,
@@ -39,9 +40,12 @@ import {
 
 const VitrailContext = createContext(null);
 
-export interface Replacement<
-  Props extends { [field: string]: any } & { nodes: SBNode[] },
-> {
+type ReplacementProps = { [field: string]: any } & {
+  nodes: SBNode[];
+  replacement: Replacement<any>;
+};
+
+export interface Replacement<Props extends ReplacementProps> {
   nodes: SBNode[];
   view: HTMLElement;
   augmentation: Augmentation<Props>;
@@ -58,9 +62,7 @@ export function replacementRange(
 
 type JSX = any;
 
-export interface Augmentation<
-  Props extends { [field: string]: any } & { nodes: SBNode[] },
-> {
+export interface Augmentation<Props extends ReplacementProps> {
   model: Model;
   matcherDepth: number;
   match: (node: SBNode, pane: Pane<any>) => Props | null;
@@ -531,7 +533,10 @@ export class Pane<T> {
     }
     this._applyLocalChanges(translated);
 
-    if (!this.vitrail.hasPendingChanges) {
+    if (
+      this.nodes.every((n) => n.connected) &&
+      !this.vitrail.hasPendingChanges
+    ) {
       // depending on how the AST shifted, we may be off; if we have
       // pendingChanges, the AST won't update.
       const targetText = this.nodes.map((n) => n.sourceString).join("");
@@ -571,11 +576,7 @@ export class Pane<T> {
         if (replacement && !match) {
           this.uninstallReplacement(replacement);
         } else if (replacement) {
-          this.renderAugmentation(
-            replacement.augmentation,
-            match,
-            replacement.view,
-          );
+          this.renderAugmentation(replacement, match);
         }
       }
     }
@@ -605,32 +606,34 @@ export class Pane<T> {
     return augmentation.match(node, this);
   }
 
-  renderAugmentation<
-    Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(augmentation: Augmentation<Props>, match: Props, parent: HTMLElement) {
+  renderAugmentation<Props extends Omit<ReplacementProps, "replacement">>(
+    replacement: Replacement<
+      Props & { nodes: SBNode[]; replacement: Replacement<any> }
+    >,
+    match: Props,
+  ) {
     console.assert(!!this.vitrail);
     render(
       h(
         VitrailContext.Provider,
-        { value: this.vitrail },
-        h(augmentation.view, match),
+        { value: { vitrail: this.vitrail, pane: this } },
+        h(replacement.augmentation.view, { ...match, replacement }),
       ),
-      parent,
+      replacement.view,
     );
   }
 
   installReplacement<
     Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(augmentation: Augmentation<Props>, match: Props) {
-    const view = document.createElement("span");
-
-    this.replacements.push({
+  >(augmentation: Augmentation<ReplacementProps>, match: Props) {
+    const replacement = {
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
-      view,
+      view: document.createElement("span"),
       augmentation,
-    });
+    };
+    this.replacements.push(replacement);
 
-    this.renderAugmentation(augmentation, match, view);
+    this.renderAugmentation(replacement, match);
   }
 
   uninstallReplacement(replacement: Replacement<any>) {
@@ -744,7 +747,7 @@ export class Pane<T> {
 }
 
 export function VitrailPane({ fetchAugmentations, nodes }) {
-  const vitrail: Vitrail<any> = useContext(VitrailContext);
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
     () => {
@@ -768,4 +771,42 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
       if (!pane.view.isConnected) el.appendChild(pane.view);
     },
   });
+}
+
+export function VitrailPaneWithWhitespace({ nodes, ...props }) {
+  const list = [
+    ...takeWhile(
+      nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+      (c) => c.isWhitespace(),
+    ),
+    ...nodes,
+    ...takeWhile(
+      last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
+      (c) => c.isWhitespace(),
+    ),
+  ];
+
+  return h(VitrailPane, { nodes: list, ...props });
+}
+
+export function useValidator(
+  model: Model,
+  func: ValidatorFunc<any>,
+  deps: any[],
+) {
+  if (deps === undefined)
+    throw new Error("no dependencies for useValidator provided");
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+  useEffect(() => vitrail.registerValidator(model, func), [vitrail, ...deps]);
+}
+
+export function useValidateKeepReplacement(replacement: Replacement<any>) {
+  const { pane }: { pane: Pane<any> } = useContext(VitrailContext);
+  useValidator(
+    replacement.augmentation.model,
+    () =>
+      replacement.nodes[0]?.connected &&
+      replacement.augmentation.match(replacement.nodes[0], pane) !== null,
+    [...replacement.nodes, replacement.augmentation],
+  );
 }

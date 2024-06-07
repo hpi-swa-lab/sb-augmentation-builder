@@ -10,7 +10,12 @@ import {
 import { appendCss, clsx } from "../utils.js";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
-import { VitrailPane } from "./vitrail.ts";
+import {
+  Augmentation,
+  VitrailPane,
+  VitrailPaneWithWhitespace,
+  useValidateKeepReplacement,
+} from "./vitrail.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -174,8 +179,9 @@ export const watch = {
         [capture("nodes")],
       ),
     ]),
-  view: ({ id, expr }) =>
-    h(
+  view: ({ id, expr, replacement }) => {
+    useValidateKeepReplacement(replacement);
+    return h(
       "span",
       {
         style: {
@@ -185,6 +191,7 @@ export const watch = {
           background: "#333",
         },
       },
-      h(VitrailPane, { nodes: [expr] }),
-    ),
+      h(VitrailPaneWithWhitespace, { nodes: [expr] }),
+    );
+  },
 };
