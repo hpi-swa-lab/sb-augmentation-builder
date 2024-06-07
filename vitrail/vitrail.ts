@@ -19,7 +19,6 @@ import {
   clamp,
   last,
   rangeContains,
-  rangeDistance,
   rangeIntersects,
   rangeShift,
   takeWhile,
@@ -31,9 +30,14 @@ import {
 
 // TODO
 // marker (and not just replacement) support
+// navigate to elements without indices
+// if an entire replacement is deleted, ignore validation (or adapt validation)
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
+};
+(Element.prototype as any).hasFocus = function () {
+  return document.activeElement === this;
 };
 
 const VitrailContext = createContext(null);
@@ -62,7 +66,7 @@ type JSX = any;
 
 export enum SelectionInteraction {
   Skip = "skip",
-  Point = "point",
+  Start = "start",
   StartAndEnd = "startAndEnd",
 }
 
@@ -78,8 +82,8 @@ export interface Augmentation<Props extends ReplacementProps> {
   match: (node: SBNode, pane: Pane<any>) => Props | null;
   view: (props: Props) => JSX;
   rerender?: (editBuffer: EditBuffer) => boolean;
-  selectionInteraction: SelectionInteraction;
-  deletionInteraction: DeletionInteraction;
+  selectionInteraction?: SelectionInteraction;
+  deletionInteraction?: DeletionInteraction;
 }
 
 interface Model {
@@ -163,8 +167,12 @@ export class Vitrail<T> {
 
   unregisterPane(pane: Pane<T>) {
     const idx = this._panes.indexOf(pane);
-    if (idx !== -1) this._panes.splice(idx, 1);
-    else throw new Error("pane not found");
+    if (idx !== -1) {
+      const [pane] = this._panes.splice(idx, 1);
+      for (const replacement of pane.replacements) {
+        pane.uninstallReplacement(replacement);
+      }
+    } else throw new Error("pane not found");
   }
 
   paneForView(view: HTMLElement | null) {
@@ -176,7 +184,10 @@ export class Vitrail<T> {
     const p: [Model, ValidatorFunc<T>] = [model, cb];
     this._validators.add(p);
     await this._loadModels();
-    return () => this._validators.delete(p);
+    return () => {
+      console.log("unregistering validator");
+      this._validators.delete(p);
+    };
   }
 
   async connectHost(pane: Pane<T>) {
@@ -638,21 +649,30 @@ export class Pane<T> {
   installReplacement<
     Props extends { [field: string]: any } & { nodes: SBNode[] },
   >(augmentation: Augmentation<ReplacementProps>, match: Props) {
+    const view = document.createElement(
+      "vitrail-replacement-container",
+    ) as VitrailReplacementContainer;
+
     const replacement = {
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
-      view: document.createElement("span"),
+      view,
       augmentation,
     };
+
+    view.vitrail = this.vitrail;
+    view.replacement = replacement;
     this.replacements.push(replacement);
 
     this.renderAugmentation(replacement, match);
   }
 
   uninstallReplacement(replacement: Replacement<any>) {
-    for (const pane of [...this.vitrail._panes]) {
-      if (replacement.view.contains(pane.view))
-        this.vitrail.unregisterPane(pane);
-    }
+    // FIXME still needed?
+    // for (const pane of [...this.vitrail._panes]) {
+    //   if (replacement.view.contains(pane.view))
+    //     this.vitrail.unregisterPane(pane);
+    // }
+    render(null, replacement.view);
     this.replacements.splice(this.replacements.indexOf(replacement), 1);
   }
 
@@ -734,24 +754,25 @@ export class Pane<T> {
     const adjusted = head + this.range[0] + offset;
     const pos = this.adjacentCursorPosition(forward);
     if (pos && pos.element !== this.view) {
-      const deletedChar = this.getText().slice(
-        head + (forward ? 0 : -1),
-        head + (forward ? 1 : 0),
-      );
-      this.vitrail.applyChanges([
-        {
-          from: adjusted,
-          to: adjusted + 1,
-          insert: "",
-          sideAffinity: forward ? 1 : -1,
-          selectionRange: [adjusted, adjusted],
-          inverse: {
-            from: adjusted,
-            to: adjusted,
-            insert: deletedChar,
-          },
-        },
-      ]);
+      pos.element.handleDelete(forward);
+      // const deletedChar = this.getText().slice(
+      //   head + (forward ? 0 : -1),
+      //   head + (forward ? 1 : 0),
+      // );
+      // this.vitrail.applyChanges([
+      //   {
+      //     from: adjusted,
+      //     to: adjusted + 1,
+      //     insert: "",
+      //     sideAffinity: forward ? 1 : -1,
+      //     selectionRange: [adjusted, adjusted],
+      //     inverse: {
+      //       from: adjusted,
+      //       to: adjusted,
+      //       insert: deletedChar,
+      //     },
+      //   },
+      // ]);
       return true;
     }
     return false;
@@ -809,7 +830,21 @@ export function useValidator(
   if (deps === undefined)
     throw new Error("no dependencies for useValidator provided");
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
-  useEffect(() => vitrail.registerValidator(model, func), [vitrail, ...deps]);
+  useEffect(() => {
+    let wasCleanedUp = false;
+    let cleanup: (() => void) | null = null;
+    vitrail.registerValidator(model, func).then((unregister) => {
+      if (wasCleanedUp) {
+        unregister();
+      } else {
+        cleanup = unregister;
+      }
+    });
+    return () => {
+      wasCleanedUp = true;
+      cleanup?.();
+    };
+  }, [vitrail, ...deps]);
 }
 
 export function useValidateKeepReplacement(replacement: Replacement<any>) {
@@ -823,15 +858,161 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
   );
 }
 
+class VitrailReplacementContainer extends HTMLElement {
+  replacement: Replacement<any>;
+  vitrail: Vitrail<any>;
+
+  get deletion() {
+    return (
+      this.replacement.augmentation.deletionInteraction ??
+      DeletionInteraction.SelectThenFull
+    );
+  }
+
+  get selection() {
+    return (
+      this.replacement.augmentation.selectionInteraction ??
+      SelectionInteraction.StartAndEnd
+    );
+  }
+
+  get range() {
+    return replacementRange(this.replacement, this.vitrail);
+  }
+
+  _selectedAtStart = false;
+
+  _keyListener: (e: KeyboardEvent) => void;
+  _clickListener: (e: MouseEvent) => void;
+
+  connectedCallback() {
+    this.addEventListener(
+      "keydown",
+      (this._keyListener = this.onKeyDown.bind(this)),
+    );
+    this.addEventListener(
+      "click",
+      (this._clickListener = this.onClick.bind(this)),
+    );
+    this.setAttribute("tabindex", "-1");
+    this.style.verticalAlign = "top";
+  }
+
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._keyListener);
+    this.removeEventListener("click", this._clickListener);
+  }
+
+  *cursorPositions() {
+    switch (this.selection) {
+      case SelectionInteraction.Start:
+        yield { element: this, index: this.range[0] };
+        // @ts-expect-error
+        yield* super.cursorPositions();
+        return;
+      case SelectionInteraction.StartAndEnd:
+        yield { element: this, index: this.range[0] };
+        // @ts-expect-error
+        yield* super.cursorPositions();
+        yield { element: this, index: this.range[1] };
+        return;
+      case SelectionInteraction.Skip:
+        // @ts-expect-error
+        yield* super.cursorPositions();
+        return;
+    }
+  }
+
+  _focusAdjacent(forward: boolean) {
+    const pos = adjacentCursorPosition(
+      {
+        root: this.vitrail._rootPane.view,
+        element: this,
+        index: this.range[this._selectedAtStart ? 0 : 1],
+      },
+      forward,
+    );
+    if (pos) (pos.element as any).focusRange(pos.index, pos.index);
+  }
+
+  onKeyDown(e: KeyboardEvent) {
+    if (e.target !== this) return;
+    if (this.selection === SelectionInteraction.Skip) return;
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      this._focusAdjacent(false);
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      this._focusAdjacent(true);
+      return;
+    }
+
+    if (e.key === "Backspace" && document.activeElement === this) {
+      e.preventDefault();
+      this._deleteFull();
+      return;
+    }
+  }
+
+  _deleteFull() {
+    const range = this.range;
+    const insert = this.replacement.nodes.map((n) => n.sourceString).join("");
+    this.vitrail.applyChanges([
+      {
+        from: range[0],
+        to: range[1],
+        insert: "",
+        selectionRange: [range[0], range[0]],
+        inverse: { from: range[0], to: range[0], insert },
+      },
+    ]);
+  }
+
+  handleDelete(forward: boolean) {
+    switch (this.deletion) {
+      case DeletionInteraction.Character:
+        const pos = forward ? this.range[0] : this.range[1] - 1;
+        this.vitrail.applyChanges([
+          {
+            from: pos,
+            to: pos + 1,
+            insert: "",
+            selectionRange: [pos, pos],
+            inverse: {
+              from: pos,
+              to: pos,
+              insert: this.vitrail.sourceString[pos],
+            },
+          },
+        ]);
+        break;
+      case DeletionInteraction.Full:
+        this._deleteFull();
+        break;
+      case DeletionInteraction.SelectThenFull:
+        this.focus();
+        break;
+    }
+  }
+
+  focusRange(head: number, anchor: number) {
+    this._selectedAtStart = head === this.range[0];
+    this.focus();
+  }
+
+  onClick(e: MouseEvent) {
+    // FIXME doesn't work yet
+    if (e.target !== this) return;
+    if (this.selection === SelectionInteraction.Skip) return;
+    this.focus();
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}
 customElements.define(
   "vitrail-replacement-container",
-  class extends HTMLElement {
-    replacement: Replacement<any>;
-
-    *cursorPositions() {
-      if (this.replacement.augmentation.a)
-        for (const child of this.children)
-          yield* (child as any).cursorPositions();
-    }
-  },
+  VitrailReplacementContainer,
 );
