@@ -31,8 +31,6 @@ import {
 
 // TODO
 // marker (and not just replacement) support
-// navigating between arbitrary editables
-// deletion when the start index of a nested pane changes
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -62,12 +60,26 @@ export function replacementRange(
 
 type JSX = any;
 
+export enum SelectionInteraction {
+  Skip = "skip",
+  Point = "point",
+  StartAndEnd = "startAndEnd",
+}
+
+export enum DeletionInteraction {
+  Character = "character",
+  Full = "full",
+  SelectThenFull = "selectThenFull",
+}
+
 export interface Augmentation<Props extends ReplacementProps> {
   model: Model;
   matcherDepth: number;
   match: (node: SBNode, pane: Pane<any>) => Props | null;
   view: (props: Props) => JSX;
   rerender?: (editBuffer: EditBuffer) => boolean;
+  selectionInteraction: SelectionInteraction;
+  deletionInteraction: DeletionInteraction;
 }
 
 interface Model {
@@ -810,3 +822,16 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
     [...replacement.nodes, replacement.augmentation],
   );
 }
+
+customElements.define(
+  "vitrail-replacement-container",
+  class extends HTMLElement {
+    replacement: Replacement<any>;
+
+    *cursorPositions() {
+      if (this.replacement.augmentation.a)
+        for (const child of this.children)
+          yield* (child as any).cursorPositions();
+    }
+  },
+);
