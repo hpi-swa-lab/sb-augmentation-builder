@@ -22,12 +22,18 @@ function isAbortReason(next) {
 }
 
 function exec(arg, ...script) {
+  //console.log(script);
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
-    let next = predicate(current);
-    if (isAbortReason(next)) return null;
-    if (next !== true) current = next;
+    try {
+      let next = predicate(current);
+      if (isAbortReason(next)) return null;
+      if (next !== true) current = next;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   }
   return current;
 }
@@ -39,6 +45,17 @@ function _isEmptyObject(obj) {
 export function spawnArray(pipeline) {
   return (it) =>
     it.map((node) => pipeline(node)).filter((node) => node != null);
+}
+
+export function languageSpecific(language, ...pipeline) {
+  return (it) => {
+    const language_list = Array.isArray(language) ? language : [language];
+    const mod_pipeline = [
+      (it) => language_list.includes(it.language.name),
+      ...pipeline,
+    ];
+    return exec(it, ...mod_pipeline);
+  };
 }
 
 export function first(...pipelines) {
@@ -76,6 +93,13 @@ export function log(prefix = null) {
   };
 }
 
+export function getObjectField(obj, fieldName) {
+  const res = obj.childBlocks.filter(
+    (it) => it.childBlocks[0].text == fieldName,
+  )[0].childBlocks[1];
+  return res ? res : "";
+}
+
 //TODO: Think about Views in JSX
 export class BoolBinding {
   constructor(val) {
@@ -86,6 +110,87 @@ export class BoolBinding {
 export class NodeInfoBinding {
   constructor(node) {
     this.name = node.text;
+  }
+}
+
+export class ArrayBinding {
+  constructor(node) {
+    this.node = node;
+    this.nodeArr = this.getArrayFromNode(node, node.type);
+    this.depth = this.getArrayDepth(this.nodeArr);
+    this.component = () => {
+      if (this.depth < 3) {
+        return html`${node.language.name}
+          <table>
+            ${this.nodeArr.array.map((element) => {
+              return html`<tr>
+                ${element.elements.map((element1) => {
+                  return html`<td>${element1.text}</td>`;
+                })}
+              </tr>`;
+            })}
+          </table> `;
+      } else {
+        return html`${node.language.name}
+          <table>
+            <tr>
+              <td>
+                Array of depth ${this.depth} found. No visualisaztion
+                implemented
+              </td>
+            </tr>
+          </table>`;
+      }
+    };
+  }
+
+  get array() {
+    return eval(this.node.sourceString);
+  }
+
+  getArrayDepth(nodeArr) {
+    if (Object.keys(nodeArr).includes("elements")) {
+      return 1;
+    } else {
+      return 1 + Math.max(...nodeArr.array.map((it) => this.getArrayDepth(it)));
+    }
+  }
+
+  getArrayFromNode(node, listname) {
+    return metaexec(node, (capture) => [
+      first(
+        [
+          (it) => it.childBlocks.map((it) => it.type).includes(listname),
+          (it) => it.childBlocks.filter((it) => it.type == listname),
+          spawnArray((it) => this.getArrayFromNode(it, listname)),
+          capture("array"),
+        ],
+        [(it) => it.childBlocks, capture("elements")],
+      ),
+    ]);
+  }
+
+  setCell(col, row, value) {
+    this.node.childBlocks[col].childBlocks[row].replaceWith(value);
+  }
+
+  addCell(index, column) {
+    this.node.editor.transaction(() => {
+      if (column)
+        for (const row of node.childBlocks) {
+          row.insert(PLACEHOLDER, "expression", index);
+        }
+      else
+        node.insert(
+          "[" +
+            (PLACEHOLDER + ",").repeat(
+              this.node.childBlocks[0].childBlocks.length,
+            ) +
+            "]",
+          "expression",
+          index,
+        );
+    });
   }
 }
 
@@ -101,13 +206,17 @@ export class ExportBinding {
   //Might work
   //TODO: Write test
   set value(newVal) {
+    //console.log(newVal);
     if (newVal == this.value) return;
     if (newVal) {
-      const parent = this.node.parent;
+      //console.log(this.node);
+      //const parent = this.node.parent;
       this.node.prependString("export ");
-      this.node = parent;
+      //debugger;
+      //this.node = parent;
     } else {
-      this.node.replaceWith(this.node.childBlock(0).sourceString);
+      //console.log(this.node);
+      this.node.replaceWith(this.node.children[0].sourceString);
     }
   }
 
@@ -116,7 +225,8 @@ export class ExportBinding {
       type="checkbox"
       checked=${this.value}
       onChange=${(e) => {
-        this.value = e.target.checked;
+        //this.value = e.target.checked;
+        this.value = !this.value;
       }}
     />`;
   };

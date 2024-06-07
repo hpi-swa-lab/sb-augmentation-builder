@@ -1,9 +1,11 @@
 import { checkIfDAG, getExecutionOrder } from "./queryPipeline/dag.js";
-import { languageFor } from "../../core/languages.js";
+import { languageFor, languageForPath } from "../../core/languages.js";
 import {
+  ArrayBinding,
   ExportBinding,
   all,
   first,
+  languageSpecific,
   log,
   metaexec,
   spawnArray,
@@ -11,7 +13,7 @@ import {
 import { drawSelection } from "../../codemirror6/external/codemirror.bundle.js";
 import { html, render, editor } from "../../view/widgets.js";
 import { useComputed, useSignal } from "../../external/preact-signals.mjs";
-import { offscreenVitrail } from "../../vitrail/vitrail.ts";
+import { offscreenVitrail } from "../../vitrail/offscreen.ts";
 
 const tests = [];
 const configStack = [{}];
@@ -245,7 +247,6 @@ function test(string) {
 }
 `;
     const res = queryForBrowser(code);
-    debugger;
     assertEq(res.length, 1);
     assertEq(res[0].topLevel.length, 3);
     assertEq(
@@ -257,7 +258,6 @@ function test(string) {
       res[0].topLevel[1].members.map((it) => it.type),
       ["method_definition", "method_definition", "public_field_definition"],
     );
-    console.log(res);
   });
 });
 
@@ -271,7 +271,7 @@ describe("UI-Test", () => {
     debugger;
     container.remove();
   });
-  test.view("Ui1", async () => {
+  test("Ui1", async () => {
     const code = `
 import { useState } from 'react'
 // this is my top class!
@@ -372,5 +372,68 @@ function test(string) {
 
     render(html`<${Browser} />`, container);
   });
+
+  test.view("List", async () => {
+    const code_ts = `const list = [[[1],[2]],[[3],[4]]]`;
+    const code_hsk = `[[1,2],[3,4]]`;
+    const code_py = `list = [[1,2],[3,4]]`;
+
+    const offscreenTest_ts = await offscreenVitrail(code_ts);
+    await offscreenTest_ts.registerValidator(
+      languageFor("typescript"),
+      () => true,
+    );
+    const tree_ts = offscreenTest_ts.getModels().get(languageFor("typescript"));
+
+    const offscreenTest_hsk = await offscreenVitrail(code_hsk);
+    await offscreenTest_hsk.registerValidator(
+      languageFor("haskell"),
+      () => true,
+    );
+    const tree_hsk = offscreenTest_hsk.getModels().get(languageFor("haskell"));
+
+    const offscreenTest_py = await offscreenVitrail(code_py);
+    await offscreenTest_py.registerValidator(languageFor("python"), () => true);
+
+    const tree_py = offscreenTest_py.getModels().get(languageFor("python"));
+
+    const pipeline = (tree) => {
+      return metaexec(tree, (capture) => [
+        first(
+          [
+            languageSpecific(
+              "typescript",
+              (it) => it.type == "array",
+              log(),
+              (it) => it.parent.type != "array",
+            ),
+          ],
+          [
+            languageSpecific(
+              ["haskell", "python"],
+              (it) => it.type == "list",
+              (it) => it.parent.type != "list",
+            ),
+          ],
+        ),
+        (it) => new ArrayBinding(it),
+        capture("array"),
+      ]);
+    };
+
+    const res_ts = simSbMatching2(tree_ts, pipeline);
+    const res_hsk = simSbMatching2(tree_hsk, pipeline);
+    const res_py = simSbMatching2(tree_py, pipeline);
+
+    assertEq(res_ts.length, 1);
+    assertEq(res_hsk.length, 1);
+    assertEq(res_py.length, 1);
+    render(
+      html`<${res_ts[0].array.component} /> <${res_hsk[0].array.component} />
+        <${res_py[0].array.component} />`,
+      container,
+    );
+  });
 });
+
 run();
