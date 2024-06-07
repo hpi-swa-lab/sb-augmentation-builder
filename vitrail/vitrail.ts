@@ -433,6 +433,12 @@ export class Pane<T> {
   }
 
   get parentPane() {
+    if (!this.view.isConnected)
+      // FIXME I think this may not return the closest parent
+      return this.vitrail._panes.find((p) =>
+        p.replacements.some((r) => r.view.contains(this.view)),
+      );
+
     let current = this.view.parentElement;
 
     while (current) {
@@ -604,13 +610,14 @@ export class Pane<T> {
     Props extends { [field: string]: any } & { nodes: SBNode[] },
   >(augmentation: Augmentation<Props>, match: Props) {
     const view = document.createElement("span");
-    this.renderAugmentation(augmentation, match, view);
 
     this.replacements.push({
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
       augmentation,
     });
+
+    this.renderAugmentation(augmentation, match, view);
   }
 
   uninstallReplacement(replacement: Replacement<any>) {

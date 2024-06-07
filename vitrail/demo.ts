@@ -156,3 +156,35 @@ export const sendAction = {
   view: ({ obj }) =>
     h("span", {}, ":rocket: ", h(VitrailPane, { nodes: [obj] })),
 };
+
+export const watch = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      all(
+        [
+          query("sbWatch($expr, $id)"),
+          all(
+            [(it) => it.id, capture("id")],
+            [(it) => it.expr, capture("expr")],
+          ),
+        ],
+        [capture("nodes")],
+      ),
+    ]),
+  view: ({ id, expr }) =>
+    h(
+      "span",
+      {
+        style: {
+          padding: "3px",
+          borderRadius: "5px",
+          display: "inline-block",
+          background: "#333",
+        },
+      },
+      h(VitrailPane, { nodes: [expr] }),
+    ),
+};

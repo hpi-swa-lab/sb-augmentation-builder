@@ -286,6 +286,7 @@ export async function codeMirror6WithVitrail(
         doc: "",
         parent: document.createElement("div"),
       });
+      host.dom.style.cssText = "display: inline-flex !important";
       return paneFromCM(host, v, fetchAugmentations);
     },
     showValidationPending: (show) => {
