@@ -21,6 +21,7 @@ import {
   rangeContains,
   rangeDistance,
   rangeIntersects,
+  rangeShift,
 } from "../utils.js";
 import {
   adjacentCursorPosition,
@@ -211,6 +212,18 @@ export class Vitrail<T> {
     for (const { from, to, insert } of allChanges) {
       newSource =
         newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
+    }
+
+    if (!last(allChanges).selectionRange && last(allChanges).sourcePane) {
+      const pane = last(allChanges).sourcePane;
+      last(allChanges).selectionRange = rangeShift(
+        pane.getLocalSelectionIndices(),
+        pane.startIndex,
+      );
+    }
+    if (!last(allChanges).sideAffinity && last(allChanges).sourcePane) {
+      last(changes).sideAffinity =
+        last(allChanges).sourcePane.startIndex === last(changes).from ? 1 : -1;
     }
 
     const update = [...this._models.values()].map((n) => n.reParse(newSource));
@@ -693,8 +706,11 @@ export class Pane<T> {
 
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
-    if (pos && pos.element !== this.view)
+    if (pos && pos.element !== this.view) {
       (pos.element as any).focusRange(pos.index, pos.index);
+      return true;
+    }
+    return false;
   }
 
   handleDeleteAtBoundary(forward: boolean) {
@@ -721,7 +737,9 @@ export class Pane<T> {
           },
         },
       ]);
+      return true;
     }
+    return false;
   }
 }
 

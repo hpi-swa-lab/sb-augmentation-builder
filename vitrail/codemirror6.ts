@@ -180,11 +180,13 @@ export async function codeMirror6WithVitrail(
             key: "Backspace",
             run: () => pane.handleDeleteAtBoundary(false),
             preventDefault: true,
+            stopPropagation: true,
           },
           {
             key: "Delete",
             run: () => pane.handleDeleteAtBoundary(true),
             preventDefault: true,
+            stopPropagation: true,
           },
         ]),
       ),
@@ -197,8 +199,8 @@ export async function codeMirror6WithVitrail(
           const changes: ReversibleChange<EditorView>[] = [];
           update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
             changes.push({
-              from: fromA + pane.range[0],
-              to: toA + pane.range[0],
+              from: fromA + pane.startIndex,
+              to: toA + pane.startIndex,
               insert: inserted.toString(),
               sourcePane: pane,
               // will be set below
@@ -210,8 +212,8 @@ export async function codeMirror6WithVitrail(
             .invert(update.startState.doc)
             .iterChanges((fromA, toA, _fromB, _toB, inserted) => {
               inverse.push({
-                from: fromA + pane.range[0],
-                to: toA + pane.range[0],
+                from: fromA + pane.startIndex,
+                to: toA + pane.startIndex,
                 insert: inserted.toString(),
               });
             });
@@ -221,15 +223,15 @@ export async function codeMirror6WithVitrail(
           parallelToSequentialChanges(inverse);
           changes.forEach((c, i) => (c.inverse = inverse[i]));
 
-          last(changes).selectionRange = rangeShift(
-            [
-              update.state.selection.main.head,
-              update.state.selection.main.anchor,
-            ],
-            pane.range[0],
-          );
-          last(changes).sideAffinity =
-            pane.range[0] === last(changes).from ? 1 : -1;
+          // last(changes).selectionRange = rangeShift(
+          //   [
+          //     update.state.selection.main.head,
+          //     update.state.selection.main.anchor,
+          //   ],
+          //   pane.startIndex,
+          // );
+          // last(changes).sideAffinity =
+          //   pane.startIndex === last(changes).from ? 1 : -1;
 
           v.applyChanges(changes);
         }
