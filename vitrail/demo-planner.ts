@@ -138,7 +138,7 @@ export const planner = {
             "table",
             {},
             tasksWithLastCompleted
-              .sort((a, b) => a.lastCompleted - b.lastCompleted)
+              .sort((a, b) => a.nextDue - b.nextDue)
               .map((it) => h(Task, { ...it, markComplete })),
           ),
     );
@@ -186,18 +186,19 @@ function Task({
   );
 }
 
+const url = window.location.host.includes("localhost")
+  ? "http://localhost/squeak/sb-js/vitrail/demo-planner.php"
+  : location.href.split("/").slice(0, -1).join("/") + "/demo-planner.php";
+
 let lastReadTime: number;
 let scheduled: ReturnType<typeof setTimeout>;
 function scheduleUpdate(source: string) {
   if (scheduled) clearTimeout(scheduled);
   scheduled = setTimeout(async () => {
-    const res = await fetch(
-      "http://localhost/squeak/sb-js/vitrail/demo-planner.php",
-      {
-        method: "POST",
-        body: JSON.stringify({ source, time: lastReadTime }),
-      },
-    );
+    const res = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({ source, time: lastReadTime }),
+    });
     const data = await res.json();
     if (!data.success) {
       alert(
@@ -209,17 +210,15 @@ function scheduleUpdate(source: string) {
   }, 1000);
 }
 
-fetch("http://localhost/squeak/sb-js/vitrail/demo-planner.php").then(
-  async (response) => {
-    const data = await response.json();
-    lastReadTime = data.time;
-    const vitrail = await createDefaultCodeMirror(
-      data.source,
-      document.querySelector("#editor")!,
-      [planner],
-    );
-    vitrail.addEventListener("change", ({ detail: { sourceString } }) => {
-      scheduleUpdate(sourceString);
-    });
-  },
-);
+fetch(url).then(async (response) => {
+  const data = await response.json();
+  lastReadTime = data.time;
+  const vitrail = await createDefaultCodeMirror(
+    data.source,
+    document.querySelector("#editor")!,
+    [planner],
+  );
+  vitrail.addEventListener("change", ({ detail: { sourceString } }) => {
+    scheduleUpdate(sourceString);
+  });
+});

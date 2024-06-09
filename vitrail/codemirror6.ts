@@ -86,9 +86,9 @@ export async function createDefaultCodeMirror(
     doc: text,
     extensions: [
       ...baseCMExtensions,
-      lineNumbers(),
+      // lineNumbers(),
       highlightActiveLineGutter(),
-      foldGutter(),
+      // foldGutter(),
       ...cmExtensions,
     ],
     parent,
