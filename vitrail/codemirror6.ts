@@ -79,7 +79,8 @@ const baseCMExtensions = [
 export async function createDefaultCodeMirror(
   text: string,
   parent: HTMLElement,
-  augmentations,
+  augmentations: Augmentation<any>[],
+  cmExtensions: any[] = [],
 ) {
   const cm = new EditorView({
     doc: text,
@@ -88,15 +89,15 @@ export async function createDefaultCodeMirror(
       lineNumbers(),
       highlightActiveLineGutter(),
       foldGutter(),
+      ...cmExtensions,
     ],
     parent,
   });
 
-  const vitrail = await codeMirror6WithVitrail(
-    cm,
-    augmentations,
-    baseCMExtensions,
-  );
+  const vitrail = await codeMirror6WithVitrail(cm, augmentations, [
+    ...baseCMExtensions,
+    ...cmExtensions,
+  ]);
   return vitrail;
 }
 

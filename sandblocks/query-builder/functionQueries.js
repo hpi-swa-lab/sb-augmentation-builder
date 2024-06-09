@@ -17,7 +17,8 @@ export function metaexec(obj, makeScript) {
 function isAbortReason(next) {
   if (!next) return true;
   if (_isEmptyObject(next)) return true;
-  if (Array.isArray(next) && next.length < 1) return true;
+  // does not make sense with array processing
+  // if (Array.isArray(next) && next.length < 1) return true;
   return false;
 }
 
@@ -83,6 +84,13 @@ export function all(...pipelines) {
     // signal that we completed, but return no sensible value
     return true;
   };
+}
+
+export function query(query, extract) {
+  return (it) => it.query(query, extract);
+}
+export function queryDeep(query, extract) {
+  return (it) => it.findQuery(query, extract);
 }
 
 export function log(prefix = null) {

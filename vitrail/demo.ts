@@ -11,11 +11,11 @@ import { appendCss, clsx } from "../utils.js";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
 import {
-  Augmentation,
   VitrailPane,
   VitrailPaneWithWhitespace,
   useValidateKeepReplacement,
 } from "./vitrail.ts";
+import { createDefaultCodeMirror } from "./codemirror6.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -195,3 +195,61 @@ export const watch = {
     );
   },
 };
+
+const v = createDefaultCodeMirror(
+  `
+import { createMachine, createActor } from 'xstate';
+
+const textMachine = createMachine({
+  context: {
+    committedValue: '',
+    value: '',
+  },
+  initial: 'reading',
+  states: {
+    reading: {
+      on: {
+        'text.edit': { target: 'editing' },
+      },
+    },
+    editing: {
+      on: {
+        /*'text.change': {
+          actions: assign({
+            value: ({ event }) => event.value,
+          }),
+        },
+        'text.commit': {
+          actions: assign({
+            committedValue: ({ context }) => context.value,
+          }),
+          target: 'reading',
+        },
+        'text.cancel': {
+          actions: assign({
+            value: ({ context }) => context.committedValue,
+          }),
+          target: 'reading',
+        },*/
+      },
+    },
+  },
+});
+
+const textActor = createActor(textMachine).start();
+
+textActor.subscribe((state) => {
+  console.log(bWatch(state.context.value, '123'));
+});
+
+textActor.send({ type: sbWatch('text.edit', '123') });
+/*textActor.send({ type: 'text.change', value: 'Hello' });
+textActor.send({ type: 'text.commit' });
+textActor.send({ type: 'text.edit' });
+textActor.send({ type: 'text.change', value: 'Hello world' });
+textActor.send({ type: 'text.cancel' });*/
+      `,
+  document.querySelector("#editor")!,
+  [xstate, sendAction, watch],
+);
+console.log(v);

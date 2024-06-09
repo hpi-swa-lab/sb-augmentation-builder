@@ -119,7 +119,7 @@ type ValidatorFunc<T> = (
   changes: ReversibleChange<T>[],
 ) => boolean;
 
-export class Vitrail<T> {
+export class Vitrail<T> extends EventTarget {
   _panes: Pane<T>[] = [];
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
@@ -148,6 +148,8 @@ export class Vitrail<T> {
     createPane: CreatePaneFunc<T>;
     showValidationPending: (show: boolean) => void;
   }) {
+    super();
+
     this.createPane = createPane;
     this._showValidationPending = showValidationPending;
 
@@ -313,6 +315,12 @@ export class Vitrail<T> {
         candidates[0].index,
       );
     }
+
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { changes: allChanges, sourceString: this.sourceString },
+      }),
+    );
   }
 
   adjustRange(range: [number, number]) {
@@ -470,11 +478,13 @@ export class Pane<T> {
     };
   }
 
-  get parentPane() {
+  get parentPane(): Pane<T> | null {
     if (!this.view.isConnected)
       // FIXME I think this may not return the closest parent
-      return this.vitrail._panes.find((p) =>
-        p.replacements.some((r) => r.view.contains(this.view)),
+      return (
+        this.vitrail._panes.find((p) =>
+          p.replacements.some((r) => r.view.contains(this.view)),
+        ) ?? null
       );
 
     let current = this.view.parentElement;
@@ -598,9 +608,16 @@ export class Pane<T> {
         // check for replacements that are now gone because a change made them invalid
         if (replacement && !match) {
           this.uninstallReplacement(replacement);
-        } else if (replacement) {
-          this.renderAugmentation(replacement, match);
         }
+      }
+    }
+
+    for (const replacement of this.replacements) {
+      if (replacement.augmentation.rerender?.(editBuffer)) {
+        this.renderAugmentation(
+          replacement,
+          replacement.augmentation.match(replacement.nodes[0], this),
+        );
       }
     }
 
@@ -610,7 +627,7 @@ export class Pane<T> {
         if (augmentation.model !== root.language) continue;
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
-          if (!node || !this.isShowing(node)) continue;
+          if (!node || !this.isShowing(node)) break;
 
           const match = this.mayReplace(node, augmentation);
           if (match) this.installReplacement(augmentation, match);
@@ -624,8 +641,9 @@ export class Pane<T> {
 
   mayReplace(node: SBNode, augmentation: Augmentation<any>) {
     if (this.getReplacementFor(node)) return null;
-    // TODO prevent recursion
-    // if (this.parentPane?.replacements.some((r) => r.node === node)) return false;
+    // prevent recursion
+    if (this.parentPane?.replacements.some((r) => r.nodes[0] === this.nodes[0]))
+      return false;
     return augmentation.match(node, this);
   }
 
