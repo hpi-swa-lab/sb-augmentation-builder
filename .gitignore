@@ -5,3 +5,4 @@ assets/tlaspecs/*
 localhost-key.pem
 localhost.pem
 vitrail/planner.js
+build

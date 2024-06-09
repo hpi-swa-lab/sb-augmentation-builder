@@ -1,5 +1,10 @@
 {
+  "scripts": {
+    "build": "swc . --ignore=build --ignore=**/node_modules -D -C jsc.target=es2022 -d build"
+  },
   "devDependencies": {
+    "@swc/cli": "^0.3.12",
+    "@swc/core": "^1.5.25",
     "prettier": "^3.1.1"
   }
 }
