@@ -58,6 +58,17 @@ export function languageSpecific(language, ...pipeline) {
   };
 }
 
+//execute abitray code, without effecting the the next step in the pipline
+// helpfull for debugging
+export function also(...pipeline) {
+  return (it) => {
+    console.log([...pipeline]);
+    const og_it = it;
+    exec(it, ...pipeline);
+    return og_it;
+  };
+}
+
 export function first(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
@@ -223,7 +234,7 @@ export class ColorBinding {
 
   updateValue(hex) {
     const rgb = this.hexToRgb(hex);
-    this.node.childBlock(1).replaceWith(`rgb(${rgb.r},${rgb.g},${rgb.b})`);
+    this.colorDefNode.values.replaceWith(`rgb(${rgb.r},${rgb.g},${rgb.b})`);
   }
 }
 

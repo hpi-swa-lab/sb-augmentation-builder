@@ -5,6 +5,7 @@ import {
   ColorBinding,
   ExportBinding,
   all,
+  also,
   first,
   languageSpecific,
   log,
@@ -444,7 +445,8 @@ function test(string) {
     );
   });
   test.view("ColorPicker", async () => {
-    const code_jv = "const c_white = rgb(12,34,56)";
+    const code_jv =
+      "const c_white = rgb(12,34,56)\n const graph = new Graph(c_color)";
 
     const offscreenTest_jv = await offscreenVitrail(code_jv);
     await offscreenTest_jv.registerValidator(
@@ -470,6 +472,7 @@ function test(string) {
     const pipeline_colorOcc = (tree) => {
       return metaexec(tree, (capture) => [
         (it) => it.type == "identifier",
+        also((it) => it.text, log()),
         (it) => it.text == colorDef.name.text,
         (it) => it.parent,
         (it) => new ColorBinding(it, colorDef.values, colorDef.node),
@@ -478,7 +481,7 @@ function test(string) {
     };
 
     const colorOccurences = simSbMatching2(tree_jv, pipeline_colorOcc);
-
+    debugger;
     render(html`<${colorOccurences[0].occurence.component} />`, container);
   });
 });
