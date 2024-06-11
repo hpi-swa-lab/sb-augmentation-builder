@@ -169,7 +169,46 @@ const colorstring =  {
 
 
 
-await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring]) // 
+const tables = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      (x) => x.type === "array",
+      (x) => x.childBlocks.length > 0,
+      (x) =>
+        x.childBlocks.every(
+          (ea) =>
+            ea.type == "array" &&
+            ea.childBlocks.length === x.childBlocks[0].childBlocks.length
+        ),
+      x => [x],
+      capture("nodes")
+    ]),
+  view: ({nodes, replacement }) => {
+    useValidateKeepReplacement(replacement);
+    return h(
+          "table",
+          {
+            style: `
+            display: inline-block;
+            border: 1px solid red`,
+          },
+          nodes[0].childBlocks.map((array) =>
+            h(
+              "tr",
+              { style: "border: 2px solid blue" },
+              array.childBlocks.map((ea) =>
+                h("td", { style: "border: 1px solid red" }, h(VitrailPaneWithWhitespace, { nodes: [array] }))
+              )
+            )
+          )
+        )
+  },
+};
+
+await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring, tables]) // 
 
 var pane = <div style="border:1px solid ">{editor}</div>
 
