@@ -55,7 +55,7 @@ function func() {
 
 `
 
-const editor = await (<lively-code-mirror style="width:400px; height: 500px; display: block"></lively-code-mirror>)
+const editor = await (<lively-code-mirror style="width:800px; height: 500px; display: block"></lively-code-mirror>)
 
 editor.value = source
 
