@@ -2,8 +2,10 @@ import { checkIfDAG, getExecutionOrder } from "./queryPipeline/dag.js";
 import { languageFor, languageForPath } from "../../core/languages.js";
 import {
   ArrayBinding,
+  ColorBinding,
   ExportBinding,
   all,
+  also,
   first,
   languageSpecific,
   log,
@@ -373,10 +375,11 @@ function test(string) {
     render(html`<${Browser} />`, container);
   });
 
-  test.view("List", async () => {
+  test("List", async () => {
     const code_ts = `const list = [[[1],[2]],[[3],[4]]]`;
     const code_hsk = `[[1,2],[3,4]]`;
     const code_py = `list = [[1,2],[3,4]]`;
+    const code_md = "| 1 | 2 |\n|---|---|\n| 3 | 4 |";
 
     const offscreenTest_ts = await offscreenVitrail(code_ts);
     await offscreenTest_ts.registerValidator(
@@ -394,8 +397,15 @@ function test(string) {
 
     const offscreenTest_py = await offscreenVitrail(code_py);
     await offscreenTest_py.registerValidator(languageFor("python"), () => true);
-
     const tree_py = offscreenTest_py.getModels().get(languageFor("python"));
+
+    // const offscreenTest_md = await offscreenVitrail(code_md);
+    // await offscreenTest_md.registerValidator(
+    //   languageFor("markdown"),
+    //   () => true,
+    // );
+    // const tree_md = offscreenTest_md.getModels().get(languageFor("markdown"));
+    // debugger;
 
     const pipeline = (tree) => {
       return metaexec(tree, (capture) => [
@@ -404,7 +414,6 @@ function test(string) {
             languageSpecific(
               "typescript",
               (it) => it.type == "array",
-              log(),
               (it) => it.parent.type != "array",
             ),
           ],
@@ -424,6 +433,7 @@ function test(string) {
     const res_ts = simSbMatching2(tree_ts, pipeline);
     const res_hsk = simSbMatching2(tree_hsk, pipeline);
     const res_py = simSbMatching2(tree_py, pipeline);
+    //const res_md = simSbMatching2(tree_md, pipeline);
 
     assertEq(res_ts.length, 1);
     assertEq(res_hsk.length, 1);
@@ -433,6 +443,46 @@ function test(string) {
         <${res_py[0].array.component} />`,
       container,
     );
+  });
+  test.view("ColorPicker", async () => {
+    const code_jv =
+      "const c_white = rgb(12,34,56)\n const graph = new Graph(c_color)";
+
+    const offscreenTest_jv = await offscreenVitrail(code_jv);
+    await offscreenTest_jv.registerValidator(
+      languageFor("typescript"),
+      () => true,
+    );
+    const tree_jv = offscreenTest_jv.getModels().get(languageFor("typescript"));
+
+    const pipeline_colorDef = (tree) => {
+      return metaexec(tree, (capture) => [
+        (it) => it.query("const $name = $values"),
+        (it) => it.values.sourceString.includes("rgb"),
+        all(
+          [(it) => it.name, capture("name")],
+          [(it) => it.values, capture("values")],
+          [capture("node")],
+        ),
+      ]);
+    };
+
+    const colorDef = simSbMatching2(tree_jv, pipeline_colorDef)[0];
+
+    const pipeline_colorOcc = (tree) => {
+      return metaexec(tree, (capture) => [
+        (it) => it.type == "identifier",
+        also((it) => it.text, log()),
+        (it) => it.text == colorDef.name.text,
+        (it) => it.parent,
+        (it) => new ColorBinding(it, colorDef.values, colorDef.node),
+        capture("occurence"),
+      ]);
+    };
+
+    const colorOccurences = simSbMatching2(tree_jv, pipeline_colorOcc);
+    debugger;
+    render(html`<${colorOccurences[0].occurence.component} />`, container);
   });
 });
 
