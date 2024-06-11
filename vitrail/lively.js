@@ -100,7 +100,10 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         }
       }
       if (e.key === "Backspace") {
-        if (pane.handleDeleteAtBoundary(false)) e.preventDefault();
+        if (pane.handleDeleteAtBoundary(false)) {
+          lively.warn("NO BACKSPACE")
+          e.preventDefault();
+        }
       }
       if (e.key === "Delete") {
         if (pane.handleDeleteAtBoundary(true)) e.preventDefault();
