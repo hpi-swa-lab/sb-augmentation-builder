@@ -7,6 +7,7 @@
     metaexec,
     optional,
     spawnArray,
+    replace,
   } from "../sandblocks/query-builder/functionQueries.js";
 
   import {
@@ -32,18 +33,15 @@ try {
   
 
 
-let source = `var x = sbWatch(3 + 4,"id1") + 1
+let source = `/*var x = sbWatch(3 + 4,"id1") + 1
 
 
 let a = 3 + 4, c = 3
 const b = a + 1
-
+*/
 var color = 'rgba(100,10,10,0.5)'
-
+/*
 var foo = 'not a color'
-
-var table = [[1,22],['x' + 4, 'hello']]
-
 
 var table = [[1,'rgb(0,100,0)'],['x' + 4, [['hello', 1]]]]
 
@@ -52,7 +50,7 @@ var iconURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAApCAYAAACBZ/9
 
 function func() {
 }
-
+*/
 `
 
 const editor = await (<lively-code-mirror style="width:800px; height: 500px; display: block"></lively-code-mirror>)
@@ -75,7 +73,7 @@ const watch = {
             [(it) => it.expr, capture("expr")],
           ),
         ],
-        [capture("nodes")],
+        [replace(capture)],
       ),
     ]),
   view: ({ id, expr, replacement }) => {
@@ -104,10 +102,7 @@ const smileys =  {
     x => x.type === "lexical_declaration",
     x => x.childNode(0),
     all(
-      [
-        x => [x],
-        capture("nodes"),
-      ],
+      [replace(capture)],
       [
         x => x.text,
         capture("type"),
@@ -134,39 +129,92 @@ const colorstring =  {
     x => x.childBlock(0),
     x => !!x.text.match(/^rgba?\(.*\)$/),
     all(
-      [
-        x => [x],
-        capture("nodes"),
-      ],
+      [replace(capture)],
       [
         x => x.text,
         capture("value"),
       ])
   ]),
   view: ({ type, nodes }) => {
-    return h("div", {
-          style: `
-            display: inline-block; 
-            background: ` + nodes[0].text +`; 
-            width: 20px; 
-            position: relative;
-            white-space: wrap;
-            height: 20px; 
-            border: 1px solid red`,
-          onclick: async (evt) => {
-            var chooser = await (<lively-crayoncolors></lively-crayoncolors>);
-            document.body.appendChild(chooser);
-            lively.setClientPosition(chooser, lively.getClientPosition(evt.target))
-            chooser.addEventListener("color-choosen", () => {
-              chooser.remove();
-              nodes[0].replaceWith(chooser.value);
-            });
-            chooser.onChooseCustomColor();
-          },        
-        }) //  VitrailPaneWithWhitespace ?
+    return h("div", {},
+          h("div", {
+            style: `
+              display: inline-block; 
+              background: ` + nodes[0].text +`; 
+              width: 20px; 
+              position: relative;
+              white-space: wrap;
+              height: 20px; 
+              border: 1px solid red`,
+            onclick: async (evt) => {
+              var chooser = await (<lively-crayoncolors></lively-crayoncolors>);
+              document.body.appendChild(chooser);
+              lively.setClientPosition(chooser, lively.getClientPosition(evt.target))
+              chooser.addEventListener("color-choosen", () => {
+                chooser.remove();
+                nodes[0].replaceWith(chooser.value);
+              });
+              chooser.onChooseCustomColor();
+            },        
+          },
+        ), 
+        h(VitrailPaneWithWhitespace, {nodes: nodes}))
   }
 }
 
+
+const dataurlimage =  {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>  metaexec(x, (capture) => [
+    x => x.type === "string",
+    x => x.childBlock(0),
+    x => !!x.text.match(/^data\:image\/png/),
+    all(
+      [replace(capture)],
+      [
+        x => x.text,
+        capture("value"),
+      ])
+  ]),
+  view: ({ type, nodes }) => {
+    return h(
+          "div",
+          {
+            style: `
+            position: relative;
+            display: inline-block; 
+            white-space: wrap;
+            border: 1px solid gray
+          `,
+          },
+          h("img", {
+            src: nodes[0].text,
+            style: ``,
+            onclick: async (evt) => {
+              var imageEditor = await lively.create("lively-image-editor");
+              var img = evt.target;
+              var parent = img.parentElement;
+              img.remove();
+              
+              document.body.appendChild(imageEditor);
+              lively.setClientPosition(imageEditor, lively.getClientPosition(img))
+              imageEditor.style.zIndex = 10000
+              imageEditor.style.minWidth = "200px";
+              lively.setPosition(imageEditor, lively.pt(0, -40));
+              imageEditor.addEventListener("saved-to-target", () => {
+                parent.appendChild(img);
+                imageEditor.remove();
+                debugger;
+                // #TODO bug here... throws errror
+                nodes[0].replaceWith("" + img.src);
+              });
+              imageEditor.setTarget(img);
+            },
+          }))
+  }
+}
 
 
 const tables = {
@@ -183,8 +231,7 @@ const tables = {
             ea.type == "array" &&
             ea.childBlocks.length === x.childBlocks[0].childBlocks.length
         ),
-      x => [x],
-      capture("nodes")
+      replace(capture)
     ]),
   view: ({nodes, replacement }) => {
     useValidateKeepReplacement(replacement);
@@ -200,7 +247,7 @@ const tables = {
               "tr",
               { style: "border: 2px solid blue" },
               array.childBlocks.map((ea) =>
-                h("td", { style: "border: 1px solid red" }, h(VitrailPaneWithWhitespace, { nodes: [array] }))
+                h("td", { style: "border: 1px solid red" }, h(VitrailPaneWithWhitespace, { nodes: [ea] }))
               )
             )
           )
@@ -208,7 +255,7 @@ const tables = {
   },
 };
 
-await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring, tables]) // 
+await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring, tables, dataurlimage]) // 
 
 var pane = <div style="border:1px solid ">{editor}</div>
 
