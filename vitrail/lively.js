@@ -3,14 +3,8 @@ import { Vitrail, Pane, replacementRange } from "./vitrail.ts";
 export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
   function paneFromLively(livelyEditor, vitrail, fetchAugmentations) {
     if (!livelyEditor.editor) livelyEditor.editView("");
-    let isMyChange = false;
     const cm = livelyEditor.editor;
     const markers = new Map();
-
-    const doChange = (func) => {
-      isMyChange = true;
-      func();
-    };
 
     const pane = new Pane({
       vitrail,
@@ -59,12 +53,12 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         for (const change of changes) {
           let from = cm.posFromIndex(change.from);
           let to = cm.posFromIndex(change.to);
-          doChange(() => cm.replaceRange(change.insert, from, to));
+          cm.replaceRange(change.insert, from, to);
         }
         this.syncReplacements();
       },
       getText: () => cm.getValue(),
-      setText: (text) => doChange(() => cm.setValue(text)),
+      setText: (text) => cm.setValue(text),
       hasFocus: () => cm.hasFocus(),
     });
 
@@ -129,7 +123,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       const editor = document.createElement("lively-code-mirror");
       // Check if we are in Lively, otherwise attach an external CodeMirror
       if (!editor.editView) {
-        editor.editor = CodeMirror(editor);
+        editor.editor = CodeMirror(editor, { value: "asd" });
         editor.editor.display.wrapper.style.height = "auto";
       }
       editor.classList.add("shard");

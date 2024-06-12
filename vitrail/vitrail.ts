@@ -12,7 +12,7 @@ import {
   useLayoutEffect,
   useMemo,
 } from "../external/preact-hooks.mjs";
-import { effect, signal } from "../external/preact-signals-core.mjs";
+import { computed, effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import {
   adjustIndex,
@@ -155,8 +155,9 @@ export class Vitrail<T> extends EventTarget {
     this._showValidationPending = showValidationPending;
 
     this._pendingChanges = signal([]);
+    const hasPending = computed(() => this._pendingChanges.value.length > 0);
     effect(() => {
-      this._showValidationPending(this._pendingChanges.value.length > 0);
+      this._showValidationPending(hasPending.value);
     });
   }
 
@@ -824,10 +825,7 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
-    () => {
-      const pane = vitrail.createPane(fetchAugmentations);
-      return pane;
-    },
+    () => vitrail.createPane(fetchAugmentations),
     [vitrail],
   );
 
