@@ -1,6 +1,12 @@
 import { languageFor } from "../../core/languages.js";
 import { h } from "../../external/preact.mjs";
-import { PipelineBinding, all, log, metaexec } from "./functionQueries.js";
+import {
+  PipelineBinding,
+  all,
+  log,
+  metaexec,
+  replace,
+} from "./functionQueries.js";
 import {
   VitrailPane,
   VitrailPaneWithWhitespace,
@@ -12,7 +18,7 @@ import { cursorPositionsForIndex } from "../../view/focus.ts";
 const query = (query, extract?) => (it) => it.query(query, extract);
 const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
 
-export const watch = {
+export const pipelineBuilder = {
   model: languageFor("javascript"),
   matcherDepth: Infinity,
   rerender: () => true,
@@ -25,14 +31,12 @@ export const watch = {
           (it) => new PipelineBinding(it),
           capture("pipeline"),
         ],
-        [capture("nodes")],
+        [replace(capture)],
       ),
     ]);
   },
   view: ({ id, pipeline, replacement }) => {
     useValidateKeepReplacement(replacement);
-    console.log("pipeline");
-    console.log(pipeline);
     return h(pipeline.component);
   },
 };
@@ -124,5 +128,5 @@ function collectToplevel(node) {
     ]);
       `,
   document.querySelector("#editor")!,
-  [watch],
+  [pipelineBuilder],
 );

@@ -74,7 +74,6 @@ export function languageSpecific(language, ...pipeline) {
 // helpfull for debugging
 export function also(...pipeline) {
   return (it) => {
-    console.log([...pipeline]);
     const og_it = it;
     exec(it, ...pipeline);
     return og_it;
@@ -332,7 +331,6 @@ export class PipelineBinding {
         [
           query("($_) => $STEP"),
           (it) => it.STEP,
-          log("step"),
           (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
         ],
         [
