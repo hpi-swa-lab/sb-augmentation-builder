@@ -152,6 +152,11 @@ const unitToSpan = {
   years: 365 * 24 * 60 * 60 * 1000,
 };
 
+const today = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
 function Task({
   task,
   nextDue,
@@ -166,17 +171,31 @@ function Task({
   lastCompleted: Date;
   nextDue: Date;
 }) {
-  const dueInDays = Math.round((+nextDue - Date.now()) / (24 * 60 * 60 * 1000));
+  const dueInDays = Math.floor((+nextDue - +today()) / (24 * 60 * 60 * 1000));
   return h(
     "tr",
     {},
     h("td", {}, task.name),
     h(
       "td",
-      { style: { background: dueInDays < 0 ? "#f88" : "transparent" } },
-      dueInDays < 0 ? "since " : "in ",
-      dueInDays,
-      " days",
+      {
+        style: {
+          background:
+            dueInDays === 0
+              ? "#ff9900"
+              : dueInDays < 0
+                ? "#f88"
+                : "transparent",
+        },
+      },
+      dueInDays === 0
+        ? "today"
+        : [
+            dueInDays < 0 ? "since " : "in ",
+            dueInDays,
+            " day",
+            dueInDays !== 1 && "s",
+          ],
     ),
     h(
       "td",
