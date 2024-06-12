@@ -55,12 +55,13 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         queueMicrotask(() => cm.focus()) 
         cm.setSelection(cm.posFromIndex(anchor), cm.posFromIndex(head));
       },
-      applyLocalChanges: (changes) => {
+      applyLocalChanges: function(changes) {
         for (const change of changes) {
           let from = cm.posFromIndex(change.from);
           let to = cm.posFromIndex(change.to);
           doChange(() => cm.replaceRange(change.insert, from, to));
         }
+        this.syncReplacements()
       },
       getText: () => livelyEditor.value,
       setText: (text) => doChange(() => (livelyEditor.value = text)),
