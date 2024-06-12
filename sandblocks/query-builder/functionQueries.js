@@ -10,8 +10,10 @@ export function metaexec(obj, makeScript) {
       return it;
     };
   });
-  exec(obj, ...script);
-  return Object.keys(captures).length > 0 ? captures : null;
+  const success = exec(obj, ...script);
+  // FIXME(tobe) which version to we want?
+  // return Object.keys(captures).length > 0 ? captures : null;
+  return success ? captures : null;
 }
 
 function isAbortReason(next) {

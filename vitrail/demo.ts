@@ -210,9 +210,7 @@ const smileys = {
   view: ({ type, nodes }) => {
     return h(
       "span",
-      {
-        onclick: () => nodes[0].replaceWith(type === "let" ? "const" : "let"),
-      },
+      { onclick: () => nodes[0].replaceWith(type === "let" ? "const" : "let") },
       type === "let" ? "let 😀" : "const 😇",
     );
   },
