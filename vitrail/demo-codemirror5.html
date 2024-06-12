@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Vitrail CodeMirror5 Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div id="editor"></div>
+    <div id="editor5"></div>
+    <link rel="stylesheet" href="../external/codemirror.css" />
+    <script src="../external/codemirror5.js"></script>
+    <script type="module">
+      import { addVitrailToLivelyEditor } from "./lively.js";
+      import { watch } from "./demo.ts";
+      const el = document.querySelector("#editor5");
+      const cm = CodeMirror(el, { value: "sbWatch(123, 'a')" });
+      el.editor = cm;
+      el.value = "function () { a }";
+      console.log(addVitrailToLivelyEditor(el, [watch]));
+    </script>
+  </body>
+</html>

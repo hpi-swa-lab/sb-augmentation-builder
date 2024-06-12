@@ -187,10 +187,7 @@ export class Vitrail<T> extends EventTarget {
     const p: [Model, ValidatorFunc<T>] = [model, cb];
     this._validators.add(p);
     await this._loadModels();
-    return () => {
-      console.log("unregistering validator");
-      this._validators.delete(p);
-    };
+    return () => this._validators.delete(p);
   }
 
   async connectHost(pane: Pane<T>) {
@@ -347,12 +344,14 @@ export class Vitrail<T> extends EventTarget {
     for (const change of changes) {
       if (change.sideAffinity !== undefined) continue;
       const leaf = root.leafForPosition(change.from, true);
-      change.sideAffinity =
-        leaf.range[0] === change.from
-          ? 1
-          : leaf.range[1] - change.insert.length === change.from
-            ? -1
-            : 0;
+      if (!leaf) change.sideAffinity = 0;
+      else
+        change.sideAffinity =
+          leaf.range[0] === change.from
+            ? 1
+            : leaf.range[1] - change.insert.length === change.from
+              ? -1
+              : 0;
     }
   }
 
@@ -894,8 +893,8 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
   useValidator(
     replacement.augmentation.model,
     () =>
-      replacement.nodes[0]?.connected &&
-      replacement.augmentation.match(replacement.nodes[0], pane) !== null,
+      replacement.matchedNode?.connected &&
+      replacement.augmentation.match(replacement.matchedNode, pane) !== null,
     [...replacement.nodes, replacement.augmentation],
   );
 }
