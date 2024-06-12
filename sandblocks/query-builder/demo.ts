@@ -37,7 +37,7 @@ export const pipelineBuilder = {
   },
   view: ({ id, pipeline, replacement }) => {
     useValidateKeepReplacement(replacement);
-    return h(pipeline.component);
+    return pipeline.component();
   },
 };
 
