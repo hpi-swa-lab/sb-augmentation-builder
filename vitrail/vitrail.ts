@@ -100,6 +100,9 @@ export interface ReversibleChange<T> {
   sourcePane?: Pane<T>;
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
+  // Optional list of nodes that the user explicitly requested to be deleted.
+  // May be used by validations to determine if a change is valid.
+  intentDeleteNodes?: SBNode[];
 }
 export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
@@ -890,9 +893,13 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
   const { pane }: { pane: Pane<any> } = useContext(VitrailContext);
   useValidator(
     replacement.augmentation.model,
-    () =>
-      replacement.matchedNode?.connected &&
-      replacement.augmentation.match(replacement.matchedNode, pane) !== null,
+    (_root, _diff, changes) =>
+      changes.some(
+        (c) =>
+          c.intentDeleteNodes?.some((n) => n.contains(replacement.matchedNode)),
+      ) ||
+      (replacement.matchedNode?.connected &&
+        replacement.augmentation.match(replacement.matchedNode, pane) !== null),
     [...replacement.nodes, replacement.augmentation],
   );
 }
@@ -1006,6 +1013,7 @@ class VitrailReplacementContainer extends HTMLElement {
         insert: "",
         selectionRange: [range[0], range[0]],
         inverse: { from: range[0], to: range[0], insert },
+        intentDeleteNodes: this.replacement.nodes,
       },
     ]);
   }

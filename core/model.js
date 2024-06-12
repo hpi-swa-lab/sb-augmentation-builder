@@ -541,6 +541,10 @@ export class SBNode {
     return leafs;
   }
 
+  contains(aNode) {
+    return aNode === this || aNode.hasParentThat((p) => p === this);
+  }
+
   get isText() {
     return false;
   }
