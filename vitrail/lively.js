@@ -52,7 +52,6 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         }
       },
       focusRange: (head, anchor) => {
-        // lively.sleep().then(() => cm.focus());
         queueMicrotask(() => cm.focus()) 
         cm.setSelection(cm.posFromIndex(anchor), cm.posFromIndex(head));
       },
@@ -101,7 +100,10 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         }
       }
       if (e.key === "Backspace") {
-        if (pane.handleDeleteAtBoundary(false)) e.preventDefault();
+        if (pane.handleDeleteAtBoundary(false)) {
+          lively.warn("NO BACKSPACE")
+          e.preventDefault();
+        }
       }
       if (e.key === "Delete") {
         if (pane.handleDeleteAtBoundary(true)) e.preventDefault();

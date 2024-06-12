@@ -23,7 +23,6 @@ function isAbortReason(next) {
 }
 
 function exec(arg, ...script) {
-  //console.log(script);
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
@@ -56,6 +55,17 @@ export function languageSpecific(language, ...pipeline) {
       ...pipeline,
     ];
     return exec(it, ...mod_pipeline);
+  };
+}
+
+//execute abitray code, without effecting the the next step in the pipline
+// helpfull for debugging
+export function also(...pipeline) {
+  return (it) => {
+    console.log([...pipeline]);
+    const og_it = it;
+    exec(it, ...pipeline);
+    return og_it;
   };
 }
 
@@ -177,28 +187,54 @@ export class ArrayBinding {
       ),
     ]);
   }
+}
 
-  setCell(col, row, value) {
-    this.node.childBlocks[col].childBlocks[row].replaceWith(value);
+export class ColorBinding {
+  constructor(node, values, colorDefNode) {
+    this.node = node;
+    this.hex = this.rgbToHex(
+      ...values.childBlocks[1].childBlocks.map((it) => it.text),
+    );
+    this.colorDefNode = colorDefNode;
+    this.component = () => {
+      return html`<input
+        type="color"
+        value="${this.hex}"
+        onchange="${(e) => this.updateValue(e.target.value)}"
+      />`;
+    };
   }
 
-  addCell(index, column) {
-    this.node.editor.transaction(() => {
-      if (column)
-        for (const row of node.childBlocks) {
-          row.insert(PLACEHOLDER, "expression", index);
+  //From: https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+  componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+  }
+  //From: https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+  rgbToHex(r, g, b) {
+    return (
+      "#" +
+      this.componentToHex(r) +
+      this.componentToHex(g) +
+      this.componentToHex(b)
+    );
+  }
+
+  //FROM: https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+  hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
         }
-      else
-        node.insert(
-          "[" +
-            (PLACEHOLDER + ",").repeat(
-              this.node.childBlocks[0].childBlocks.length,
-            ) +
-            "]",
-          "expression",
-          index,
-        );
-    });
+      : null;
+  }
+
+  updateValue(hex) {
+    const rgb = this.hexToRgb(hex);
+    this.colorDefNode.values.replaceWith(`rgb(${rgb.r},${rgb.g},${rgb.b})`);
   }
 }
 
@@ -233,8 +269,7 @@ export class ExportBinding {
       type="checkbox"
       checked=${this.value}
       onChange=${(e) => {
-        //this.value = e.target.checked;
-        this.value = !this.value;
+        this.value = e.target.checked;
       }}
     />`;
   };

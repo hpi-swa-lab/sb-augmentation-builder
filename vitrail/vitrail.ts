@@ -760,7 +760,7 @@ export class Pane<T> {
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
     if (pos && pos.element !== this.view) {
-      (pos.element as any).focusRange(pos.index, pos.index);
+      queueMicrotask(() => (pos.element as any).focusRange(pos.index, pos.index));
       return true;
     }
     return false;
