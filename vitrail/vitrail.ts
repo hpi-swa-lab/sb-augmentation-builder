@@ -48,6 +48,7 @@ type ReplacementProps = { [field: string]: any } & {
 };
 
 export interface Replacement<Props extends ReplacementProps> {
+  matchedNode: SBNode;
   nodes: SBNode[];
   view: HTMLElement;
   augmentation: Augmentation<Props>;
@@ -614,10 +615,12 @@ export class Pane<T> {
 
     for (const replacement of this.replacements) {
       if (replacement.augmentation.rerender?.(editBuffer)) {
-        this.renderAugmentation(
-          replacement,
-          replacement.augmentation.match(replacement.nodes[0], this),
+        const match = replacement.augmentation.match(
+          replacement.matchedNode,
+          this,
         );
+        replacement.nodes = match.nodes;
+        this.renderAugmentation(replacement, match);
       }
     }
 
@@ -627,10 +630,11 @@ export class Pane<T> {
         if (augmentation.model !== root.language) continue;
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
-          if (!node || !this.isShowing(node)) break;
+          if (!node) break;
+          if (!rangeContains(this.range, node.range)) break;
 
           const match = this.mayReplace(node, augmentation);
-          if (match) this.installReplacement(augmentation, match);
+          if (match) this.installReplacement(node, augmentation, match);
           node = node?.parent;
         }
       }
@@ -642,9 +646,22 @@ export class Pane<T> {
   mayReplace(node: SBNode, augmentation: Augmentation<any>) {
     if (this.getReplacementFor(node)) return null;
     // prevent recursion
-    if (this.parentPane?.replacements.some((r) => r.nodes[0] === this.nodes[0]))
+    if (
+      this.parentPane?.replacements.some((r) => r.matchedNode === this.nodes[0])
+    )
       return false;
-    return augmentation.match(node, this);
+    const match = augmentation.match(node, this);
+    if (!match) return false;
+    if (
+      this.replacements.some((r) =>
+        rangeContains(
+          [r.nodes[0].range[0], last(r.nodes).range[1]],
+          [match.nodes[0].range[0], last(match.nodes).range[1]],
+        ),
+      )
+    )
+      return false;
+    return match;
   }
 
   renderAugmentation<Props extends Omit<ReplacementProps, "replacement">>(
@@ -666,12 +683,17 @@ export class Pane<T> {
 
   installReplacement<
     Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(augmentation: Augmentation<ReplacementProps>, match: Props) {
+  >(
+    matchedNode: SBNode,
+    augmentation: Augmentation<ReplacementProps>,
+    match: Props,
+  ) {
     const view = document.createElement(
       "vitrail-replacement-container",
     ) as VitrailReplacementContainer;
 
     const replacement = {
+      matchedNode,
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
       augmentation,
@@ -695,7 +717,7 @@ export class Pane<T> {
   }
 
   getReplacementFor(node: SBNode) {
-    return this.replacements.find((r) => r.nodes.includes(node));
+    return this.replacements.find((r) => r.matchedNode === node);
   }
 
   getInitEditBuffersForRoots(roots: SBNode[]) {
@@ -760,7 +782,9 @@ export class Pane<T> {
   moveCursor(forward: boolean) {
     const pos = this.adjacentCursorPosition(forward);
     if (pos && pos.element !== this.view) {
-      queueMicrotask(() => (pos.element as any).focusRange(pos.index, pos.index));
+      queueMicrotask(() =>
+        (pos.element as any).focusRange(pos.index, pos.index),
+      );
       return true;
     }
     return false;

@@ -22,6 +22,10 @@ function isAbortReason(next) {
   return false;
 }
 
+export function replace(capture) {
+  return (it) => capture("nodes")(Array.isArray(it) ? it : [it]);
+}
+
 function exec(arg, ...script) {
   if (!arg) return null;
   let current = arg;

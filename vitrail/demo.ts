@@ -5,6 +5,7 @@ import {
   all,
   metaexec,
   optional,
+  replace,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
@@ -77,7 +78,7 @@ const xstatePipeline = (it) =>
   metaexec(it, (capture) => [
     query("createMachine($expr)"),
     all(
-      [(it) => [it.expr.parent.parent], capture("nodes")],
+      [(it) => [it.expr.parent.parent], replace(capture)],
       [
         (it) => it.expr,
         all(
@@ -155,7 +156,7 @@ export const sendAction = {
     metaexec(x, (capture) => [
       all(
         [query("textActor.send($obj)"), (it) => it.obj, capture("obj")],
-        [capture("nodes")],
+        [replace(capture)],
       ),
     ]),
   view: ({ obj }) =>
@@ -176,7 +177,7 @@ export const watch = {
             [(it) => it.expr, capture("expr")],
           ),
         ],
-        [capture("nodes")],
+        [replace(capture)],
       ),
     ]),
   view: ({ id, expr, replacement }) => {
@@ -192,6 +193,27 @@ export const watch = {
         },
       },
       h(VitrailPaneWithWhitespace, { nodes: [expr] }),
+    );
+  },
+};
+
+const smileys = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      (x) => x.type === "lexical_declaration",
+      (x) => x.childNode(0),
+      all([replace(capture)], [(x) => x.text, capture("type")]),
+    ]),
+  view: ({ type, nodes }) => {
+    return h(
+      "span",
+      {
+        onclick: () => nodes[0].replaceWith(type === "let" ? "const" : "let"),
+      },
+      type === "let" ? "let 😀" : "const 😇",
     );
   },
 };
@@ -250,6 +272,6 @@ textActor.send({ type: 'text.change', value: 'Hello world' });
 textActor.send({ type: 'text.cancel' });*/
       `,
   document.querySelector("#editor")!,
-  [xstate, sendAction, watch],
+  [smileys, xstate, sendAction, watch],
 );
 console.log(v);
