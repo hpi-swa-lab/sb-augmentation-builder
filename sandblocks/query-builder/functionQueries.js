@@ -1,4 +1,10 @@
 import { html } from "../../view/widgets.js";
+import { h } from "../../external/preact.mjs";
+import {
+  VitrailPane,
+  VitrailPaneWithWhitespace,
+  useValidateKeepReplacement,
+} from "../../vitrail/vitrail.ts";
 
 export function orderFork() {}
 
@@ -144,7 +150,8 @@ export class ArrayBinding {
     this.depth = this.getArrayDepth(this.nodeArr);
     this.component = () => {
       if (this.depth < 3) {
-        return html`${node.language.name}
+        return html` <div>
+          ${node.language.name}
           <table>
             ${this.nodeArr.array.map((element) => {
               return html`<tr>
@@ -153,14 +160,17 @@ export class ArrayBinding {
                 })}
               </tr>`;
             })}
-          </table> `;
+          </table>
+          <button onclick=${() => this.addRow()}>Add row</button>
+          <button onclick=${() => this.addColumn()}>Add column</button>
+        </div>`;
       } else {
         return html`${node.language.name}
           <table>
             <tr>
               <td>
                 Array of depth ${this.depth} found. No visualisaztion
-                implemented
+                implemented.
               </td>
             </tr>
           </table>`;
@@ -177,6 +187,27 @@ export class ArrayBinding {
       return 1;
     } else {
       return 1 + Math.max(...nodeArr.array.map((it) => this.getArrayDepth(it)));
+    }
+  }
+
+  addRow() {
+    if (["typescript", "haskell", "python"].includes(this.node.language.name)) {
+      const ogSourceString = this.node.sourceString;
+      const newSourceString =
+        ogSourceString.slice(0, ogSourceString.length - 1) +
+        ",[]" +
+        ogSourceString.slice(ogSourceString.length - 1);
+      this.node.replaceWith(newSourceString);
+    }
+  }
+
+  addColumn() {
+    if (["typescript", "haskell", "python"].includes(this.node.language.name)) {
+      const arrays = this.node.sourceString
+        .replace("[[", "[")
+        .replace("]]", "]")
+        .split("],[");
+      debugger;
     }
   }
 
@@ -243,6 +274,151 @@ export class ColorBinding {
     this.colorDefNode.values.replaceWith(`rgb(${rgb.r},${rgb.g},${rgb.b})`);
   }
 }
+
+export class PipelineBinding {
+  constructor(node, type = PipelineSteps.PIPELINE) {
+    this.type = type;
+    this.node = node;
+    this.steps = this.getPipelineSteps(node);
+
+    this.component = () => {
+      switch (this.type) {
+        case PipelineSteps.PIPELINE:
+          return html`<div style=${{ display: "flex" }}>
+            <div>
+              ${this.steps.steps
+                //.filter((it) => it.step.type == PipelineSteps.FUNCTION)
+                .map((step) => {
+                  return html`<div>${step.step.component()}</div> `;
+                })}
+            </div>
+          </div>`;
+
+        case PipelineSteps.ALL:
+          return html`<div
+            style=${{
+              display: "flex",
+              gap: "10px",
+              border: "2px dotted",
+              "border-color": "red",
+            }}
+          >
+            ${this.steps.steps.map((step) => {
+              return html`<div>${step.step.component()}</div>`;
+            })}
+          </div>`;
+        case PipelineSteps.FIRST:
+          return html`<div
+            style=${{
+              display: "flex",
+              gap: "10px",
+              border: "2px dotted",
+              "border-color": "green",
+            }}
+          >
+            ${this.steps.steps.map((step) => {
+              return html`<div>${step.step.component()}</div>`;
+            })}
+          </div>`;
+        default:
+          return html`<div>Not yet implemented</div>`;
+      }
+    };
+  }
+
+  getPipelineStep(node) {
+    return metaexec(node, (capture) => [
+      first(
+        [
+          query("($_) => $STEP"),
+          (it) => it.STEP,
+          log("step"),
+          (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
+        ],
+        [
+          query("all($$$STEPS)"),
+          (it) => it.STEPS,
+          (it) => new PipelineBinding(it, PipelineSteps.ALL),
+        ],
+        [
+          query("first($$$STEPS)"),
+          (it) => it.STEPS,
+          (it) => new PipelineBinding(it, PipelineSteps.FIRST),
+        ],
+        [
+          query("capture($NAME)"),
+          (it) => it.NAME,
+          (it) => new PipelineStepBinding(it, PipelineSteps.CAPTURE),
+        ],
+        [
+          query("spawnArray($CALL)"),
+          (it) => it.CALL,
+          (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
+        ],
+        [
+          query("[$$$STEPS]"),
+          (it) => it.STEPS,
+          (it) => new PipelineBinding(it, PipelineSteps.PIPELINE),
+        ],
+      ),
+      capture("step"),
+    ]);
+  }
+
+  getPipelineSteps(node) {
+    return metaexec(node, (capture) => [
+      first([(it) => Array.isArray(it)], [(it) => it.childBlocks]),
+      spawnArray((it) => this.getPipelineStep(it)),
+      capture("steps"),
+    ]);
+  }
+}
+
+export class PipelineStepBinding {
+  constructor(node, type) {
+    this.type = type;
+    this.node = node;
+    this.component = () => {
+      switch (this.type) {
+        case PipelineSteps.FUNCTION:
+          return html`<div
+            style=${{
+              padding: "3px",
+              borderRadius: "5px",
+              background: "#333",
+              display: "inline-block",
+            }}
+          >
+            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+          </div>`;
+        case PipelineSteps.CAPTURE:
+          return html`<div
+            style=${{
+              padding: "3px",
+              borderRadius: "5px",
+              background: "orange",
+              display: "inline-block",
+            }}
+          >
+            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+          </div>`;
+      }
+    };
+  }
+
+  get sourceString() {
+    this.node.sourceString;
+  }
+}
+
+const PipelineSteps = {
+  ALL: "all",
+  FIRST: "first",
+  FUNCTION: "function",
+  SPAWN_ARRAY: "spawnArray",
+  CAPTURE: "capture",
+  PIPELINE: "pipeline",
+};
 
 export class ExportBinding {
   constructor(node) {

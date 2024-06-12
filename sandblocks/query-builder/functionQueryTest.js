@@ -375,7 +375,7 @@ function test(string) {
     render(html`<${Browser} />`, container);
   });
 
-  test("List", async () => {
+  test.view("List", async () => {
     const code_ts = `const list = [[[1],[2]],[[3],[4]]]`;
     const code_hsk = `[[1,2],[3,4]]`;
     const code_py = `list = [[1,2],[3,4]]`;
@@ -444,7 +444,9 @@ function test(string) {
       container,
     );
   });
-  test.view("ColorPicker", async () => {
+
+  //Color Picker for JS/TS
+  test("ColorPicker", async () => {
     const code_jv =
       "const c_white = rgb(12,34,56)\n const graph = new Graph(c_color)";
 
