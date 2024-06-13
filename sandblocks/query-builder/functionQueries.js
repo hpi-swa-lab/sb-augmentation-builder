@@ -149,7 +149,7 @@ export class ArrayBinding {
     this.depth = this.getArrayDepth(this.nodeArr);
     this.component = () => {
       if (this.depth < 3) {
-        return html` <div>
+        return html`<div>
           ${node.language.name}
           <table>
             ${this.nodeArr.array.map((element) => {
@@ -283,42 +283,61 @@ export class PipelineBinding {
     this.component = () => {
       switch (this.type) {
         case PipelineSteps.PIPELINE:
-          return html`<div style=${{ display: "flex" }}>
-            <div>
-              ${this.steps.steps
-                //.filter((it) => it.step.type == PipelineSteps.FUNCTION)
-                .map((step) => {
-                  return html`<div>${step.step.component()}</div> `;
-                })}
-            </div>
-          </div>`;
+          return h(
+            "div",
+            { style: { display: "flex" } },
+            h(
+              "div",
+              {},
+              this.steps.steps.map((step, index) => {
+                return h(
+                  "div",
+                  {},
+                  //index != 0 ? this.verticalLine() : html``,
+                  this.verticalLine(index == 0),
+                  step.step.component(true, true),
+                );
+              }),
+            ),
+          );
 
         case PipelineSteps.ALL:
-          return html`<div
-            style=${{
-              display: "flex",
-              gap: "10px",
-              border: "2px dotted",
-              "border-color": "red",
-            }}
-          >
-            ${this.steps.steps.map((step) => {
-              return html`<div>${step.step.component()}</div>`;
-            })}
-          </div>`;
+          return h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                //gap: "10px",
+                border: "0px dotted",
+                "border-color": "red",
+              },
+            },
+            this.steps.steps.map((step, index) => {
+              return html`<div>
+                ${this.horizontalLine(
+                  index == 0,
+                  index == this.steps.steps.length - 1,
+                )}${step.step.component()}
+              </div>`;
+            }),
+          );
         case PipelineSteps.FIRST:
-          return html`<div
-            style=${{
-              display: "flex",
-              gap: "10px",
-              border: "2px dotted",
-              "border-color": "green",
-            }}
-          >
-            ${this.steps.steps.map((step) => {
-              return html`<div>${step.step.component()}</div>`;
-            })}
-          </div>`;
+          return h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                //gap: "10px",
+                border: "0px dotted",
+                "border-color": "green",
+              },
+            },
+            this.steps.steps.map((step, index) => {
+              return html`<div style=${{ display: "flex" }}>
+                ${step.step.component()}
+              </div>`;
+            }),
+          );
         default:
           return html`<div>Not yet implemented</div>`;
       }
@@ -370,42 +389,89 @@ export class PipelineBinding {
       capture("steps"),
     ]);
   }
+
+  verticalLine(first) {
+    //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
+    const horizontalLineThinkness = 2;
+    return html`<div
+      style=${{
+        "border-left": "2px solid black",
+        "margin-left": "1rem",
+        "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
+        height: first ? `${25 + horizontalLineThinkness}px` : `${25}px`,
+      }}
+    ></div>`;
+  }
+
+  horizontalLine(first, last) {
+    if (last) {
+      return html`<div
+        style=${{
+          "border-top": "2px solid black",
+          "margin-left": "0rem",
+          height: "0px",
+          width: "1rem",
+        }}
+      ></div>`;
+    } else {
+      return html`<div
+        style=${{
+          "border-top": "2px solid black",
+          "margin-left": first ? "1rem" : "0rem",
+          height: "0px",
+        }}
+      ></div>`;
+    }
+  }
 }
 
 export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = () => {
-      switch (this.type) {
-        case PipelineSteps.FUNCTION:
-          return html`<div
-            style=${{
-              padding: "3px",
-              borderRadius: "5px",
-              background: "#333",
-              display: "inline-block",
-            }}
-          >
-            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
-          </div>`;
-        case PipelineSteps.CAPTURE:
-          return html`<div
-            style=${{
-              padding: "3px",
-              borderRadius: "5px",
-              background: "orange",
-              display: "inline-block",
-            }}
-          >
-            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
-          </div>`;
-      }
+    this.component = (
+      top = false,
+      bottom = false,
+      left = false,
+      right = false,
+    ) => {
+      return html`${this.getNodeComponent()}`;
     };
   }
 
   get sourceString() {
     this.node.sourceString;
+  }
+
+  getNodeComponent() {
+    switch (this.type) {
+      case PipelineSteps.FUNCTION:
+        return html`<div
+          style=${{
+            padding: "3px",
+            "margin-right": "5px",
+            borderRadius: "5px",
+            border: "3px solid black",
+            //background: "#333",
+            display: "inline-block",
+          }}
+        >
+          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+        </div>`;
+      case PipelineSteps.CAPTURE:
+        return html`<div
+          style=${{
+            padding: "3px",
+            "margin-right": "5px",
+            borderRadius: "5px",
+            border: "3px solid orange",
+            //background: "#333",
+            display: "inline-block",
+          }}
+        >
+          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+        </div>`;
+    }
   }
 }
 
