@@ -7,7 +7,7 @@
     config.baseURL = "https://lively-kernel.org/lively4/sandblocks-text/";
 
     import { addVitrailToLivelyEditor } from "./lively.js";
-    import { watch } from "./demo.ts";
+    import { watch, colorstring } from "./demo.ts";
     const el = <div id="editor5"></div>
 
 
@@ -19,10 +19,13 @@
 
 
     lively.sleep(0).then(() => {
-      const cm = CodeMirror(el, { value: "sbWatch(123, 'a')" });
+      const cm = CodeMirror(el, { value: `
+        // CodeMirror.version: ${ CodeMirror.version}
+        3 + sbWatch(123, 'a');
+        function () { a + "rgba(100,0,200,0.5)"} 
+      `});
       el.editor = cm;
-      el.value = "function () { a }";
-      console.log(addVitrailToLivelyEditor(el, [watch]));
+      console.log(addVitrailToLivelyEditor(el, [watch, colorstring]));
   });
   
   
