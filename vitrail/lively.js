@@ -106,8 +106,8 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         insert,
         sourcePane: pane,
         inverse: {
-          from: e.from + pane.startIndex,
-          to: e.from + pane.startIndex + insert.length,
+          from: from + pane.startIndex,
+          to: from + pane.startIndex + insert.length,
           insert: e.removed,
         },
       };
@@ -125,6 +125,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       if (!editor.editView) {
         editor.editor = CodeMirror(editor, { value: "asd" });
         editor.editor.display.wrapper.style.height = "auto";
+        onEnterDOM(editor, () => editor.editor.refresh());
       }
       editor.classList.add("shard");
       editor.style = "display:inline-block; border: 1px solid gray";
@@ -137,4 +138,12 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
 
   await v.connectHost(paneFromLively(livelyEditor, v, () => augmentations));
   return v;
+}
+
+function onEnterDOM(element, cb) {
+  const observer = new MutationObserver(() => {
+    cb();
+    observer.disconnect();
+  });
+  observer.observe(element, { childList: true, subtree: true });
 }

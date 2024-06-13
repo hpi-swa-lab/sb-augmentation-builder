@@ -341,6 +341,8 @@ export class Vitrail<T> extends EventTarget {
   // we want the side affinity to be -1 to indicate that the `2` is part of the `1` node.
   // This is relevant for panes to include or exclude pending changes.
   //
+  // -1: grow end, 1: grow start, 0: indeterminate
+  //
   // Note that a text inserted in a pane will automatically set its affinity based on the
   // pane boundaries, so this function will only be used to set the affinity for changes
   // that are caused independent of views.
