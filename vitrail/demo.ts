@@ -273,3 +273,37 @@ textActor.send({ type: 'text.cancel' });*/
   [smileys, xstate, sendAction, watch],
 );
 console.log(v);
+
+export const colorstring = {
+  model: languageFor("javascript"),
+  matcherDepth: 3,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      (x) => x.type === "string",
+      (x) => x.childBlock(0),
+      (x) => !!x.text.match(/^rgba?\(.*\)$/),
+      all([replace(capture)], [(x) => x.text, capture("value")]),
+    ]),
+  view: ({ type, nodes }) => {
+    return h(
+      "div",
+      {},
+      h("div", {
+        style:
+          `
+              display: inline-block; 
+              background: ` +
+          nodes[0].text +
+          `; 
+              width: 20px; 
+              position: relative;
+              white-space: wrap;
+              height: 20px; 
+              border: 1px solid red`,
+        onclick: async (evt) => {},
+      }),
+      h(VitrailPaneWithWhitespace, { nodes: nodes }),
+    );
+  },
+};
