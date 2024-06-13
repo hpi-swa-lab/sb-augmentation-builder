@@ -280,24 +280,51 @@ export class PipelineBinding {
     this.node = node;
     this.steps = this.getPipelineSteps(node);
 
-    this.component = () => {
+    this.component = (
+      top,
+      bottom = false,
+      firstPipeline = false,
+      lastPipeline = false,
+      connectFirstNodes = false,
+    ) => {
       switch (this.type) {
         case PipelineSteps.PIPELINE:
           return h(
             "div",
-            { style: { display: "flex" } },
+            { style: { display: "flex", "flex-grow": "1" }, id: "Pipeline" },
             h(
               "div",
-              {},
+              {
+                style: {
+                  display: "flex",
+                  "flex-direction": "column",
+                },
+              },
               this.steps.steps.map((step, index) => {
                 return h(
                   "div",
                   {},
-                  //index != 0 ? this.verticalLine() : html``,
-                  this.verticalLine(index == 0),
-                  step.step.component(true, true),
+                  top && index == 0 ? this.verticalLine(true) : html``,
+                  index != 0 ? this.verticalLine() : html``,
+                  h(
+                    "div",
+                    {
+                      style: {
+                        display: "flex",
+                        "flex-direction": "row",
+                        "flex-grow": "1",
+                      },
+                    },
+                    step.step.component(
+                      connectFirstNodes && index == 0 && !lastPipeline,
+                    ),
+                  ),
                 );
               }),
+              bottom ? this.verticalLine(false, true) : html``,
+              bottom
+                ? this.horizontalLine(firstPipeline, lastPipeline)
+                : html``,
             ),
           );
 
@@ -317,7 +344,7 @@ export class PipelineBinding {
                 ${this.horizontalLine(
                   index == 0,
                   index == this.steps.steps.length - 1,
-                )}${step.step.component()}
+                )}${step.step.component(true)}
               </div>`;
             }),
           );
@@ -330,11 +357,18 @@ export class PipelineBinding {
                 //gap: "10px",
                 border: "0px dotted",
                 "border-color": "green",
+                "flex-grow": "1",
               },
             },
             this.steps.steps.map((step, index) => {
               return html`<div style=${{ display: "flex" }}>
-                ${step.step.component()}
+                ${step.step.component(
+                  false,
+                  true,
+                  index == 0,
+                  index == this.steps.steps.length - 1,
+                  true,
+                )}
               </div>`;
             }),
           );
@@ -390,17 +424,35 @@ export class PipelineBinding {
     ]);
   }
 
-  verticalLine(first) {
+  verticalLine(first, last = false) {
     //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
     const horizontalLineThinkness = 2;
-    return html`<div
-      style=${{
-        "border-left": "2px solid black",
-        "margin-left": "1rem",
-        "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
-        height: first ? `${25 + horizontalLineThinkness}px` : `${25}px`,
-      }}
-    ></div>`;
+    if (last) {
+      return html` <div
+          style=${{
+            "border-left": "2px solid black",
+            "margin-left": "1rem",
+            "margin-top": "0px",
+            height: `${25}px`,
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-left": "2px solid black",
+            "margin-left": "1rem",
+            "flex-grow": "1",
+          }}
+        ></div>`;
+    } else {
+      return html`<div
+        style=${{
+          "border-left": "2px solid black",
+          "margin-left": "1rem",
+          "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
+          height: first ? `${25 + horizontalLineThinkness}px` : `${25}px`,
+        }}
+      ></div>`;
+    }
   }
 
   horizontalLine(first, last) {
@@ -429,18 +481,31 @@ export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = (
-      top = false,
-      bottom = false,
-      left = false,
-      right = false,
-    ) => {
-      return html`${this.getNodeComponent()}`;
-    };
+    this.component = (connectToRight = false) =>
+      h(
+        "div",
+        {
+          style: { display: "flex", "flex-grow": "1", "align-items": "center" },
+        },
+        this.getNodeComponent(),
+        connectToRight ? this.horizontalLine() : html``,
+      );
   }
 
   get sourceString() {
     this.node.sourceString;
+  }
+
+  horizontalLine() {
+    return html`<div
+      style=${{
+        "border-top": "2px solid black",
+        "margin-left": "-5px",
+        "flex-grow": "1",
+        height: "0px",
+        width: "1rem",
+      }}
+    ></div>`;
   }
 
   getNodeComponent() {
