@@ -57,10 +57,10 @@ export function replacementRange(
   replacement: Replacement<any>,
   vitrail: Vitrail<any>,
 ) {
-  return vitrail.adjustRange([
-    replacement.nodes[0].range[0],
-    last(replacement.nodes).range[1],
-  ]);
+  return vitrail.adjustRange(
+    [replacement.nodes[0].range[0], last(replacement.nodes).range[1]],
+    true,
+  );
 }
 
 type JSX = any;
@@ -251,8 +251,9 @@ export class Vitrail<T> extends EventTarget {
       );
     }
     if (!last(allChanges).sideAffinity && last(allChanges).sourcePane) {
-      last(changes).sideAffinity =
-        last(allChanges).sourcePane.startIndex === last(changes).from ? 1 : -1;
+      let atBoundary =
+        last(allChanges).sourcePane.startIndex === last(changes).from;
+      last(changes).sideAffinity = atBoundary ? 1 : -1;
     }
 
     const update = [...this._models.values()].map((n) => n.reParse(newSource));
@@ -325,10 +326,10 @@ export class Vitrail<T> extends EventTarget {
     );
   }
 
-  adjustRange(range: [number, number]) {
+  adjustRange(range: [number, number], noGrow = false) {
     return [
-      adjustIndex(range[0], this._pendingChanges.value, 1),
-      adjustIndex(range[1], this._pendingChanges.value, -1),
+      adjustIndex(range[0], this._pendingChanges.value, noGrow ? -1 : 1),
+      adjustIndex(range[1], this._pendingChanges.value, noGrow ? 1 : -1),
     ];
   }
 
@@ -561,7 +562,7 @@ export class Pane<T> {
     for (const change of changes) {
       const from = change.from - this.startIndex;
       const to = change.to - this.startIndex;
-      if (from >= length && to <= 0) continue;
+      if (from >= length || to <= 0) continue;
 
       translated.push({
         from: clamp(from, 0, length),

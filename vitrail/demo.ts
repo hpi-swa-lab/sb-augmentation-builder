@@ -259,7 +259,7 @@ const textMachine = createMachine({
 const textActor = createActor(textMachine).start();
 
 textActor.subscribe((state) => {
-  console.log(bWatch(state.context.value, '123'));
+  console.log(sbWatch(state.context.value, '123'));
 });
 
 textActor.send({ type: sbWatch('text.edit', '123') });
