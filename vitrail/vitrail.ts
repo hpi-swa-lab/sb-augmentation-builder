@@ -15,6 +15,7 @@ import {
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import {
+  Side,
   adjustIndex,
   clamp,
   last,
@@ -224,12 +225,18 @@ export class Vitrail<T> extends EventTarget {
   _revertChanges: Change<T>[] = [];
 
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
+    if (!last(changes).sideAffinity && last(changes).sourcePane) {
+      let atStart = last(changes).sourcePane.startIndex === last(changes).from;
+      last(changes).sideAffinity = atStart ? Side.Left : Side.Right;
+    }
+
     if (this.activeTransactionList) {
+      const affinity = last(changes).sideAffinity;
       this.activeTransactionList.push(
         ...changes.map((c) => ({
           ...c,
-          from: adjustIndex(c.from, this.activeTransactionList!),
-          to: adjustIndex(c.to, this.activeTransactionList!),
+          from: adjustIndex(c.from, this.activeTransactionList!, affinity),
+          to: adjustIndex(c.to, this.activeTransactionList!, affinity),
         })),
       );
       return;
@@ -249,11 +256,6 @@ export class Vitrail<T> extends EventTarget {
         pane.getLocalSelectionIndices(),
         pane.startIndex,
       );
-    }
-    if (!last(allChanges).sideAffinity && last(allChanges).sourcePane) {
-      let atBoundary =
-        last(allChanges).sourcePane.startIndex === last(changes).from;
-      last(changes).sideAffinity = atBoundary ? 1 : -1;
     }
 
     const update = [...this._models.values()].map((n) => n.reParse(newSource));
@@ -328,8 +330,8 @@ export class Vitrail<T> extends EventTarget {
 
   adjustRange(range: [number, number], noGrow = false) {
     return [
-      adjustIndex(range[0], this._pendingChanges.value, noGrow ? -1 : 1),
-      adjustIndex(range[1], this._pendingChanges.value, noGrow ? 1 : -1),
+      adjustIndex(range[0], this._pendingChanges.value, Side.Left, noGrow),
+      adjustIndex(range[1], this._pendingChanges.value, Side.Right, noGrow),
     ];
   }
 
@@ -483,7 +485,7 @@ export class Pane<T> {
       yield* pane.paneCursorPositions();
     };
     (this.view as any).focusRange = function (head: number, anchor: number) {
-      pane.focusRange(head - pane.range[0], anchor - pane.range[0]);
+      pane.focusRange(head - pane.startIndex, anchor - pane.startIndex);
     };
     (this.view as any).hasFocus = function () {
       pane.hasFocus();
@@ -523,7 +525,7 @@ export class Pane<T> {
   }
 
   *paneCursorPositions() {
-    const myRange = this.range;
+    const myRange = [this.startIndex, this.startIndex + this.getText().length];
     let last: number | null = null;
     const pane = this;
     function* mine(index: number) {
@@ -567,6 +569,8 @@ export class Pane<T> {
     for (const change of changes) {
       const from = change.from - this.startIndex;
       const to = change.to - this.startIndex;
+      this.startIndex = adjustIndex(this.startIndex, [change], Side.Left);
+
       if (from >= length || to <= 0) continue;
 
       translated.push({
@@ -574,7 +578,6 @@ export class Pane<T> {
         to: clamp(to, 0, length),
         insert: from > 0 ? change.insert : "",
       });
-      this.startIndex = adjustIndex(this.startIndex, [change], -1);
     }
     this._applyLocalChanges(translated);
 
@@ -784,7 +787,7 @@ export class Pane<T> {
       {
         root: this.vitrail._rootPane.view,
         element: this.view,
-        index: head + this.range[0],
+        index: head + this.startIndex,
       },
       forward,
     );

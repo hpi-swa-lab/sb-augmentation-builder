@@ -543,11 +543,24 @@ export function clsx(...args) {
   return args.filter(Boolean).join(" ");
 }
 
-export function adjustIndex(index, changesList, sideAffinity = 0) {
+export const Side = { Left: 1, Right: -1 };
+
+// 1: left side, -1: right side, 0: indeterminate
+//
+// In the noGrow case, we always move such that the distance between the two
+// sides stays the same. This is e.g., used for replacements.
+//
+// Otherwise, if a change has an affinity to stay within the left side, we
+// include it for the left side. Respectively, if it has an affinity to stay
+// within the right side, we include it for the right side.
+export function adjustIndex(index, changesList, side, noGrow = false) {
   for (const change of changesList) {
     if (
-      (change.sideAffinity === sideAffinity && index >= change.from) ||
-      (change.sideAffinity !== sideAffinity && index > change.from)
+      noGrow
+        ? (side === Side.Left && index >= change.from) ||
+          (side === Side.Right && index > change.from)
+        : (change.sideAffinity === side && index >= change.from) ||
+          (change.sideAffinity !== side && index > change.from)
     )
       index +=
         (change.insert ?? "").length -

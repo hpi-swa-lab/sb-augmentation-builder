@@ -145,7 +145,7 @@ export async function codeMirror6WithVitrail(
             .map((r) => {
               const range = rangeShift(
                 replacementRange(r, pane.vitrail),
-                -pane.range[0],
+                -pane.startIndex,
               );
               return (
                 range[0] === range[1] ? Decoration.widget : Decoration.replace
