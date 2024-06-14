@@ -3,12 +3,15 @@ import { extractType } from "../core/model.js";
 import { h } from "../external/preact.mjs";
 import {
   all,
+  first,
+  languageSpecific,
   metaexec,
   optional,
   replace,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
+import { markInputEditable } from "../view/focus.ts";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
 import {
@@ -16,7 +19,6 @@ import {
   VitrailPaneWithWhitespace,
   useValidateKeepReplacement,
 } from "./vitrail.ts";
-import { createDefaultCodeMirror } from "./codemirror6.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -197,7 +199,36 @@ export const watch = {
   },
 };
 
-const smileys = {
+export function createPlaceholder(label: string) {
+  return "__VI_PLACEHOLDER_" + label.replace(/ /g, "_");
+}
+
+export const placeholder = {
+  model: languageFor("javascript"),
+  matcherDepth: 1,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      first([
+        languageSpecific(
+          "javascript",
+          (it) => it.type === "identifier",
+          (it) => it.text.startsWith("__VI_PLACEHOLDER"),
+          replace(capture),
+        ),
+      ]),
+    ]),
+  view: ({ nodes }) =>
+    h("input", {
+      range: nodes[0].range,
+      ref: markInputEditable,
+      placeholder: nodes[0].text
+        .substring("__VI_PLACEHOLDER_".length)
+        .replace(/_/g, " "),
+      oninput: (e) => nodes[0].replaceWith(e.target.value),
+    }),
+};
+
+export const smileys = {
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -215,64 +246,6 @@ const smileys = {
     );
   },
 };
-
-const v = createDefaultCodeMirror(
-  `
-import { createMachine, createActor } from 'xstate';
-
-const textMachine = createMachine({
-  context: {
-    committedValue: '',
-    value: '',
-  },
-  initial: 'reading',
-  states: {
-    reading: {
-      on: {
-        'text.edit': { target: 'editing' },
-      },
-    },
-    editing: {
-      on: {
-        /*'text.change': {
-          actions: assign({
-            value: ({ event }) => event.value,
-          }),
-        },
-        'text.commit': {
-          actions: assign({
-            committedValue: ({ context }) => context.value,
-          }),
-          target: 'reading',
-        },
-        'text.cancel': {
-          actions: assign({
-            value: ({ context }) => context.committedValue,
-          }),
-          target: 'reading',
-        },*/
-      },
-    },
-  },
-});
-
-const textActor = createActor(textMachine).start();
-
-textActor.subscribe((state) => {
-  console.log(sbWatch(state.context.value, '123'));
-});
-
-textActor.send({ type: sbWatch('text.edit', '123') });
-/*textActor.send({ type: 'text.change', value: 'Hello' });
-textActor.send({ type: 'text.commit' });
-textActor.send({ type: 'text.edit' });
-textActor.send({ type: 'text.change', value: 'Hello world' });
-textActor.send({ type: 'text.cancel' });*/
-      `,
-  document.querySelector("#editor")!,
-  [smileys, xstate, sendAction, watch],
-);
-console.log(v);
 
 export const colorstring = {
   model: languageFor("javascript"),

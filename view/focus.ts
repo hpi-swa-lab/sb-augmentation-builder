@@ -8,7 +8,12 @@ export function getFocusHost(element: Node) {
 }
 
 export function markInputEditable(input) {
-  if (input.hasAttribute("sb-editable")) return;
+  if (!input || input.hasAttribute("sb-editable")) return;
+  input.setAttribute("sb-editable", "");
+
+  // for preact to set range as a property as opposed to an
+  // attribute, we need to define it first
+  Object.defineProperty(input, "range", { writable: true });
 
   function move(forward, e) {
     e.preventDefault();

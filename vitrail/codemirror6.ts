@@ -266,7 +266,6 @@ export async function codeMirror6WithVitrail(
         host.state.selection.main.head,
         host.state.selection.main.anchor,
       ],
-      // undo: () => historyExt && host.dispatch(undo),
       syncReplacements: () =>
         host.dispatch({ userEvent: "sync", addToHistory: false }),
       focusRange: (head, anchor) => {
@@ -309,7 +308,8 @@ export async function codeMirror6WithVitrail(
         doc: "",
         parent: document.createElement("div"),
       });
-      host.dom.style.cssText = "display: inline-flex !important";
+      host.dom.style.cssText =
+        "display: inline-flex !important; background: #fff";
       return paneFromCM(host, v, fetchAugmentations);
     },
     showValidationPending: (show) => {
