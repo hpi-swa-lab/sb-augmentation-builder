@@ -31,8 +31,7 @@ import {
 
 // TODO
 // marker (and not just replacement) support
-// navigate to elements without indices
-// if an entire replacement is deleted, ignore validation (or adapt validation)
+// redo needs to be aware of intentToDeleteNodes
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -169,6 +168,10 @@ export class Vitrail<T> extends EventTarget {
     return this._models;
   }
 
+  modelForNode(node: SBNode) {
+    return this._models.get(node.language as unknown as Model);
+  }
+
   registerPane(pane: Pane<T>) {
     this._panes.push(pane);
   }
@@ -234,6 +237,11 @@ export class Vitrail<T> extends EventTarget {
       last(changes).sideAffinity = atStart ? Side.Left : Side.Right;
     }
 
+    // make sure all the intent-to-delete nodes have a language set, so we still know
+    // which model to consult after they are unmounted
+    for (const change of changes)
+      for (const n of change.intentDeleteNodes ?? []) n._language = n.language;
+
     if (this.activeTransactionList) {
       const affinity = last(changes).sideAffinity;
       this.activeTransactionList.push(
@@ -282,8 +290,6 @@ export class Vitrail<T> extends EventTarget {
               pane.syncReplacements();
             }
             this._revertChanges.push(...changes.map((c) => c.inverse));
-            // TODO still needed?
-            // this.selectRange( last(allChanges).selectionRange ?? this.selectionRange,);
             return false;
           }
         }
@@ -583,6 +589,7 @@ export class Pane<T> {
         from: clamp(from, 0, length),
         to: clamp(to, 0, length),
         insert: from > 0 ? change.insert : "",
+        intentDeleteNodes: change.intentDeleteNodes,
       });
     }
     this._applyLocalChanges(translated);

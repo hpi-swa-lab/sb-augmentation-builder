@@ -33,7 +33,6 @@ import {
   foldKeymap,
   completionKeymap,
   lintKeymap,
-  lineNumbers,
   highlightActiveLineGutter,
   keymap,
   StateField,
@@ -45,9 +44,12 @@ import {
   Transaction,
   undo,
   redo,
+  invertedEffects,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { rangeShift, parallelToSequentialChanges } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
+
+const IntentToDelete = StateEffect.define();
 
 const baseCMExtensions = [
   highlightSpecialChars(),
@@ -164,6 +166,9 @@ export async function codeMirror6WithVitrail(
 
     return [
       ...extensionsForPane,
+      invertedEffects.of((tr) => {
+        return tr.effects.filter((e) => e.is(IntentToDelete));
+      }),
       Prec.highest(
         keymap.of([
           {
@@ -218,6 +223,10 @@ export async function codeMirror6WithVitrail(
           update.docChanged &&
           !update.transactions.some((t) => t.isUserEvent("sync"))
         ) {
+          const intentDeleteNodes =
+            update.transactions.flatMap((t) =>
+              t.effects.filter((e) => e.is(IntentToDelete)),
+            ) ?? [];
           const changes: ReversibleChange<EditorView>[] = [];
           update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
             changes.push({
@@ -227,6 +236,12 @@ export async function codeMirror6WithVitrail(
               sourcePane: pane,
               // will be set below
               inverse: null as any,
+              intentDeleteNodes: intentDeleteNodes.flatMap((e) => {
+                // a redo is occurring: find the node that we marked for deletion earlier
+                return e.value
+                  .map((n) => v.modelForNode(n).childForRange(n.range))
+                  .filter((n) => Boolean(n));
+              }),
             });
           });
           const inverse: ReversibleChange<EditorView>["inverse"][] = [];
@@ -266,16 +281,27 @@ export async function codeMirror6WithVitrail(
         host.state.selection.main.head,
         host.state.selection.main.anchor,
       ],
-      syncReplacements: () =>
-        host.dispatch({ userEvent: "sync", addToHistory: false }),
+      syncReplacements: () => host.dispatch({ userEvent: "sync" }),
       focusRange: (head, anchor) => {
         host.focus();
         host.dispatch({ selection: { anchor: head, head: anchor } });
       },
-      applyLocalChanges: (changes: Change<EditorView>[]) =>
+      applyLocalChanges: (changes: Change<EditorView>[]) => {
+        const intentToDelete = changes.flatMap(
+          (c) => c.intentDeleteNodes ?? [],
+        );
         host.dispatch(
-          host.state.update({ userEvent: "sync", changes, sequential: true }),
-        ),
+          host.state.update({
+            userEvent: "sync",
+            changes,
+            sequential: true,
+            effects:
+              intentToDelete.length > 0
+                ? [IntentToDelete.of(intentToDelete)]
+                : [],
+          }),
+        );
+      },
       getText: () => host.state.doc.toString(),
       hasFocus: () => host.hasFocus,
       setText: (text: string, undoable: boolean) =>

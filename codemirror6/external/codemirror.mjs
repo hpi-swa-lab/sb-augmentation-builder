@@ -7,6 +7,7 @@ export {
   EditorState,
   StateEffect,
   Transaction,
+  Annotation,
 } from "@codemirror/state";
 export { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 export {
@@ -29,6 +30,7 @@ export {
   historyKeymap,
   undo,
   redo,
+  invertedEffects,
 } from "@codemirror/commands";
 export {
   indentOnInput,

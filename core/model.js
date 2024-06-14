@@ -118,6 +118,7 @@ function _nextNodeId() {
 
 export class SBNode {
   _parent = null;
+  _language = undefined;
   shards = new WeakArray();
 
   constructor() {
@@ -166,7 +167,7 @@ export class SBNode {
   }
 
   get isRoot() {
-    return !!this._language;
+    return !!this._sourceString;
   }
 
   get sourceString() {
