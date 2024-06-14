@@ -340,7 +340,9 @@ export class PipelineBinding {
               },
             },
             this.steps.steps.map((step, index) => {
-              return html`<div>
+              return html`<div
+                style=${{ position: "relative", border: "0px dotted green" }}
+              >
                 ${this.horizontalLine(
                   index == 0,
                   index == this.steps.steps.length - 1,
@@ -427,52 +429,66 @@ export class PipelineBinding {
   verticalLine(first, last = false) {
     //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
     const horizontalLineThinkness = 2;
-    if (last) {
-      return html` <div
-          style=${{
-            "border-left": "2px solid black",
-            "margin-left": "1rem",
-            "margin-top": "0px",
-            height: `${25}px`,
-          }}
-        ></div>
-        <div
-          style=${{
-            "border-left": "2px solid black",
-            "margin-left": "1rem",
-            "flex-grow": "1",
-          }}
-        ></div>`;
-    } else {
-      return html`<div
+    return html`<div
+      style=${{ position: "relative", display: "flex", "flex-grow": "1" }}
+    >
+      <div
+        style=${{
+          "margin-left": "12px",
+          background: "blue",
+          "min-height": "25px",
+          height: "100%",
+          width: "10px",
+          opacity: "0.5",
+          position: "absolute",
+          display: "block",
+        }}
+      ></div>
+      <div
         style=${{
           "border-left": "2px solid black",
           "margin-left": "1rem",
           "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
-          height: first ? `${25 + horizontalLineThinkness}px` : `${25}px`,
+          "min-height": "25px",
+          "flex-grow": "1",
         }}
-      ></div>`;
-    }
+      ></div>
+    </div>`;
   }
 
   horizontalLine(first, last) {
     if (last) {
       return html`<div
         style=${{
-          "border-top": "2px solid black",
+          "border-top": "2px solid green",
           "margin-left": "0rem",
           height: "0px",
           width: "1rem",
         }}
       ></div>`;
     } else {
-      return html`<div
-        style=${{
-          "border-top": "2px solid black",
-          "margin-left": first ? "1rem" : "0rem",
-          height: "0px",
-        }}
-      ></div>`;
+      return html`<div style=${{ position: "relative" }}>
+        <div
+          style=${{
+            "margin-left": "1rem",
+            "margin-right": "1rem",
+            "margin-top": "-4px",
+            background: "blue",
+            height: "10px",
+            width: "100%",
+            opacity: "0.5",
+            position: "absolute",
+            display: "block",
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-top": "2px solid red",
+            "margin-left": first ? "1rem" : "0rem",
+            height: "0px",
+          }}
+        ></div>
+      </div>`;
     }
   }
 }
@@ -497,15 +513,32 @@ export class PipelineStepBinding {
   }
 
   horizontalLine() {
-    return html`<div
-      style=${{
-        "border-top": "2px solid black",
-        "margin-left": "-5px",
-        "flex-grow": "1",
-        height: "0px",
-        width: "1rem",
-      }}
-    ></div>`;
+    return html`
+      <div style=${{ position: "relative", display: "flex", "flex-grow": "1" }}>
+        <div
+          style=${{
+            position: "absolute",
+            display: "block",
+            position: "absolute",
+            width: "calc(100% + 5px)",
+            height: "10px",
+            opacity: "0.5",
+            background: "blue",
+            "margin-top": "-4px",
+            "margin-left": "-5px",
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-top": "2px solid black",
+            "margin-left": "-5px",
+            "flex-grow": "1",
+            height: "0px",
+            width: "1rem",
+          }}
+        ></div>
+      </div>
+    `;
   }
 
   getNodeComponent() {
