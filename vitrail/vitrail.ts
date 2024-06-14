@@ -15,6 +15,7 @@ import {
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
 import {
+  Side,
   adjustIndex,
   clamp,
   last,
@@ -57,10 +58,10 @@ export function replacementRange(
   replacement: Replacement<any>,
   vitrail: Vitrail<any>,
 ) {
-  return vitrail.adjustRange([
-    replacement.nodes[0].range[0],
-    last(replacement.nodes).range[1],
-  ]);
+  return vitrail.adjustRange(
+    [replacement.nodes[0].range[0], last(replacement.nodes).range[1]],
+    true,
+  );
 }
 
 type JSX = any;
@@ -110,7 +111,7 @@ type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
 ) => Pane<T>;
 type PaneGetTextFunc = () => string;
-type PaneSetTextFunc = (s: string) => void;
+type PaneSetTextFunc = (s: string, undoable: boolean) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
 export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
@@ -224,12 +225,22 @@ export class Vitrail<T> extends EventTarget {
   _revertChanges: Change<T>[] = [];
 
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
+    if (
+      changes.length > 0 &&
+      !last(changes).sideAffinity &&
+      last(changes).sourcePane
+    ) {
+      let atStart = last(changes).sourcePane.startIndex === last(changes).from;
+      last(changes).sideAffinity = atStart ? Side.Left : Side.Right;
+    }
+
     if (this.activeTransactionList) {
+      const affinity = last(changes).sideAffinity;
       this.activeTransactionList.push(
         ...changes.map((c) => ({
           ...c,
-          from: adjustIndex(c.from, this.activeTransactionList!),
-          to: adjustIndex(c.to, this.activeTransactionList!),
+          from: adjustIndex(c.from, this.activeTransactionList!, affinity),
+          to: adjustIndex(c.to, this.activeTransactionList!, affinity),
         })),
       );
       return;
@@ -249,10 +260,6 @@ export class Vitrail<T> extends EventTarget {
         pane.getLocalSelectionIndices(),
         pane.startIndex,
       );
-    }
-    if (!last(allChanges).sideAffinity && last(allChanges).sourcePane) {
-      last(changes).sideAffinity =
-        last(allChanges).sourcePane.startIndex === last(changes).from ? 1 : -1;
     }
 
     const update = [...this._models.values()].map((n) => n.reParse(newSource));
@@ -325,10 +332,10 @@ export class Vitrail<T> extends EventTarget {
     );
   }
 
-  adjustRange(range: [number, number]) {
+  adjustRange(range: [number, number], noGrow = false): [number, number] {
     return [
-      adjustIndex(range[0], this._pendingChanges.value, 1),
-      adjustIndex(range[1], this._pendingChanges.value, -1),
+      adjustIndex(range[0], this._pendingChanges.value, Side.Left, noGrow),
+      adjustIndex(range[1], this._pendingChanges.value, Side.Right, noGrow),
     ];
   }
 
@@ -376,7 +383,12 @@ export class Vitrail<T> extends EventTarget {
     }
   }
 
-  replaceTextFromCommand(range: [number, number], text: string) {
+  replaceTextFromCommand(
+    range: [number, number],
+    text: string,
+    intentDeleteNodes?: SBNode[],
+  ) {
+    range = this.adjustRange(range, true);
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
     this.applyChanges([
       {
@@ -384,6 +396,7 @@ export class Vitrail<T> extends EventTarget {
         to: range[1],
         insert: text,
         selectionRange: [range[0] + text.length, range[0] + text.length],
+        intentDeleteNodes,
         inverse: {
           from: range[0],
           to: range[0] + text.length,
@@ -394,6 +407,7 @@ export class Vitrail<T> extends EventTarget {
   }
 
   insertTextFromCommand(position: number, text: string) {
+    position = this.adjustRange([position, position], true)[0];
     this.applyChanges([
       {
         from: position,
@@ -477,7 +491,7 @@ export class Pane<T> {
       yield* pane.paneCursorPositions();
     };
     (this.view as any).focusRange = function (head: number, anchor: number) {
-      pane.focusRange(head - pane.range[0], anchor - pane.range[0]);
+      pane.focusRange(head - pane.startIndex, anchor - pane.startIndex);
     };
     (this.view as any).hasFocus = function () {
       pane.hasFocus();
@@ -517,7 +531,7 @@ export class Pane<T> {
   }
 
   *paneCursorPositions() {
-    const myRange = this.range;
+    const myRange = [this.startIndex, this.startIndex + this.getText().length];
     let last: number | null = null;
     const pane = this;
     function* mine(index: number) {
@@ -548,7 +562,7 @@ export class Pane<T> {
     this.startIndex = nodes[0].range[0];
     this.nodes = nodes;
 
-    this.setText(v._sourceString.slice(this.range[0], this.range[1]));
+    this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
     const buffers = this.getInitEditBuffersForRoots([...v._models.values()]);
     for (const buffer of buffers) this.updateReplacements(buffer);
@@ -561,14 +575,15 @@ export class Pane<T> {
     for (const change of changes) {
       const from = change.from - this.startIndex;
       const to = change.to - this.startIndex;
-      if (from >= length && to <= 0) continue;
+      this.startIndex = adjustIndex(this.startIndex, [change], Side.Left);
+
+      if (from >= length || to <= 0) continue;
 
       translated.push({
         from: clamp(from, 0, length),
         to: clamp(to, 0, length),
         insert: from > 0 ? change.insert : "",
       });
-      this.startIndex = adjustIndex(this.startIndex, [change], -1);
     }
     this._applyLocalChanges(translated);
 
@@ -580,7 +595,7 @@ export class Pane<T> {
       // pendingChanges, the AST won't update.
       const targetText = this.nodes.map((n) => n.sourceString).join("");
       if (this.getText() !== targetText) {
-        this.setText(targetText);
+        this.setText(targetText, true);
       }
       this.startIndex = this.nodes[0].range[0];
     }
@@ -778,7 +793,7 @@ export class Pane<T> {
       {
         root: this.vitrail._rootPane.view,
         element: this.view,
-        index: head + this.range[0],
+        index: head + this.startIndex,
       },
       forward,
     );
@@ -866,6 +881,15 @@ export function VitrailPaneWithWhitespace({ nodes, ...props }) {
   return h(VitrailPane, { nodes: list, ...props });
 }
 
+export function changesIntendToDeleteNode(
+  changes: ReversibleChange<any>[],
+  node: SBNode,
+) {
+  return changes.some(
+    (c) => c.intentDeleteNodes?.some((n) => n.contains(node)),
+  );
+}
+
 export function useValidator(
   model: Model,
   func: ValidatorFunc<any>,
@@ -896,10 +920,7 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
   useValidator(
     replacement.augmentation.model,
     (_root, _diff, changes) =>
-      changes.some(
-        (c) =>
-          c.intentDeleteNodes?.some((n) => n.contains(replacement.matchedNode)),
-      ) ||
+      changesIntendToDeleteNode(changes, replacement.matchedNode) ||
       (replacement.matchedNode?.connected &&
         replacement.augmentation.match(replacement.matchedNode, pane) !== null),
     [...replacement.nodes, replacement.augmentation],

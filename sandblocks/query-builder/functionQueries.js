@@ -149,7 +149,7 @@ export class ArrayBinding {
     this.depth = this.getArrayDepth(this.nodeArr);
     this.component = () => {
       if (this.depth < 3) {
-        return html` <div>
+        return html`<div>
           ${node.language.name}
           <table>
             ${this.nodeArr.array.map((element) => {
@@ -280,45 +280,100 @@ export class PipelineBinding {
     this.node = node;
     this.steps = this.getPipelineSteps(node);
 
-    this.component = () => {
+    this.component = (
+      top,
+      bottom = false,
+      firstPipeline = false,
+      lastPipeline = false,
+      connectFirstNodes = false,
+    ) => {
       switch (this.type) {
         case PipelineSteps.PIPELINE:
-          return html`<div style=${{ display: "flex" }}>
-            <div>
-              ${this.steps.steps
-                //.filter((it) => it.step.type == PipelineSteps.FUNCTION)
-                .map((step) => {
-                  return html`<div>${step.step.component()}</div> `;
-                })}
-            </div>
-          </div>`;
+          return h(
+            "div",
+            { style: { display: "flex", "flex-grow": "1" }, id: "Pipeline" },
+            h(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  "flex-direction": "column",
+                },
+              },
+              this.steps.steps.map((step, index) => {
+                return h(
+                  "div",
+                  {},
+                  top && index == 0 ? this.verticalLine(true) : html``,
+                  index != 0 ? this.verticalLine() : html``,
+                  h(
+                    "div",
+                    {
+                      style: {
+                        display: "flex",
+                        "flex-direction": "row",
+                        "flex-grow": "1",
+                      },
+                    },
+                    step.step.component(
+                      connectFirstNodes && index == 0 && !lastPipeline,
+                    ),
+                  ),
+                );
+              }),
+              bottom ? this.verticalLine(false, true) : html``,
+              bottom
+                ? this.horizontalLine(firstPipeline, lastPipeline)
+                : html``,
+            ),
+          );
 
         case PipelineSteps.ALL:
-          return html`<div
-            style=${{
-              display: "flex",
-              gap: "10px",
-              border: "2px dotted",
-              "border-color": "red",
-            }}
-          >
-            ${this.steps.steps.map((step) => {
-              return html`<div>${step.step.component()}</div>`;
-            })}
-          </div>`;
+          return h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                //gap: "10px",
+                border: "0px dotted",
+                "border-color": "red",
+              },
+            },
+            this.steps.steps.map((step, index) => {
+              return html`<div
+                style=${{ position: "relative", border: "0px dotted green" }}
+              >
+                ${this.horizontalLine(
+                  index == 0,
+                  index == this.steps.steps.length - 1,
+                )}${step.step.component(true)}
+              </div>`;
+            }),
+          );
         case PipelineSteps.FIRST:
-          return html`<div
-            style=${{
-              display: "flex",
-              gap: "10px",
-              border: "2px dotted",
-              "border-color": "green",
-            }}
-          >
-            ${this.steps.steps.map((step) => {
-              return html`<div>${step.step.component()}</div>`;
-            })}
-          </div>`;
+          return h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                //gap: "10px",
+                border: "0px dotted",
+                "border-color": "green",
+                "flex-grow": "1",
+              },
+            },
+            this.steps.steps.map((step, index) => {
+              return html`<div style=${{ display: "flex" }}>
+                ${step.step.component(
+                  false,
+                  true,
+                  index == 0,
+                  index == this.steps.steps.length - 1,
+                  true,
+                )}
+              </div>`;
+            }),
+          );
         default:
           return html`<div>Not yet implemented</div>`;
       }
@@ -370,42 +425,151 @@ export class PipelineBinding {
       capture("steps"),
     ]);
   }
+
+  verticalLine(first, last = false) {
+    //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
+    const horizontalLineThinkness = 2;
+    return html`<div
+      style=${{ position: "relative", display: "flex", "flex-grow": "1" }}
+    >
+      <div
+        style=${{
+          "margin-left": "12px",
+          background: "blue",
+          "min-height": "25px",
+          height: "100%",
+          width: "10px",
+          opacity: "0.5",
+          position: "absolute",
+          display: "block",
+        }}
+      ></div>
+      <div
+        style=${{
+          "border-left": "2px solid black",
+          "margin-left": "1rem",
+          "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
+          "min-height": "25px",
+          "flex-grow": "1",
+        }}
+      ></div>
+    </div>`;
+  }
+
+  horizontalLine(first, last) {
+    if (last) {
+      return html`<div
+        style=${{
+          "border-top": "2px solid green",
+          "margin-left": "0rem",
+          height: "0px",
+          width: "1rem",
+        }}
+      ></div>`;
+    } else {
+      return html`<div style=${{ position: "relative" }}>
+        <div
+          style=${{
+            "margin-left": "1rem",
+            "margin-right": "1rem",
+            "margin-top": "-4px",
+            background: "blue",
+            height: "10px",
+            width: "100%",
+            opacity: "0.5",
+            position: "absolute",
+            display: "block",
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-top": "2px solid red",
+            "margin-left": first ? "1rem" : "0rem",
+            height: "0px",
+          }}
+        ></div>
+      </div>`;
+    }
+  }
 }
 
 export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = () => {
-      switch (this.type) {
-        case PipelineSteps.FUNCTION:
-          return html`<div
-            style=${{
-              padding: "3px",
-              borderRadius: "5px",
-              background: "#333",
-              display: "inline-block",
-            }}
-          >
-            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
-          </div>`;
-        case PipelineSteps.CAPTURE:
-          return html`<div
-            style=${{
-              padding: "3px",
-              borderRadius: "5px",
-              background: "orange",
-              display: "inline-block",
-            }}
-          >
-            ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
-          </div>`;
-      }
-    };
+    this.component = (connectToRight = false) =>
+      h(
+        "div",
+        {
+          style: { display: "flex", "flex-grow": "1", "align-items": "center" },
+        },
+        this.getNodeComponent(),
+        connectToRight ? this.horizontalLine() : html``,
+      );
   }
 
   get sourceString() {
     this.node.sourceString;
+  }
+
+  horizontalLine() {
+    return html`
+      <div style=${{ position: "relative", display: "flex", "flex-grow": "1" }}>
+        <div
+          style=${{
+            position: "absolute",
+            display: "block",
+            position: "absolute",
+            width: "calc(100% + 5px)",
+            height: "10px",
+            opacity: "0.5",
+            background: "blue",
+            "margin-top": "-4px",
+            "margin-left": "-5px",
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-top": "2px solid black",
+            "margin-left": "-5px",
+            "flex-grow": "1",
+            height: "0px",
+            width: "1rem",
+          }}
+        ></div>
+      </div>
+    `;
+  }
+
+  getNodeComponent() {
+    switch (this.type) {
+      case PipelineSteps.FUNCTION:
+        return html`<div
+          style=${{
+            padding: "3px",
+            "margin-right": "5px",
+            borderRadius: "5px",
+            border: "3px solid black",
+            //background: "#333",
+            display: "inline-block",
+          }}
+        >
+          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+        </div>`;
+      case PipelineSteps.CAPTURE:
+        return html`<div
+          style=${{
+            padding: "3px",
+            "margin-right": "5px",
+            borderRadius: "5px",
+            border: "3px solid orange",
+            //background: "#333",
+            display: "inline-block",
+          }}
+        >
+          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+        </div>`;
+    }
   }
 }
 

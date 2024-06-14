@@ -7,7 +7,71 @@
   <body>
     <div id="editor"></div>
     <script type="module">
-      import {} from "./demo.ts";
+      import { createDefaultCodeMirror } from "./codemirror6.ts";
+      import {
+        smileys,
+        xstate,
+        sendAction,
+        watch,
+        placeholder,
+        createPlaceholder,
+      } from "./demo.ts";
+
+      const v = createDefaultCodeMirror(
+        `import { createMachine, createActor } from 'xstate';
+
+const textMachine = createMachine({
+  context: {
+    committedValue: '',
+    value: '',
+  },
+  initial: 'reading',
+  states: {
+    reading: {
+      on: {
+        'text.edit': { target: 'editing' },
+      },
+    },
+    editing: {
+      on: {
+        /*'text.change': {
+          actions: assign({
+            value: ({ event }) => event.value,
+          }),
+        },
+        'text.commit': {
+          actions: assign({
+            committedValue: ({ context }) => context.value,
+          }),
+          target: 'reading',
+        },
+        'text.cancel': {
+          actions: assign({
+            value: ({ context }) => context.committedValue,
+          }),
+          target: 'reading',
+        },*/
+      },
+    },
+  },
+});
+
+const textActor = createActor(textMachine).start();
+
+textActor.subscribe((state) => {
+  console.log(sbWatch(${createPlaceholder("number goes here")}, '123'));
+});
+
+textActor.send({ type: sbWatch('text.edit', '123') });
+/*textActor.send({ type: 'text.change', value: 'Hello' });
+textActor.send({ type: 'text.commit' });
+textActor.send({ type: 'text.edit' });
+textActor.send({ type: 'text.change', value: 'Hello world' });
+textActor.send({ type: 'text.cancel' });*/`,
+        document.querySelector("#editor"),
+        [smileys, xstate, sendAction, watch, placeholder],
+      );
+      console.log(v);
     </script>
   </body>
 </html>

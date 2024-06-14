@@ -7,8 +7,16 @@ export function getFocusHost(element: Node) {
   return null;
 }
 
+export function markInputEditableForNode(node) {
+  return (input) => {
+    markInputEditable(input);
+    if (input) input.range = node.range;
+  };
+}
+
 export function markInputEditable(input) {
-  if (input.hasAttribute("sb-editable")) return;
+  if (!input || input.hasAttribute("sb-editable")) return;
+  input.setAttribute("sb-editable", "");
 
   function move(forward, e) {
     e.preventDefault();
