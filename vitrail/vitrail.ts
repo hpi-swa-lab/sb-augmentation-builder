@@ -345,6 +345,11 @@ export class Vitrail<T> extends EventTarget {
     ];
   }
 
+  nodeTextWithPendingChanges(node) {
+    const range = this.adjustRange(node.range);
+    return [this._rootPane.getText().slice(...range), range];
+  }
+
   get hasPendingChanges() {
     return this._pendingChanges.value.length > 0;
   }

@@ -12,7 +12,7 @@ import {
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
-import { markInputEditable, markInputEditableForNode } from "../view/focus.ts";
+import { markInputEditableForNode } from "../view/focus.ts";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
 import {

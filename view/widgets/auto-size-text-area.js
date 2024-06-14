@@ -1,7 +1,10 @@
-import { findChange } from "../../utils.js";
-import { h, markInputEditable } from "../widgets.js";
+import { Side, findChange } from "../../utils.js";
+import { markInputEditableForNode } from "../focus.ts";
+import { h } from "../widgets.js";
 
 export function AutoSizeTextArea({ node }) {
+  const [text, range] = node.editor.nodeTextWithPendingChanges(node);
+  console.log(text, range);
   const style = {
     padding: 0,
     lineHeight: "inherit",
@@ -15,12 +18,7 @@ export function AutoSizeTextArea({ node }) {
     h(
       "textarea",
       {
-        ref: (current) => {
-          if (current) {
-            markInputEditable(current);
-            current.range = node.range;
-          }
-        },
+        ref: markInputEditableForNode(node),
         rows: 1,
         cols: 1,
         style: {
@@ -31,22 +29,24 @@ export function AutoSizeTextArea({ node }) {
         },
         onInput: (e) => {
           const change = findChange(
-            node.text,
+            text,
             e.target.value,
             e.target.selectionStart,
           );
           if (change) {
-            change.from += node.range[0];
-            change.to += node.range[0];
+            change.from += range[0];
+            change.to += range[0];
             change.selectionRange = [
-              e.target.selectionStart + node.range[0],
-              e.target.selectionEnd + node.range[0],
+              e.target.selectionStart + range[0],
+              e.target.selectionEnd + range[0],
             ];
+            change.sideAffinity =
+              change.from === range[0] ? Side.Right : Side.Left;
             node.editor.applyChanges([change]);
           }
         },
       },
-      node.text,
+      text,
     ),
     h(
       "span",
@@ -58,7 +58,7 @@ export function AutoSizeTextArea({ node }) {
           gridArea: "1 / 1 / 2 / 2",
         },
       },
-      node.text,
+      text,
     ),
   );
 }
