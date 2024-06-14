@@ -575,8 +575,7 @@ export class Pane<T> {
   }
 
   applyChanges(changes: Change<T>[]) {
-    const range = this.range;
-    const length = range[1] - range[0];
+    const length = this.getText().length;
     const translated: Change<T>[] = [];
     for (const change of changes) {
       const from = change.from - this.startIndex;
