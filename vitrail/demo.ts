@@ -1,5 +1,6 @@
 import { languageFor } from "../core/languages.js";
 import { extractType } from "../core/model.js";
+import { useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   all,
@@ -11,13 +12,16 @@ import {
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
-import { markInputEditable } from "../view/focus.ts";
+import { markInputEditable, markInputEditableForNode } from "../view/focus.ts";
 import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
 import {
+  SelectionInteraction,
   VitrailPane,
   VitrailPaneWithWhitespace,
+  changesIntendToDeleteNode,
   useValidateKeepReplacement,
+  useValidator,
 } from "./vitrail.ts";
 
 const objectField = (field) => (it) =>
@@ -217,15 +221,27 @@ export const placeholder = {
         ),
       ]),
     ]),
-  view: ({ nodes }) =>
-    h("input", {
-      range: nodes[0].range,
-      ref: markInputEditable,
+  selectionInteraction: SelectionInteraction.Skip,
+  view: ({ nodes, replacement }) => {
+    const text = useMemo(() => nodes[0].text, []);
+
+    useValidateKeepReplacement(replacement);
+    // prevent changes after the placeholder from changing our label
+    useValidator(
+      languageFor("javascript"),
+      (_root, _diff, changes) =>
+        changesIntendToDeleteNode(changes, nodes[0]) || nodes[0].text === text,
+      [nodes[0].text],
+    );
+
+    return h("input", {
+      ref: markInputEditableForNode(nodes[0]),
       placeholder: nodes[0].text
         .substring("__VI_PLACEHOLDER_".length)
         .replace(/_/g, " "),
-      oninput: (e) => nodes[0].replaceWith(e.target.value),
-    }),
+      oninput: (e) => nodes[0].replaceWith(e.target.value, [nodes[0]]),
+    });
+  },
 };
 
 export const smileys = {

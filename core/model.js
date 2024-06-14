@@ -560,9 +560,9 @@ export class SBNode {
   }
 
   // edit operations
-  replaceWith(str) {
+  replaceWith(str, intentDeleteNodes) {
     if (typeof str === "number") str = str.toString();
-    this.editor.replaceTextFromCommand(this.range, str);
+    this.editor.replaceTextFromCommand(this.range, str, intentDeleteNodes);
   }
 
   wrapWith(start, end) {

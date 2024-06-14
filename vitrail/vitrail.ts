@@ -377,7 +377,11 @@ export class Vitrail<T> extends EventTarget {
     }
   }
 
-  replaceTextFromCommand(range: [number, number], text: string) {
+  replaceTextFromCommand(
+    range: [number, number],
+    text: string,
+    intentDeleteNodes?: SBNode[],
+  ) {
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
     this.applyChanges([
       {
@@ -385,6 +389,7 @@ export class Vitrail<T> extends EventTarget {
         to: range[1],
         insert: text,
         selectionRange: [range[0] + text.length, range[0] + text.length],
+        intentDeleteNodes,
         inverse: {
           from: range[0],
           to: range[0] + text.length,
@@ -867,6 +872,15 @@ export function VitrailPaneWithWhitespace({ nodes, ...props }) {
   return h(VitrailPane, { nodes: list, ...props });
 }
 
+export function changesIntendToDeleteNode(
+  changes: ReversibleChange<any>[],
+  node: SBNode,
+) {
+  return changes.some(
+    (c) => c.intentDeleteNodes?.some((n) => n.contains(node)),
+  );
+}
+
 export function useValidator(
   model: Model,
   func: ValidatorFunc<any>,
@@ -897,10 +911,7 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
   useValidator(
     replacement.augmentation.model,
     (_root, _diff, changes) =>
-      changes.some(
-        (c) =>
-          c.intentDeleteNodes?.some((n) => n.contains(replacement.matchedNode)),
-      ) ||
+      changesIntendToDeleteNode(changes, replacement.matchedNode) ||
       (replacement.matchedNode?.connected &&
         replacement.augmentation.match(replacement.matchedNode, pane) !== null),
     [...replacement.nodes, replacement.augmentation],
