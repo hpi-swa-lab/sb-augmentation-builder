@@ -314,6 +314,7 @@ export class PipelineBinding {
                         display: "flex",
                         "flex-direction": "row",
                         "flex-grow": "1",
+                        position: "relative",
                       },
                     },
                     step.step.component(
@@ -324,7 +325,7 @@ export class PipelineBinding {
               }),
               bottom ? this.verticalLine(false, true) : html``,
               bottom
-                ? this.horizontalLine(firstPipeline, lastPipeline)
+                ? this.horizontalLine(firstPipeline, lastPipeline, false)
                 : html``,
             ),
           );
@@ -444,32 +445,7 @@ export class PipelineBinding {
         "flex-grow": "1",
         "align-items:": "center",
       }}
-      onmouseenter=${() => (buttonVisible.value = true)}
-      onmouseleave=${async () => (buttonVisible.value = false)}
     >
-      <div
-        style=${{
-          "margin-left": "12px",
-          background: "blue",
-          "min-height": "25px",
-          height: "100%",
-          width: "10px",
-          opacity: "0.5",
-          position: "absolute",
-          display: "block",
-        }}
-      ></div>
-      <div
-        style=${{
-          display: "block",
-          position: "absolute",
-          "margin-top": "0px",
-          "margin-left": "7px",
-        }}
-      >
-        ${addButton(buttonVisible.value)}
-      </div>
-
       <div
         style=${{
           "border-left": "2px solid black",
@@ -479,10 +455,25 @@ export class PipelineBinding {
           "flex-grow": "1",
         }}
       ></div>
+
+      <div
+        style=${{
+          display: "block",
+          position: "absolute",
+          "margin-top": "0px",
+          "margin-left": "7px",
+          height: "100%",
+          width: "30px",
+        }}
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
+        ${addButton(buttonVisible.value)}
+      </div>
     </div>`;
   }
 
-  horizontalLine(first, last) {
+  horizontalLine(first, last, buttonVisibleOverwrite = true) {
     const buttonVisible = useSignal(false);
 
     if (last) {
@@ -529,7 +520,7 @@ export class PipelineBinding {
             "margin-left": "2rem",
           }}
         >
-          ${addButton(buttonVisible.value)}
+          ${addButton(buttonVisible.value && buttonVisibleOverwrite)}
         </div>
       </div>`;
     }
