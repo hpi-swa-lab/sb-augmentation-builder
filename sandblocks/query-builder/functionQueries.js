@@ -434,9 +434,18 @@ export class PipelineBinding {
 
   verticalLine(first, last = false) {
     //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
+    const buttonVisible = useSignal(false);
+
     const horizontalLineThinkness = 2;
     return html`<div
-      style=${{ position: "relative", display: "flex", "flex-grow": "1" }}
+      style=${{
+        position: "relative",
+        display: "flex",
+        "flex-grow": "1",
+        "align-items:": "center",
+      }}
+      onmouseenter=${() => (buttonVisible.value = true)}
+      onmouseleave=${async () => (buttonVisible.value = false)}
     >
       <div
         style=${{
@@ -450,6 +459,16 @@ export class PipelineBinding {
           display: "block",
         }}
       ></div>
+      <div
+        style=${{
+          display: "block",
+          position: "absolute",
+          "margin-top": "0px",
+          "margin-left": "7px",
+        }}
+      >
+        ${addButton(buttonVisible.value)}
+      </div>
 
       <div
         style=${{
@@ -479,9 +498,7 @@ export class PipelineBinding {
       return html`<div
         style=${{ position: "relative" }}
         onmouseenter=${() => (buttonVisible.value = true)}
-        onmouseleave=${async () => {
-          buttonVisible.value = false;
-        }}
+        onmouseleave=${async () => (buttonVisible.value = false)}
       >
         <div
           style=${{
@@ -543,8 +560,14 @@ export class PipelineStepBinding {
   }
 
   horizontalLine() {
+    const buttonVisible = useSignal(false);
+
     return html`
-      <div style=${{ position: "relative", display: "flex", "flex-grow": "1" }}>
+      <div
+        style=${{ position: "relative", display: "flex", "flex-grow": "1" }}
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
         <div
           style=${{
             position: "absolute",
@@ -558,6 +581,16 @@ export class PipelineStepBinding {
             "margin-left": "-5px",
           }}
         ></div>
+        <div
+          style=${{
+            display: "block",
+            position: "absolute",
+            "margin-top": "-13px",
+            "margin-left": "5px",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
         <div
           style=${{
             "border-top": "2px solid black",
