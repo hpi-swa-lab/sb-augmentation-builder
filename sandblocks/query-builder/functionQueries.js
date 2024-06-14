@@ -5,6 +5,7 @@ import {
   VitrailPaneWithWhitespace,
   useValidateKeepReplacement,
 } from "../../vitrail/vitrail.ts";
+import { useSignal } from "../../external/preact-signals.mjs";
 
 export function orderFork() {}
 
@@ -340,11 +341,18 @@ export class PipelineBinding {
               },
             },
             this.steps.steps.map((step, index) => {
-              return html`<div>
-                ${this.horizontalLine(
-                  index == 0,
-                  index == this.steps.steps.length - 1,
-                )}${step.step.component(true)}
+              return html`<div
+                style=${{ position: "relative", border: "1px dotted green" }}
+              >
+                ${step.step.component(true)}
+                <div
+                  style=${{ position: "absolute", width: "100%", top: "0%" }}
+                >
+                  ${this.horizontalLine(
+                    index == 0,
+                    index == this.steps.steps.length - 1,
+                  )}
+                </div>
               </div>`;
             }),
           );
@@ -397,7 +405,7 @@ export class PipelineBinding {
           (it) => new PipelineBinding(it, PipelineSteps.FIRST),
         ],
         [
-          query("capture($NAME)"),
+          query('capture("$NAME")'),
           (it) => it.NAME,
           (it) => new PipelineStepBinding(it, PipelineSteps.CAPTURE),
         ],
@@ -426,40 +434,61 @@ export class PipelineBinding {
 
   verticalLine(first, last = false) {
     //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
+    const buttonVisible = useSignal(false);
+
     const horizontalLineThinkness = 2;
-    if (last) {
-      return html` <div
-          style=${{
-            "border-left": "2px solid black",
-            "margin-left": "1rem",
-            "margin-top": "0px",
-            height: `${25}px`,
-          }}
-        ></div>
-        <div
-          style=${{
-            "border-left": "2px solid black",
-            "margin-left": "1rem",
-            "flex-grow": "1",
-          }}
-        ></div>`;
-    } else {
-      return html`<div
+    return html`<div
+      style=${{
+        position: "relative",
+        display: "flex",
+        "flex-grow": "1",
+        "align-items:": "center",
+      }}
+      onmouseenter=${() => (buttonVisible.value = true)}
+      onmouseleave=${async () => (buttonVisible.value = false)}
+    >
+      <div
+        style=${{
+          "margin-left": "12px",
+          background: "blue",
+          "min-height": "25px",
+          height: "100%",
+          width: "10px",
+          opacity: "0.5",
+          position: "absolute",
+          display: "block",
+        }}
+      ></div>
+      <div
+        style=${{
+          display: "block",
+          position: "absolute",
+          "margin-top": "0px",
+          "margin-left": "7px",
+        }}
+      >
+        ${addButton(buttonVisible.value)}
+      </div>
+
+      <div
         style=${{
           "border-left": "2px solid black",
           "margin-left": "1rem",
           "margin-top": first ? `-${horizontalLineThinkness}px` : "0px",
-          height: first ? `${25 + horizontalLineThinkness}px` : `${25}px`,
+          "min-height": "25px",
+          "flex-grow": "1",
         }}
-      ></div>`;
-    }
+      ></div>
+    </div>`;
   }
 
   horizontalLine(first, last) {
+    const buttonVisible = useSignal(false);
+
     if (last) {
       return html`<div
         style=${{
-          "border-top": "2px solid black",
+          "border-top": "2px solid green",
           "margin-left": "0rem",
           height: "0px",
           width: "1rem",
@@ -467,14 +496,48 @@ export class PipelineBinding {
       ></div>`;
     } else {
       return html`<div
-        style=${{
-          "border-top": "2px solid black",
-          "margin-left": first ? "1rem" : "0rem",
-          height: "0px",
-        }}
-      ></div>`;
+        style=${{ position: "relative" }}
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
+        <div
+          style=${{
+            "margin-left": "1rem",
+            "margin-right": "1rem",
+            "margin-top": "-5px",
+            border: "1px dotted red",
+            background: "blue",
+            height: "10px",
+            width: "100%",
+            opacity: "0.5",
+            position: "absolute",
+            display: "block",
+          }}
+        ></div>
+        <div
+          style=${{
+            "border-top": "2px solid red",
+            "margin-left": first ? "1rem" : "0rem",
+            height: "0px",
+          }}
+        ></div>
+        <div
+          style=${{
+            display: "block",
+            position: "absolute",
+            "margin-top": "-13px",
+            "margin-left": "2rem",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
+      </div>`;
     }
   }
+}
+
+function addButton(visible) {
+  return visible ? html`<button>+</button>` : html``;
 }
 
 export class PipelineStepBinding {
@@ -497,15 +560,48 @@ export class PipelineStepBinding {
   }
 
   horizontalLine() {
-    return html`<div
-      style=${{
-        "border-top": "2px solid black",
-        "margin-left": "-5px",
-        "flex-grow": "1",
-        height: "0px",
-        width: "1rem",
-      }}
-    ></div>`;
+    const buttonVisible = useSignal(false);
+
+    return html`
+      <div
+        style=${{ position: "relative", display: "flex", "flex-grow": "1" }}
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
+        <div
+          style=${{
+            position: "absolute",
+            display: "block",
+            position: "absolute",
+            width: "calc(100% + 5px)",
+            height: "10px",
+            opacity: "0.5",
+            background: "blue",
+            "margin-top": "-4px",
+            "margin-left": "-5px",
+          }}
+        ></div>
+        <div
+          style=${{
+            display: "block",
+            position: "absolute",
+            "margin-top": "-13px",
+            "margin-left": "5px",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
+        <div
+          style=${{
+            "border-top": "2px solid black",
+            "margin-left": "-5px",
+            "flex-grow": "1",
+            height: "0px",
+            width: "1rem",
+          }}
+        ></div>
+      </div>
+    `;
   }
 
   getNodeComponent() {

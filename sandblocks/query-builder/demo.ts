@@ -115,7 +115,6 @@ function collectToplevel(node) {
           ),
         ],
       ),
-      capture("node"),
     ]);
   }
 

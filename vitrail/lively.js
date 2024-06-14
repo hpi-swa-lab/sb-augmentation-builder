@@ -46,6 +46,8 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
         }
       },
       focusRange: (head, anchor) => {
+        console.log("focusRange")
+        window.timeStart = performance.now()
         queueMicrotask(() => cm.focus());
         cm.setSelection(cm.posFromIndex(anchor), cm.posFromIndex(head));
       },
