@@ -225,7 +225,11 @@ export class Vitrail<T> extends EventTarget {
   _revertChanges: Change<T>[] = [];
 
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
-    if (!last(changes).sideAffinity && last(changes).sourcePane) {
+    if (
+      changes.length > 0 &&
+      !last(changes).sideAffinity &&
+      last(changes).sourcePane
+    ) {
       let atStart = last(changes).sourcePane.startIndex === last(changes).from;
       last(changes).sideAffinity = atStart ? Side.Left : Side.Right;
     }
@@ -328,7 +332,7 @@ export class Vitrail<T> extends EventTarget {
     );
   }
 
-  adjustRange(range: [number, number], noGrow = false) {
+  adjustRange(range: [number, number], noGrow = false): [number, number] {
     return [
       adjustIndex(range[0], this._pendingChanges.value, Side.Left, noGrow),
       adjustIndex(range[1], this._pendingChanges.value, Side.Right, noGrow),
@@ -384,6 +388,7 @@ export class Vitrail<T> extends EventTarget {
     text: string,
     intentDeleteNodes?: SBNode[],
   ) {
+    range = this.adjustRange(range, true);
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
     this.applyChanges([
       {
@@ -402,6 +407,7 @@ export class Vitrail<T> extends EventTarget {
   }
 
   insertTextFromCommand(position: number, text: string) {
+    position = this.adjustRange([position, position], true)[0];
     this.applyChanges([
       {
         from: position,
