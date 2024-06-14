@@ -5,6 +5,7 @@ import {
   VitrailPaneWithWhitespace,
   useValidateKeepReplacement,
 } from "../../vitrail/vitrail.ts";
+import { useSignal } from "../../external/preact-signals.mjs";
 
 export function orderFork() {}
 
@@ -341,12 +342,17 @@ export class PipelineBinding {
             },
             this.steps.steps.map((step, index) => {
               return html`<div
-                style=${{ position: "relative", border: "0px dotted green" }}
+                style=${{ position: "relative", border: "1px dotted green" }}
               >
-                ${this.horizontalLine(
-                  index == 0,
-                  index == this.steps.steps.length - 1,
-                )}${step.step.component(true)}
+                ${step.step.component(true)}
+                <div
+                  style=${{ position: "absolute", width: "100%", top: "0%" }}
+                >
+                  ${this.horizontalLine(
+                    index == 0,
+                    index == this.steps.steps.length - 1,
+                  )}
+                </div>
               </div>`;
             }),
           );
@@ -399,7 +405,7 @@ export class PipelineBinding {
           (it) => new PipelineBinding(it, PipelineSteps.FIRST),
         ],
         [
-          query("capture($NAME)"),
+          query('capture("$NAME")'),
           (it) => it.NAME,
           (it) => new PipelineStepBinding(it, PipelineSteps.CAPTURE),
         ],
@@ -444,6 +450,7 @@ export class PipelineBinding {
           display: "block",
         }}
       ></div>
+
       <div
         style=${{
           "border-left": "2px solid black",
@@ -457,6 +464,8 @@ export class PipelineBinding {
   }
 
   horizontalLine(first, last) {
+    const buttonVisible = useSignal(false);
+
     if (last) {
       return html`<div
         style=${{
@@ -467,12 +476,19 @@ export class PipelineBinding {
         }}
       ></div>`;
     } else {
-      return html`<div style=${{ position: "relative" }}>
+      return html`<div
+        style=${{ position: "relative" }}
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => {
+          buttonVisible.value = false;
+        }}
+      >
         <div
           style=${{
             "margin-left": "1rem",
             "margin-right": "1rem",
-            "margin-top": "-4px",
+            "margin-top": "-5px",
+            border: "1px dotted red",
             background: "blue",
             height: "10px",
             width: "100%",
@@ -488,9 +504,23 @@ export class PipelineBinding {
             height: "0px",
           }}
         ></div>
+        <div
+          style=${{
+            display: "block",
+            position: "absolute",
+            "margin-top": "-13px",
+            "margin-left": "2rem",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
       </div>`;
     }
   }
+}
+
+function addButton(visible) {
+  return visible ? html`<button>+</button>` : html``;
 }
 
 export class PipelineStepBinding {
