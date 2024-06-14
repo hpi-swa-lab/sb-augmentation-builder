@@ -542,7 +542,7 @@ export class SBNode {
   }
 
   contains(aNode) {
-    return aNode === this || aNode.hasParentThat((p) => p === this);
+    return aNode.orParentThat((p) => p === this);
   }
 
   get isText() {

@@ -36,21 +36,21 @@ import {
   lineNumbers,
   highlightActiveLineGutter,
   keymap,
-  foldGutter,
   StateField,
   Decoration,
   Prec,
   RangeSet,
   StateEffect,
   WidgetType,
+  Transaction,
+  undo,
+  redo,
 } from "../codemirror6/external/codemirror.bundle.js";
-import { ayuLight } from "../codemirror6/theme.js";
-import { rangeShift, parallelToSequentialChanges, last } from "../utils.js";
+import { rangeShift, parallelToSequentialChanges } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 
 const baseCMExtensions = [
   highlightSpecialChars(),
-  history(),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
@@ -62,7 +62,6 @@ const baseCMExtensions = [
   rectangularSelection(),
   crosshairCursor(),
   highlightSelectionMatches(),
-  ayuLight,
   javascript(),
   keymap.of([
     ...closeBracketsKeymap,
@@ -87,8 +86,8 @@ export async function createDefaultCodeMirror(
     extensions: [
       ...baseCMExtensions,
       // lineNumbers(),
+      history(),
       highlightActiveLineGutter(),
-      // foldGutter(),
       ...cmExtensions,
     ],
     parent,
@@ -189,8 +188,30 @@ export async function codeMirror6WithVitrail(
             preventDefault: true,
             stopPropagation: true,
           },
+          {
+            key: "Mod-z",
+            // TODO reverts focus to root
+            run: () => v._rootPane.host.dispatch(undo(v._rootPane.host)),
+            preventDefault: true,
+            stopPropagation: true,
+          },
+          {
+            key: "Mod-y",
+            run: () => v._rootPane.host.dispatch(redo(v._rootPane.host)),
+            preventDefault: true,
+            stopPropagation: true,
+          },
         ]),
       ),
+      // EditorView.domEventHandlers({
+      //     beforeinput(e, view) {
+      //         let command = e.inputType == "historyUndo" ? undo : e.inputType == "historyRedo" ? redo : null;
+      //         if (!command)
+      //             return false;
+      //         e.preventDefault();
+      //         return command(view);
+      //     }
+      // }),
       replacementsField,
       EditorView.updateListener.of((update) => {
         if (
@@ -224,16 +245,6 @@ export async function codeMirror6WithVitrail(
           parallelToSequentialChanges(inverse);
           changes.forEach((c, i) => (c.inverse = inverse[i]));
 
-          // last(changes).selectionRange = rangeShift(
-          //   [
-          //     update.state.selection.main.head,
-          //     update.state.selection.main.anchor,
-          //   ],
-          //   pane.startIndex,
-          // );
-          // last(changes).sideAffinity =
-          //   pane.startIndex === last(changes).from ? 1 : -1;
-
           v.applyChanges(changes);
         }
       }),
@@ -244,6 +255,7 @@ export async function codeMirror6WithVitrail(
     host: EditorView,
     vitrail: Vitrail<EditorView>,
     fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
+    isRoot = false,
   ) {
     const pane = new Pane<EditorView>({
       vitrail,
@@ -254,7 +266,9 @@ export async function codeMirror6WithVitrail(
         host.state.selection.main.head,
         host.state.selection.main.anchor,
       ],
-      syncReplacements: () => host.dispatch({ userEvent: "sync" }),
+      // undo: () => historyExt && host.dispatch(undo),
+      syncReplacements: () =>
+        host.dispatch({ userEvent: "sync", addToHistory: false }),
       focusRange: (head, anchor) => {
         host.focus();
         host.dispatch({ selection: { anchor: head, head: anchor } });
@@ -265,16 +279,22 @@ export async function codeMirror6WithVitrail(
         ),
       getText: () => host.state.doc.toString(),
       hasFocus: () => host.hasFocus,
-      setText: (text: string) =>
+      setText: (text: string, undoable: boolean) =>
         host.dispatch(
           host.state.update({
             userEvent: "sync",
+            annotations: [Transaction.addToHistory.of(undoable)],
             changes: [{ from: 0, to: host.state.doc.length, insert: text }],
           }),
         ),
     });
 
-    host.dispatch({ effects: StateEffect.appendConfig.of(extensions(pane)) });
+    host.dispatch({
+      effects: StateEffect.appendConfig.of([
+        ...extensions(pane),
+        ...(isRoot ? [history()] : []),
+      ]),
+    });
 
     return pane;
   }
@@ -297,7 +317,7 @@ export async function codeMirror6WithVitrail(
       else pendingChangesHint.remove();
     },
   });
-  await v.connectHost(paneFromCM(cm, v, () => augmentations));
+  await v.connectHost(paneFromCM(cm, v, () => augmentations, true));
 
   buildPendingChangesHint(v, pendingChangesHint);
 

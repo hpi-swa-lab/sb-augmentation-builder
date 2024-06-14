@@ -110,7 +110,7 @@ type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
 ) => Pane<T>;
 type PaneGetTextFunc = () => string;
-type PaneSetTextFunc = (s: string) => void;
+type PaneSetTextFunc = (s: string, undoable: boolean) => void;
 type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
 export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
@@ -549,7 +549,7 @@ export class Pane<T> {
     this.startIndex = nodes[0].range[0];
     this.nodes = nodes;
 
-    this.setText(v._sourceString.slice(this.range[0], this.range[1]));
+    this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
     const buffers = this.getInitEditBuffersForRoots([...v._models.values()]);
     for (const buffer of buffers) this.updateReplacements(buffer);
@@ -581,7 +581,7 @@ export class Pane<T> {
       // pendingChanges, the AST won't update.
       const targetText = this.nodes.map((n) => n.sourceString).join("");
       if (this.getText() !== targetText) {
-        this.setText(targetText);
+        this.setText(targetText, true);
       }
       this.startIndex = this.nodes[0].range[0];
     }
