@@ -87,16 +87,16 @@ function collectToplevel(node) {
                 [
                   first(
                     [
-                      (it) => it.type == "class_declaration",
+                      type("class_declaration"),
                       //Thing about queryAndCapture methode
                       query("class $name {$$$members}"),
                     ],
                     [
-                      (it) => it.type == "import_statement",
+                      type("import_statement"),
                       query("import {$$$members} from '$name'"),
                     ],
                     [
-                      (it) => it.type == "function_declaration",
+                      type("function_declaration"),
                       (it) => it.children.find((it) => it.type == "identifier"),
                       (it) => ({ name: it, members: [] }),
                     ],
@@ -120,7 +120,7 @@ function collectToplevel(node) {
 
   const pipeline = (node) =>
     metaexec(node, (capture) => [
-      (it) => it.type == "program",
+      type("program"),
       (it) => it.children,
       spawnArray(collectToplevel),
       capture("topLevel"),

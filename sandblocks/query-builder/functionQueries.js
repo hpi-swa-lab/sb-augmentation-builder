@@ -115,6 +115,9 @@ export function query(query, extract) {
 export function queryDeep(query, extract) {
   return (it) => it.findQuery(query, extract);
 }
+export function type(typeName) {
+  return (it) => it.type === typeName;
+}
 
 export function log(prefix = null) {
   return (it) => {
@@ -417,6 +420,11 @@ export class PipelineBinding {
           (it) => new PipelineStepBinding(it, PipelineSteps.QUERY),
         ],
         [
+          query("type($TYPE)"),
+          (it) => it.TYPE,
+          (it) => new PipelineStepBinding(it, PipelineSteps.TYPE),
+        ],
+        [
           query("spawnArray($CALL)"),
           (it) => it.CALL,
           (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
@@ -601,6 +609,20 @@ export class PipelineStepBinding {
     `;
   }
 
+  displayLabel(label) {
+    return html`<div
+      style=${{
+        position: "absolute",
+        background: "#fff",
+        top: -10,
+        left: 4,
+        fontSize: "0.6rem",
+      }}
+    >
+      ${label}
+    </div>`;
+  }
+
   getNodeComponent() {
     const baseStyle = {
       padding: "3px",
@@ -609,6 +631,7 @@ export class PipelineStepBinding {
       border: "3px solid black",
       //background: "#333",
       display: "inline-block",
+      position: "relative",
     };
     switch (this.type) {
       case PipelineSteps.FUNCTION:
@@ -621,6 +644,12 @@ export class PipelineStepBinding {
         </div>`;
       case PipelineSteps.QUERY:
         return html`<div style=${{ ...baseStyle }}>
+          ${this.displayLabel("QUERY")}
+          ${h(TextArea, bindPlainString(this.node))}
+        </div>`;
+      case PipelineSteps.TYPE:
+        return html`<div style=${{ ...baseStyle }}>
+          ${this.displayLabel("TYPE")}
           ${h(TextArea, bindPlainString(this.node))}
         </div>`;
     }
@@ -635,6 +664,7 @@ const PipelineSteps = {
   CAPTURE: "capture",
   PIPELINE: "pipeline",
   QUERY: "query",
+  TYPE: "type",
 };
 
 export class ExportBinding {
