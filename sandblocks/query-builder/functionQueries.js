@@ -6,6 +6,7 @@ import {
   useValidateKeepReplacement,
 } from "../../vitrail/vitrail.ts";
 import { useSignal } from "../../external/preact-signals.mjs";
+import { TextArea, bindPlainString } from "./bindings.ts";
 
 export function orderFork() {}
 
@@ -406,7 +407,7 @@ export class PipelineBinding {
           (it) => new PipelineBinding(it, PipelineSteps.FIRST),
         ],
         [
-          query('capture("$NAME")'),
+          query("capture($NAME)"),
           (it) => it.NAME,
           (it) => new PipelineStepBinding(it, PipelineSteps.CAPTURE),
         ],
@@ -621,7 +622,7 @@ export class PipelineStepBinding {
             display: "inline-block",
           }}
         >
-          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+          ${h(TextArea, bindPlainString(this.node))}
         </div>`;
     }
   }
