@@ -89,11 +89,11 @@ function collectToplevel(node) {
                     [
                       (it) => it.type == "class_declaration",
                       //Thing about queryAndCapture methode
-                      (it) => it.query("class $name {$$$members}"),
+                      query("class $name {$$$members}"),
                     ],
                     [
                       (it) => it.type == "import_statement",
-                      (it) => it.query("import {$$$members} from '$name'"),
+                      query("import {$$$members} from '$name'"),
                     ],
                     [
                       (it) => it.type == "function_declaration",

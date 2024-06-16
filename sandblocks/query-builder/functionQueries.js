@@ -412,6 +412,11 @@ export class PipelineBinding {
           (it) => new PipelineStepBinding(it, PipelineSteps.CAPTURE),
         ],
         [
+          query("query($QUERY)"),
+          (it) => it.QUERY,
+          (it) => new PipelineStepBinding(it, PipelineSteps.QUERY),
+        ],
+        [
           query("spawnArray($CALL)"),
           (it) => it.CALL,
           (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
@@ -597,31 +602,25 @@ export class PipelineStepBinding {
   }
 
   getNodeComponent() {
+    const baseStyle = {
+      padding: "3px",
+      "margin-right": "5px",
+      borderRadius: "5px",
+      border: "3px solid black",
+      //background: "#333",
+      display: "inline-block",
+    };
     switch (this.type) {
       case PipelineSteps.FUNCTION:
-        return html`<div
-          style=${{
-            padding: "3px",
-            "margin-right": "5px",
-            borderRadius: "5px",
-            border: "3px solid black",
-            //background: "#333",
-            display: "inline-block",
-          }}
-        >
+        return html`<div style=${baseStyle}>
           ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
         </div>`;
       case PipelineSteps.CAPTURE:
-        return html`<div
-          style=${{
-            padding: "3px",
-            "margin-right": "5px",
-            borderRadius: "5px",
-            border: "3px solid orange",
-            //background: "#333",
-            display: "inline-block",
-          }}
-        >
+        return html`<div style=${{ ...baseStyle, borderColor: "orange" }}>
+          ${h(TextArea, bindPlainString(this.node))}
+        </div>`;
+      case PipelineSteps.QUERY:
+        return html`<div style=${{ ...baseStyle }}>
           ${h(TextArea, bindPlainString(this.node))}
         </div>`;
     }
@@ -635,6 +634,7 @@ const PipelineSteps = {
   SPAWN_ARRAY: "spawnArray",
   CAPTURE: "capture",
   PIPELINE: "pipeline",
+  QUERY: "query",
 };
 
 export class ExportBinding {
