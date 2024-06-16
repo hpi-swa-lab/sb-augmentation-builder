@@ -345,8 +345,9 @@ export class Vitrail<T> extends EventTarget {
     ];
   }
 
-  nodeTextWithPendingChanges(node) {
-    const range = this.adjustRange(node.range);
+  nodeTextWithPendingChanges(nodes: SBNode[] | SBNode) {
+    if (!Array.isArray(nodes)) nodes = [nodes];
+    const range = this.adjustRange([nodes[0].range[0], last(nodes).range[1]]);
     return [this._rootPane.getText().slice(...range), range];
   }
 

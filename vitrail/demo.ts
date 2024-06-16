@@ -3,6 +3,10 @@ import { extractType } from "../core/model.js";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
+  TextArea,
+  bindPlainString,
+} from "../sandblocks/query-builder/bindings.ts";
+import {
   all,
   first,
   languageSpecific,
@@ -235,7 +239,7 @@ export const placeholder = {
     );
 
     return h("input", {
-      ref: markInputEditableForNode(nodes[0]),
+      ref: markInputEditableForNode(nodes[0].range),
       placeholder: nodes[0].text
         .substring("__VI_PLACEHOLDER_".length)
         .replace(/_/g, " "),
@@ -294,5 +298,19 @@ export const colorstring = {
       }),
       h(VitrailPaneWithWhitespace, { nodes: nodes }),
     );
+  },
+};
+
+export const text = {
+  model: languageFor("javascript"),
+  matcherDepth: 1,
+  rerender: () => true,
+  match: (x, _pane) =>
+    metaexec(x, (capture) => [
+      (it) => it.type === "string",
+      all([replace(capture)], [bindPlainString, capture("text")]),
+    ]),
+  view: ({ text }) => {
+    return h(TextArea, text);
   },
 };

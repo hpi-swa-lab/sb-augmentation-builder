@@ -15,6 +15,7 @@
         watch,
         placeholder,
         createPlaceholder,
+        text,
       } from "./demo.ts";
 
       const v = createDefaultCodeMirror(
@@ -62,14 +63,14 @@ textActor.subscribe((state) => {
   console.log(sbWatch(${createPlaceholder("number goes here")}, '123'));
 });
 
-textActor.send({ type: sbWatch('text.edit', '123') });
+textActor.send({ type: sbWatch('tex\\'t.edit', '123') });
 /*textActor.send({ type: 'text.change', value: 'Hello' });
 textActor.send({ type: 'text.commit' });
 textActor.send({ type: 'text.edit' });
 textActor.send({ type: 'text.change', value: 'Hello world' });
 textActor.send({ type: 'text.cancel' });*/`,
         document.querySelector("#editor"),
-        [smileys, xstate, sendAction, watch, placeholder],
+        [smileys, xstate, sendAction, watch, placeholder, text],
       );
       console.log(v);
     </script>

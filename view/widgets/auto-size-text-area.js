@@ -4,7 +4,6 @@ import { h } from "../widgets.js";
 
 export function AutoSizeTextArea({ node }) {
   const [text, range] = node.editor.nodeTextWithPendingChanges(node);
-  console.log(text, range);
   const style = {
     padding: 0,
     lineHeight: "inherit",

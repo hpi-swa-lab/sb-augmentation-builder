@@ -1,3 +1,5 @@
+import { SBNode } from "../core/model";
+
 export function getFocusHost(element: Node) {
   let host: Node | null = element;
   while (host) {
@@ -7,16 +9,26 @@ export function getFocusHost(element: Node) {
   return null;
 }
 
-export function markInputEditableForNode(node) {
+export function markInputEditableForNode(
+  range: [number, number],
+  indexMap: [number, number][] = [],
+) {
   return (input) => {
+    if (input) {
+      input.range = range;
+      input.indexMap = indexMap;
+    }
     markInputEditable(input);
-    if (input) input.range = node.range;
   };
 }
 
 export function markInputEditable(input) {
   if (!input || input.hasAttribute("sb-editable")) return;
   input.setAttribute("sb-editable", "");
+
+  function indexMap(): [number, number][] {
+    return input.indexMap ?? [];
+  }
 
   function move(forward, e) {
     e.preventDefault();
@@ -25,7 +37,7 @@ export function markInputEditable(input) {
       {
         root: getFocusHost(input),
         element: input,
-        index: input.selectionStart + input.range[0],
+        index: mapIndex(indexMap(), input.selectionStart) + input.range[0],
       },
       forward,
     );
@@ -33,17 +45,19 @@ export function markInputEditable(input) {
       (pos.element as any).focusRange(pos.index, pos.index);
   }
   input.cursorPositions = function* () {
-    for (let i = 0; i <= input.value.length; i++)
+    for (let i = 0; i <= input.value.length; i++) {
       yield {
         element: input,
-        elementOffset: i,
         index: !!input.range ? i + input.range[0] : undefined,
       };
+      const remap = indexMap().find(([a]) => a === i);
+      if (remap) i += remap[1] - 1;
+    }
   };
   input.focusRange = function (head, anchor) {
     input.focus();
-    input.selectionStart = head - input.range[0];
-    input.selectionEnd = anchor - input.range[0];
+    input.selectionStart = mapIndex(indexMap(), head) - input.range[0];
+    input.selectionEnd = mapIndex(indexMap(), anchor) - input.range[0];
   };
   input.hasFocus = () => document.activeElement === input;
 
@@ -54,6 +68,42 @@ export function markInputEditable(input) {
     // make sure it doesn't bubble up to replacements or similar
     e.stopPropagation();
   });
+}
+
+export function mapIndex(indexMap: [number, number][], index: number) {
+  for (const [insertIndex, length] of indexMap) {
+    if (insertIndex >= index) break;
+    index += length;
+  }
+  return index;
+}
+
+export function remapIndices(
+  s: string,
+  rules: [string, string][],
+): [string, [number, number][]] {
+  const indexMap: [number, number][] = [];
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    let match = false;
+    for (const [from, to] of rules) {
+      if (s.slice(i, i + from.length) === from) {
+        if (from.length !== to.length)
+          indexMap.push([i, from.length - to.length]);
+        out += to;
+        i += from.length - 1;
+        match = true;
+        break;
+      }
+    }
+    if (!match) out += s[i];
+  }
+  return [out, indexMap];
+}
+
+export function remapIndicesReverse(s: string, rules: [string, string][]) {
+  const inverted = rules.map(([from, to]) => [to, from] as [string, string]);
+  return remapIndices(s, inverted);
 }
 
 export function adjacentCursorPosition(

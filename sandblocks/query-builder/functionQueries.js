@@ -169,7 +169,7 @@ export class ArrayBinding {
           <table>
             <tr>
               <td>
-                Array of depth ${this.depth} found. No visualisaztion
+                Array of depth ${this.depth} found. No visualization
                 implemented.
               </td>
             </tr>
