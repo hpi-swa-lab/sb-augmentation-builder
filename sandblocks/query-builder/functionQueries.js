@@ -695,6 +695,7 @@ export class PipelineStepBinding {
           }}
         >
           ${h(VitrailPaneWithWhitespace, {
+            ignoreLeft: true,
             nodes: [this.node],
             style: { maxWidth: "300px", display: "block" },
           })}

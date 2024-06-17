@@ -878,12 +878,14 @@ export function VitrailPane({ fetchAugmentations, nodes, style }) {
   });
 }
 
-export function VitrailPaneWithWhitespace({ nodes, ...props }) {
+export function VitrailPaneWithWhitespace({ nodes, ignoreLeft, ...props }) {
   const list = [
-    ...takeWhile(
-      nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
-      (c) => c.isWhitespace(),
-    ),
+    ...(ignoreLeft
+      ? []
+      : takeWhile(
+          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+          (c) => c.isWhitespace(),
+        )),
     ...nodes,
     ...takeWhile(
       last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
