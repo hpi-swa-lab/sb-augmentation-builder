@@ -2,7 +2,7 @@ import { Vitrail, Pane, replacementRange } from "./vitrail.ts";
 
 export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
   function paneFromLively(livelyEditor, vitrail, fetchAugmentations) {
-    if (!livelyEditor.editor) livelyEditor.editView("");
+    if (!livelyEditor.editor) livelyEditor.editView("xxx");
     const cm = livelyEditor.editor;
     const markers = new Map();
 
@@ -125,6 +125,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
       const editor = document.createElement("lively-code-mirror");
       // Check if we are in Lively, otherwise attach an external CodeMirror
       if (!editor.editView) {
+        
         editor.editor = CodeMirror(editor, { value: "asd" });
         editor.editor.display.wrapper.style.height = "auto";
         onEnterDOM(editor, () => editor.editor.refresh());
