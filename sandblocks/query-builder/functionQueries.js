@@ -1,4 +1,4 @@
-import { html } from "../../view/widgets.js";
+import { div, html } from "../../view/widgets.js";
 import { h } from "../../external/preact.mjs";
 import {
   VitrailPane,
@@ -549,15 +549,21 @@ export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = (connectToRight = false) =>
-      h(
+    this.component = (connectToRight = false) => {
+      return h(
         "div",
         {
-          style: { display: "flex", "flex-grow": "1", "align-items": "center" },
+          style: {
+            display: "flex",
+            "flex-grow": "1",
+            "align-items": "center",
+            position: "relative",
+          },
         },
         this.getNodeComponent(),
-        connectToRight ? this.horizontalLine() : html``,
+        connectToRight ? this.horizontalLine() : null,
       );
+    };
   }
 
   get sourceString() {
@@ -609,6 +615,50 @@ export class PipelineStepBinding {
     `;
   }
 
+  removeButton() {
+    return html`
+      <button
+        style=${{
+          backgroundColor: "red",
+          border: "none",
+          color: "white",
+          padding: "px",
+          height: "20px",
+          width: "20px",
+          textAlign: "center",
+          textDecoration: "none",
+          display: "inline-block",
+          fontSize: "10px",
+          margin: "0px auto",
+          borderRadius: "100%",
+          cursor: "pointer",
+          lineHeight: "20px",
+          position: "absolute",
+          top: "0%",
+          left: "calc(100% - 15px)",
+          marginRight: "-10px",
+          marginTop: "-10px",
+        }}
+      >
+        x
+      </button>
+    `;
+  }
+
+  getNodeComponent(setHover) {
+    const haloVisible = useSignal(false);
+    return html`
+      <div
+        style=${{ position: "relative", display: "flex" }}
+        onmouseenter=${() => (haloVisible.value = true)}
+        onmouseleave=${() => (haloVisible.value = false)}
+      >
+        ${this.getRawNodeComponent()}
+        ${haloVisible.value ? this.removeButton() : null}
+      </div>
+    `;
+  }
+
   displayLabel(label) {
     return html`<div
       style=${{
@@ -623,19 +673,27 @@ export class PipelineStepBinding {
     </div>`;
   }
 
-  getNodeComponent() {
+  getRawNodeComponent() {
     const baseStyle = {
       padding: "3px",
-      "margin-right": "5px",
-      borderRadius: "5px",
       border: "3px solid black",
       //background: "#333",
       display: "inline-block",
       position: "relative",
     };
+
     switch (this.type) {
       case PipelineSteps.FUNCTION:
-        return html`<div style=${baseStyle}>
+        return html`<div
+          style=${{
+            padding: "3px",
+            "margin-right": "5px",
+            borderRadius: "5px",
+            border: "3px solid black",
+            //background: "#333",
+            display: "inline-block",
+          }}
+        >
           ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
         </div>`;
       case PipelineSteps.CAPTURE:
