@@ -196,10 +196,16 @@ const dataurlimage =  {
               var imageEditor = await lively.create("lively-image-editor");
               var img = evt.target;
               var parent = img.parentElement;
-              img.remove();
+              
+              
               
               document.body.appendChild(imageEditor);
-              lively.setClientPosition(imageEditor, lively.getClientPosition(img))
+              
+              lively.sleep(0).then(() =>{
+                let offset = lively.getClientPosition(imageEditor.get("canvas")).subPt(lively.getClientPosition(imageEditor))
+                lively.setClientPosition(imageEditor, lively.getClientPosition(img).subPt(offset))
+                
+              })
               imageEditor.style.zIndex = 10000
               imageEditor.style.minWidth = "200px";
               lively.setPosition(imageEditor, lively.pt(0, -40));
