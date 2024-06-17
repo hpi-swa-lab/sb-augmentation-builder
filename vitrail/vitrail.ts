@@ -853,7 +853,7 @@ export class Pane<T> {
   }
 }
 
-export function VitrailPane({ fetchAugmentations, nodes }) {
+export function VitrailPane({ fetchAugmentations, nodes, style }) {
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
@@ -871,6 +871,7 @@ export function VitrailPane({ fetchAugmentations, nodes }) {
 
   return h("span", {
     key: "stable",
+    style,
     ref: (el: HTMLElement) => {
       if (el && !pane.view.isConnected) el.appendChild(pane.view);
     },

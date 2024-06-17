@@ -65,6 +65,7 @@ const baseCMExtensions = [
   crosshairCursor(),
   highlightSelectionMatches(),
   javascript(),
+  EditorView.lineWrapping,
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,

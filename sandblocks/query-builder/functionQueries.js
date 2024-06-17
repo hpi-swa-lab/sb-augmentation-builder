@@ -694,7 +694,10 @@ export class PipelineStepBinding {
             display: "inline-block",
           }}
         >
-          ${h(VitrailPaneWithWhitespace, { nodes: [this.node] })}
+          ${h(VitrailPaneWithWhitespace, {
+            nodes: [this.node],
+            style: { maxWidth: "300px", display: "block" },
+          })}
         </div>`;
       case PipelineSteps.CAPTURE:
         return html`<div style=${{ ...baseStyle, borderColor: "orange" }}>
