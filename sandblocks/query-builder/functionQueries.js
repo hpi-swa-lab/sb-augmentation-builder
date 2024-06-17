@@ -351,11 +351,7 @@ export class PipelineBinding {
               return html`<div
                 style=${{ position: "relative", border: "1px dotted green" }}
               >
-                ${step.step.component(
-                  true,
-                  lastPipeline && index == 0,
-                  index == this.steps.steps.length - 1,
-                )}
+                ${step.step.component(true)}
                 <div
                   style=${{ position: "absolute", width: "100%", top: "0%" }}
                 >
@@ -499,12 +495,33 @@ export class PipelineBinding {
     if (last) {
       return html`<div
         style=${{
-          "border-top": "2px solid green",
-          "margin-left": "0rem",
-          height: "0px",
-          width: "1rem",
+          display: "flex",
+          alignItems: "center",
+          position: "relative",
         }}
-      ></div>`;
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
+        <div
+          style=${{
+            "border-top": "2px solid green",
+            "margin-left": "0rem",
+            height: "0px",
+            width: "1rem",
+          }}
+        ></div>
+        <div
+          style=${{
+            marginLeft: "1rem",
+            marginTop: "-0.5rem",
+            //position: "absolute",
+            //top: "100%",
+            //right: "50%",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
+      </div>`;
     } else {
       return html`<div
         style=${{ position: "relative" }}
@@ -517,7 +534,7 @@ export class PipelineBinding {
             "margin-right": "1rem",
             "margin-top": "-5px",
             border: "1px dotted red",
-            background: "blue",
+            //background: "blue",
             height: "10px",
             width: "100%",
             opacity: "0.5",
@@ -593,7 +610,7 @@ export class PipelineStepBinding {
             width: "calc(100% + 5px)",
             height: "10px",
             opacity: "0.5",
-            background: "blue",
+            //background: "blue",
             "margin-top": "-4px",
             "margin-left": "-5px",
           }}
