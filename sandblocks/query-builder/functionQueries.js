@@ -323,6 +323,8 @@ export class PipelineBinding {
                     },
                     step.step.component(
                       connectFirstNodes && index == 0 && !lastPipeline,
+                      lastPipeline && index == 0,
+                      index == this.steps.steps.length - 1,
                     ),
                   ),
                 );
@@ -349,7 +351,11 @@ export class PipelineBinding {
               return html`<div
                 style=${{ position: "relative", border: "1px dotted green" }}
               >
-                ${step.step.component(true)}
+                ${step.step.component(
+                  true,
+                  lastPipeline && index == 0,
+                  index == this.steps.steps.length - 1,
+                )}
                 <div
                   style=${{ position: "absolute", width: "100%", top: "0%" }}
                 >
@@ -549,7 +555,7 @@ export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = (connectToRight = false) => {
+    this.component = (connectToRight = false, first = false, last = false) => {
       return h(
         "div",
         {
@@ -560,7 +566,7 @@ export class PipelineStepBinding {
             position: "relative",
           },
         },
-        this.getNodeComponent(),
+        this.getNodeComponent(first, last),
         connectToRight ? this.horizontalLine() : null,
       );
     };
@@ -645,16 +651,27 @@ export class PipelineStepBinding {
     `;
   }
 
-  getNodeComponent(setHover) {
+  getNodeComponent(addButtonRight = false, addButtonBottom = false) {
+    console.log(addButtonRight);
     const haloVisible = useSignal(false);
     return html`
       <div
-        style=${{ position: "relative", display: "flex" }}
         onmouseenter=${() => (haloVisible.value = true)}
         onmouseleave=${() => (haloVisible.value = false)}
       >
-        ${this.getRawNodeComponent()}
-        ${haloVisible.value ? this.removeButton() : null}
+        <div style=${{ position: "relative", display: "flex" }}>
+          ${this.getRawNodeComponent()}
+          ${haloVisible.value ? this.removeButton() : null}
+          ${addButtonRight ? addButton(haloVisible.value) : null}
+        </div>
+        ${addButtonBottom
+          ? html`<div
+              style=${{ top: "100%", right: "0%", marginLeft: "0.5rem" }}
+            >
+              ${addButton(haloVisible.value)}
+              <div></div>
+            </div>`
+          : null}
       </div>
     `;
   }
