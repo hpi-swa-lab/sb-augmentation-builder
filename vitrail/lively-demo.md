@@ -33,14 +33,14 @@ try {
   
 
 
-let source = `/*var x = sbWatch(3 + 4,"id1") + 1
+let source = `var x = sbWatch(3 + 4,"id1") + 1
 
 
 let a = 3 + 4, c = 3
 const b = a + 1
-*/
+
 var color = 'rgba(100,10,10,0.5)'
-/*
+
 var foo = 'not a color'
 
 var table = [[1,'rgb(0,100,0)'],['x' + 4, [['hello', 1]]]]
@@ -50,7 +50,7 @@ var iconURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAApCAYAAACBZ/9
 
 function func() {
 }
-*/
+
 `
 
 const editor = await (<lively-code-mirror style="width:800px; height: 500px; display: block"></lively-code-mirror>)
@@ -196,10 +196,16 @@ const dataurlimage =  {
               var imageEditor = await lively.create("lively-image-editor");
               var img = evt.target;
               var parent = img.parentElement;
-              img.remove();
+              
+              
               
               document.body.appendChild(imageEditor);
-              lively.setClientPosition(imageEditor, lively.getClientPosition(img))
+              
+              lively.sleep(0).then(() =>{
+                let offset = lively.getClientPosition(imageEditor.get("canvas")).subPt(lively.getClientPosition(imageEditor))
+                lively.setClientPosition(imageEditor, lively.getClientPosition(img).subPt(offset))
+                
+              })
               imageEditor.style.zIndex = 10000
               imageEditor.style.minWidth = "200px";
               lively.setPosition(imageEditor, lively.pt(0, -40));

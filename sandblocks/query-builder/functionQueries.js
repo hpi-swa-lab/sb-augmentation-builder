@@ -332,6 +332,8 @@ export class PipelineBinding {
                     },
                     step.step.component(
                       connectFirstNodes && index == 0 && !lastPipeline,
+                      lastPipeline && index == 0,
+                      index == this.steps.steps.length - 1,
                     ),
                   ),
                 );
@@ -502,12 +504,33 @@ export class PipelineBinding {
     if (last) {
       return html`<div
         style=${{
-          "border-top": "2px solid green",
-          "margin-left": "0rem",
-          height: "0px",
-          width: "1rem",
+          display: "flex",
+          alignItems: "center",
+          position: "relative",
         }}
-      ></div>`;
+        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
+      >
+        <div
+          style=${{
+            "border-top": "2px solid green",
+            "margin-left": "0rem",
+            height: "0px",
+            width: "1rem",
+          }}
+        ></div>
+        <div
+          style=${{
+            marginLeft: "1rem",
+            marginTop: "-0.5rem",
+            //position: "absolute",
+            //top: "100%",
+            //right: "50%",
+          }}
+        >
+          ${addButton(buttonVisible.value)}
+        </div>
+      </div>`;
     } else {
       return html`<div
         style=${{ position: "relative" }}
@@ -520,7 +543,7 @@ export class PipelineBinding {
             "margin-right": "1rem",
             "margin-top": "-5px",
             border: "1px dotted red",
-            background: "blue",
+            //background: "blue",
             height: "10px",
             width: "100%",
             opacity: "0.5",
@@ -558,7 +581,7 @@ export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = (connectToRight = false) => {
+    this.component = (connectToRight = false, first = false, last = false) => {
       return h(
         "div",
         {
@@ -569,7 +592,7 @@ export class PipelineStepBinding {
             position: "relative",
           },
         },
-        this.getNodeComponent(),
+        this.getNodeComponent(first, last),
         connectToRight ? this.horizontalLine() : null,
       );
     };
@@ -596,7 +619,7 @@ export class PipelineStepBinding {
             width: "calc(100% + 5px)",
             height: "10px",
             opacity: "0.5",
-            background: "blue",
+            //background: "blue",
             "margin-top": "-4px",
             "margin-left": "-5px",
           }}
@@ -654,16 +677,27 @@ export class PipelineStepBinding {
     `;
   }
 
-  getNodeComponent(setHover) {
+  getNodeComponent(addButtonRight = false, addButtonBottom = false) {
+    console.log(addButtonRight);
     const haloVisible = useSignal(false);
     return html`
       <div
-        style=${{ position: "relative", display: "flex" }}
         onmouseenter=${() => (haloVisible.value = true)}
         onmouseleave=${() => (haloVisible.value = false)}
       >
-        ${this.getRawNodeComponent()}
-        ${haloVisible.value ? this.removeButton() : null}
+        <div style=${{ position: "relative", display: "flex" }}>
+          ${this.getRawNodeComponent()}
+          ${haloVisible.value ? this.removeButton() : null}
+          ${addButtonRight ? addButton(haloVisible.value) : null}
+        </div>
+        ${addButtonBottom
+          ? html`<div
+              style=${{ top: "100%", right: "0%", marginLeft: "0.5rem" }}
+            >
+              ${addButton(haloVisible.value)}
+              <div></div>
+            </div>`
+          : null}
       </div>
     `;
   }
