@@ -261,7 +261,7 @@ const tables = {
   },
 };
 
-await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring, tables, dataurlimage]) // 
+await addVitrailToLivelyEditor(editor, [watch, smileys, colorstring, tables, dataurlimage]) 
 
 var pane = <div style="border:1px solid ">{editor}</div>
 
