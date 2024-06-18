@@ -45,9 +45,11 @@ import {
   undo,
   redo,
   invertedEffects,
+  Annotation,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { rangeShift, parallelToSequentialChanges } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
+import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
 
 const IntentToDelete = StateEffect.define();
 
@@ -240,7 +242,7 @@ export async function codeMirror6WithVitrail(
               intentDeleteNodes: intentDeleteNodes.flatMap((e) => {
                 // a redo is occurring: find the node that we marked for deletion earlier
                 return e.value
-                  .map((n) => v.modelForNode(n).childForRange(n.range))
+                  .map((n) => v.modelForNode(n)!.childForRange(n.range))
                   .filter((n) => Boolean(n));
               }),
             });
@@ -349,4 +351,54 @@ export async function codeMirror6WithVitrail(
   buildPendingChangesHint(v, pendingChangesHint);
 
   return v;
+}
+
+const External = Annotation.define();
+
+export function CodeMirrorWithVitrail({
+  value,
+  onChange,
+  augmentations,
+  cmExtensions,
+}: {
+  value: string;
+  onChange: (s: string) => void;
+  parent: HTMLElement;
+  augmentations: Augmentation<any>[];
+  cmExtensions?: any[];
+}) {
+  const [view, setView] = useState();
+  const parent = useRef();
+
+  useEffect(() => {
+    const view = new EditorView({
+      doc: value,
+      extensions: [
+        ...baseCMExtensions,
+        EditorView.updateListener.of((update) => {
+          if (!update.transactions.some((t) => t.annotation(External))) {
+            onChange?.(update.state.doc.toString());
+          }
+        }),
+        history(),
+        highlightActiveLineGutter(),
+        ...(cmExtensions ?? []),
+      ],
+      parent: parent.current,
+    });
+    codeMirror6WithVitrail(view, augmentations, cmExtensions ?? []);
+    setView(view);
+  }, []);
+
+  useEffect(() => {
+    const currentValue = view ? view.state.doc.toString() : "";
+    if (view && value !== currentValue) {
+      view.dispatch({
+        changes: { from: 0, to: currentValue.length, insert: value || "" },
+        annotations: [External.of(true)],
+      });
+    }
+  }, [value, view]);
+
+  return h("div", { ref: parent });
 }

@@ -33,7 +33,10 @@ function isAbortReason(next) {
 }
 
 export function replace(capture) {
-  return (it) => capture("nodes")(Array.isArray(it) ? it : [it]);
+  return (it) => {
+    capture("nodes")(Array.isArray(it) ? it : [it]);
+    return it;
+  };
 }
 
 function exec(arg, ...script) {
@@ -106,6 +109,12 @@ export function all(...pipelines) {
     }
     // signal that we completed, but return no sensible value
     return true;
+  };
+}
+
+export function captureAll(capture) {
+  return (it) => {
+    for (const key of it) capture(key, it[key]);
   };
 }
 
