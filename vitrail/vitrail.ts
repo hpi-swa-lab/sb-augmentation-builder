@@ -47,6 +47,18 @@ type ReplacementProps = { [field: string]: any } & {
   replacement: Replacement<any>;
 };
 
+export interface ModelEditor {
+  insertTextFromCommand(position: number, text: string): void;
+
+  replaceTextFromCommand(
+    range: [number, number],
+    text: string,
+    intentDeleteNodes?: SBNode[],
+  ): void;
+
+  transaction(cb: () => void): void;
+}
+
 export interface Replacement<Props extends ReplacementProps> {
   matchedNode: SBNode;
   nodes: SBNode[];
@@ -123,7 +135,7 @@ type ValidatorFunc<T> = (
   changes: ReversibleChange<T>[],
 ) => boolean;
 
-export class Vitrail<T> extends EventTarget {
+export class Vitrail<T> extends EventTarget implements ModelEditor {
   _panes: Pane<T>[] = [];
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
@@ -226,6 +238,16 @@ export class Vitrail<T> extends EventTarget {
   activeTransactionList: ReversibleChange<T>[] | null = null;
   _pendingChanges: ReturnType<typeof signal>;
   _revertChanges: Change<T>[] = [];
+
+  transaction(cb: () => void) {
+    if (this.activeTransactionList)
+      throw new Error("Nested transactions not supported right now");
+    this.activeTransactionList = [];
+    cb();
+    const list = this.activeTransactionList;
+    this.activeTransactionList = null;
+    this.applyChanges(list);
+  }
 
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
     if (

@@ -1,5 +1,5 @@
 import { languageFor } from "../core/languages.js";
-import { SBNode, extractType } from "../core/model.js";
+import { SBBlock, SBNode, extractType } from "../core/model.js";
 import { useMemo, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
@@ -12,9 +12,13 @@ import {
   type,
   all,
   replace,
+  first,
+  debugIt,
+  query,
+  queryDeep,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
-import { VitrailPane } from "../vitrail/vitrail.ts";
+import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -24,7 +28,7 @@ function NodeList({ container, view, style, wrap, add }) {
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
-  add ??= ([left, top], ref, onclick, onmouseleave) =>
+  add ??= (position, ref, onclick, onmouseleave) =>
     h(
       "div",
       {
@@ -42,9 +46,9 @@ function NodeList({ container, view, style, wrap, add }) {
           lineHeight: "1",
           color: "#fff",
           cursor: "pointer",
-          position: "fixed",
-          top,
-          left,
+          position: position ? "fixed" : "static",
+          top: position?.[1],
+          left: position?.[0],
         },
       },
       "+",
@@ -52,15 +56,17 @@ function NodeList({ container, view, style, wrap, add }) {
   style = { display: "flex", flexDirection: "column", ...style };
 
   return wrap(
-    nodes.map((it, index) =>
-      h(_NodeListItem, {
-        onInsert: (atEnd) =>
-          container.insert("'a'", "expression", index + (atEnd ? 1 : 0)),
-        node: it,
-        view,
-        add,
-      }),
-    ),
+    nodes.length === 0
+      ? add(null, null, () => container.insert("'a'", "expression", 0))
+      : nodes.map((it, index) =>
+          h(_NodeListItem, {
+            onInsert: (atEnd) =>
+              container.insert("'a'", "expression", index + (atEnd ? 1 : 0)),
+            node: it,
+            view,
+            add,
+          }),
+        ),
   );
 }
 
@@ -107,6 +113,22 @@ function _NodeListItem({ onInsert, node, view, add }) {
   ];
 }
 
+query("let a = {examples: []}", extractType("pair"));
+
+function queryOrCreate(query, extract) {
+  return (it) => {
+    const match = it.findQuery(query, extract);
+    if (match) return match;
+
+    const n = extract(
+      it.language.removeQueryMarkers(it.language.parseExpression(query)),
+    );
+    n._editor = new MaybeEditor(it.editor, it, n);
+    n._language = it.language;
+    return n.findQuery(query, extract);
+  };
+}
+
 export const augmentationBuilder = {
   matcherDepth: 4,
   model: languageFor("javascript"),
@@ -120,7 +142,19 @@ export const augmentationBuilder = {
         [objectField("model"), capture("model")],
         [objectField("match"), capture("match")],
         [objectField("view"), capture("view")],
-        [objectField("examples"), capture("examples")],
+        [
+          first(
+            [
+              queryOrCreate(
+                "let a = {examples: [$_array]}",
+                extractType("pair"),
+              ),
+              (it) => it.array,
+            ],
+            // [ queryDeep("let a = {examples: $value}", extractType("pair")), (it) => it.value, ],
+          ),
+          capture("examples"),
+        ],
       ),
     ]),
   view: ({ examples, nodes: [node] }) => {
@@ -169,3 +203,59 @@ export const augmentationBuilder = {
     );
   },
 };
+
+class MaybeEditor implements ModelEditor {
+  editor: Vitrail<any>;
+  parent: SBBlock;
+  template: SBBlock;
+
+  constructor(editor: Vitrail<any>, parent: SBBlock, template: SBBlock) {
+    this.editor = editor;
+    this.parent = parent;
+    this.template = template;
+  }
+
+  // TODO
+  transaction(cb: () => void): void {}
+
+  insertTextFromCommand(position: number, text: string) {
+    debugger;
+    this.parent.insert(this.template.sourceString, this.template.type, 0);
+    this.editor.insertTextFromCommand(position, text);
+  }
+
+  replaceTextFromCommand(
+    range: [number, number],
+    text: string,
+    intentDeleteNodes?: SBNode[],
+  ) {
+    this.editor.replaceTextFromCommand(range, text, intentDeleteNodes);
+  }
+}
+
+class SBNullNode extends SBBlock {
+  template: SBBlock;
+  templateRoot: SBBlock;
+
+  get type() {
+    return this.template._type;
+  }
+  get field() {
+    return this.template._field;
+  }
+  get range() {
+    return this.template._range;
+  }
+  get named() {
+    return this.template._named;
+  }
+
+  constructor(template: SBBlock, templateRoot?: SBBlock) {
+    super();
+    this.template = template;
+    this.templateRoot = templateRoot ?? template;
+    this._children = (template._children ?? []).map(
+      (it) => new SBNullNode(it, this.templateRoot),
+    );
+  }
+}

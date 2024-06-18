@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { SBBlock, SBText, SBLanguage } from "./model.js";
+import { SBBlock, SBText, SBLanguage, OffscreenEditor } from "./model.js";
 import { TreeSitter } from "../external/tree-sitter.js";
 
 export class TreeSitterLanguage extends SBLanguage {
@@ -137,9 +137,27 @@ export class TreeSitterLanguage extends SBLanguage {
 
   parseExpression(string) {
     const source = `${this.parseConfig.parseExpressionPrefix}${string}${this.parseConfig.parseExpressionSuffix}`;
-    const root = this._parse(source);
+    const root = this.parseSync(source);
     this.destroyRoot(root);
     return this.parseConfig.unwrapExpression(root);
+  }
+
+  removeQueryMarkers(node) {
+    const editor = new OffscreenEditor(node.root);
+
+    const markers = [];
+    for (const n of node.allNodes()) {
+      // TODO don't hardcode markers but read from language
+      if (n.text.startsWith("$$$") || n.text.startsWith("$_")) markers.push(n);
+    }
+
+    node.root._editor.transaction(() => {
+      for (const marker of markers) {
+        marker.removeSelf();
+      }
+    });
+
+    return editor.root;
   }
 
   // node construction
@@ -622,6 +640,10 @@ export class TSQuery {
     return this.prefix.repeat(3);
   }
 
+  get parentPrefix() {
+    return this.prefix + "_";
+  }
+
   get prefix() {
     return this.language.parseConfig.matchPrefix;
   }
@@ -658,6 +680,14 @@ export class TSQuery {
           a.childNodes[leading].text.slice(this.multiPrefix.length),
           b.childNodes.slice(leading, -trailing).filter((n) => n.named),
         ]);
+        return true;
+      }
+
+      const parentMatch = a.childNodes.find((n) =>
+        n.text.startsWith(this.parentPrefix),
+      );
+      if (parentMatch) {
+        captures.push([parentMatch.text.slice(this.parentPrefix.length), b]);
         return true;
       }
 
