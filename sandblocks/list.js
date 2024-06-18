@@ -4,7 +4,7 @@ import {
   useState,
   useMemo,
 } from "../external/preact-hooks.mjs";
-import { last, sequenceMatch } from "../utils.js";
+import { appendCss, last, sequenceMatch } from "../utils.js";
 import { h } from "../view/widgets.js";
 
 function highlightSubstring(string, search) {
@@ -27,6 +27,24 @@ function wrapIndex(index, dir, max) {
   if (dir === 1 && index === max - 1) return 0;
   return index + dir;
 }
+
+appendCss(`
+.sb-list {
+  max-height: 100px;
+  overflow-y: auto;
+}
+.sb-list-item {
+  white-space: nowrap;
+  user-select: none;
+  padding: 0 0.25rem;
+}
+.sb-list .selected {
+  background: #ccc;
+}
+.search-result {
+  background-color: #ffe17d;
+  outline: 1px solid #ffcc00;
+}`);
 
 export function List({
   items,

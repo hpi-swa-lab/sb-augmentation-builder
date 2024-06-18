@@ -322,7 +322,9 @@ export class Vitrail<T> extends EventTarget {
     }
 
     const target = last(allChanges).selectionRange;
-    const candidates = cursorPositionsForIndex(this._rootPane.view, target[0]);
+    const candidates = this._cursorRoots().flatMap((r) =>
+      cursorPositionsForIndex(r, target[0]),
+    );
     const focused = candidates.find((p) => (p.element as any).hasFocus());
     if (!focused) {
       (candidates[0].element as any).focusRange(
@@ -336,6 +338,17 @@ export class Vitrail<T> extends EventTarget {
         detail: { changes: allChanges, sourceString: this.sourceString },
       }),
     );
+  }
+
+  _cursorRoots() {
+    return [
+      this._rootPane.view,
+      ...this._panes
+        .filter(
+          (p) => p.view.isConnected && !this._rootPane.view.contains(p.view),
+        )
+        .map((p) => p.view),
+    ];
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -506,7 +519,7 @@ export class Pane<T> {
       pane.focusRange(head - pane.startIndex, anchor - pane.startIndex);
     };
     (this.view as any).hasFocus = function () {
-      pane.hasFocus();
+      return pane.hasFocus();
     };
   }
 
@@ -799,11 +812,15 @@ export class Pane<T> {
     }
   }
 
+  _cursorRoot() {
+    return this.vitrail._cursorRoots().find((r) => r.contains(this.view));
+  }
+
   adjacentCursorPosition(forward: boolean) {
     const [head, _anchor] = this.getLocalSelectionIndices();
     return adjacentCursorPosition(
       {
-        root: this.vitrail._rootPane.view,
+        root: this._cursorRoot(),
         element: this.view,
         index: head + this.startIndex,
       },
@@ -853,8 +870,9 @@ export class Pane<T> {
   }
 }
 
-export function VitrailPane({ fetchAugmentations, nodes, style }) {
-  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+export function VitrailPane({ fetchAugmentations, nodes, style, ref }) {
+  // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+  const vitrail = nodes[0]?.editor;
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
     () => vitrail.createPane(fetchAugmentations),
@@ -873,6 +891,7 @@ export function VitrailPane({ fetchAugmentations, nodes, style }) {
     key: "stable",
     style,
     ref: (el: HTMLElement) => {
+      if (ref) ref.current = el;
       if (el && !pane.view.isConnected) el.appendChild(pane.view);
     },
   });
@@ -1007,10 +1026,14 @@ class VitrailReplacementContainer extends HTMLElement {
     }
   }
 
+  _cursorRoot() {
+    return this.vitrail._cursorRoots().find((r) => r.contains(this));
+  }
+
   _focusAdjacent(forward: boolean) {
     const pos = adjacentCursorPosition(
       {
-        root: this.vitrail._rootPane.view,
+        root: this._cursorRoot(),
         element: this,
         index: this.range[this._selectedAtStart ? 0 : 1],
       },

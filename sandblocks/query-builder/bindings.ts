@@ -12,6 +12,7 @@ import { Change } from "../../vitrail/vitrail.ts";
 export function bindSourceString(node: SBBlock) {
   const [text, range] = node.editor.nodeTextWithPendingChanges([node]);
   return {
+    node,
     text,
     range,
     indexMap: [],
@@ -45,6 +46,7 @@ export function bindPlainString(node: SBBlock) {
   const [text, indexMap] = remapIndices(original, rules);
 
   return {
+    node,
     text,
     range,
     indexMap,
@@ -63,8 +65,8 @@ export function bindPlainString(node: SBBlock) {
   };
 }
 
-export function TextArea({ text, onLocalChange, range, indexMap }) {
-  const style = {
+export function TextArea({ text, onLocalChange, range, indexMap, style }) {
+  const textStyle = {
     padding: 0,
     lineHeight: "inherit",
     fontWeight: "inherit",
@@ -73,7 +75,7 @@ export function TextArea({ text, onLocalChange, range, indexMap }) {
   };
   return h(
     "span",
-    { style: { display: "inline-grid" } },
+    { style: { ...style, display: "inline-grid" } },
     h(
       "textarea",
       {
@@ -81,7 +83,7 @@ export function TextArea({ text, onLocalChange, range, indexMap }) {
         rows: 1,
         cols: 1,
         style: {
-          ...style,
+          ...textStyle,
           overflow: "hidden",
           resize: "none",
           gridArea: "1 / 1 / 2 / 2",
@@ -108,7 +110,7 @@ export function TextArea({ text, onLocalChange, range, indexMap }) {
       "span",
       {
         style: {
-          ...style,
+          ...textStyle,
           whiteSpace: "pre-wrap",
           visibility: "hidden",
           gridArea: "1 / 1 / 2 / 2",
