@@ -472,6 +472,10 @@ export function clampRange(range, [min, max]) {
   return [clamp(range[0], min, max), clamp(range[1], min, max)];
 }
 
+export function isNullRange(range) {
+  return range[0] >= range[1];
+}
+
 export const caseOf = (x, cases, otherwise) => {
   const func = cases[x];
   return func ? func() : otherwise();

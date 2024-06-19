@@ -47,7 +47,11 @@ import {
   invertedEffects,
   Annotation,
 } from "../codemirror6/external/codemirror.bundle.js";
-import { rangeShift, parallelToSequentialChanges } from "../utils.js";
+import {
+  rangeShift,
+  parallelToSequentialChanges,
+  isNullRange,
+} from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
 
@@ -147,6 +151,7 @@ export async function codeMirror6WithVitrail(
       update: () => {
         return RangeSet.of(
           pane.replacements
+            .filter((r) => !isNullRange(replacementRange(r, pane.vitrail)))
             .map((r) => {
               const range = rangeShift(
                 replacementRange(r, pane.vitrail),

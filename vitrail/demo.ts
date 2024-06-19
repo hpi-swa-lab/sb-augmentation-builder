@@ -1,6 +1,7 @@
 import { languageFor } from "../core/languages.js";
 import { extractType } from "../core/model.js";
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -18,7 +19,6 @@ import {
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
 import { markInputEditableForNode } from "../view/focus.ts";
-import { AutoSizeTextArea } from "../view/widgets/auto-size-text-area.js";
 import { ForceLayout } from "./force-layout.ts";
 import {
   SelectionInteraction,
@@ -192,6 +192,7 @@ export const watch = {
       ),
     ]),
   view: ({ id, expr, replacement }) => {
+    const checked = useSignal(false);
     useValidateKeepReplacement(replacement);
     return h(
       "span",
@@ -204,6 +205,11 @@ export const watch = {
         },
       },
       h(VitrailPaneWithWhitespace, { nodes: [expr] }),
+      h("input", {
+        type: "checkbox",
+        checked: checked.value,
+        oninput: (e) => (checked.value = e.target.checked),
+      }),
     );
   },
 };

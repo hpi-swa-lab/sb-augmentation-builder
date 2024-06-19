@@ -32,6 +32,7 @@ import {
 // TODO
 // marker (and not just replacement) support
 // redo needs to be aware of intentToDeleteNodes
+// process replacements in two phases: remove all and buffer, then add all
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -1029,6 +1030,10 @@ class VitrailReplacementContainer extends HTMLElement {
   }
 
   *cursorPositions() {
+    // we may currently be offscreen, e.g. when temporarily detached
+    // during pending changes
+    if (!this.isConnected) return;
+
     switch (this.selection) {
       case SelectionInteraction.Start:
         yield { element: this, index: this.range[0] };
