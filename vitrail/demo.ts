@@ -5,6 +5,7 @@ import { h } from "../external/preact.mjs";
 import {
   TextArea,
   bindPlainString,
+  bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
 import {
   all,
@@ -46,7 +47,7 @@ const collectState = (it) =>
         (it) => it.atField("key"),
         all(
           [(it) => it.text, capture("name")],
-          [(it) => h(AutoSizeTextArea, { node: it }), capture("nameView")],
+          [(it) => h(TextArea, bindSourceString(it)), capture("nameView")],
         ),
       ],
       [(it) => it.id, capture("id")],
