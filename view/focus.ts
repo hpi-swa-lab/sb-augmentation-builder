@@ -45,13 +45,14 @@ export function markInputEditable(input) {
       (pos.element as any).focusRange(pos.index, pos.index);
   }
   input.cursorPositions = function* () {
+    let offset = 0;
     for (let i = 0; i <= input.value.length; i++) {
       yield {
         element: input,
-        index: !!input.range ? i + input.range[0] : undefined,
+        index: !!input.range ? i + input.range[0] + offset : undefined,
       };
       const remap = indexMap().find(([a]) => a === i);
-      if (remap) i += remap[1] - 1;
+      if (remap) offset += remap[1];
     }
   };
   input.focusRange = function (head, anchor) {
