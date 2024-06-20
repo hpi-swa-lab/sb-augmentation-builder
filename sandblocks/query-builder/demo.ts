@@ -26,7 +26,7 @@ export const pipelineBuilder = {
     return metaexec(x, (capture) => [
       all(
         [
-          query("metaexec($_,$_ => $pipeline)"),
+          query("metaexec($a,$b => $pipeline)"),
           (it) => it.pipeline,
           (it) => new PipelineBinding(it),
           capture("pipeline"),
