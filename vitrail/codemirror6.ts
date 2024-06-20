@@ -183,7 +183,6 @@ export async function codeMirror6WithVitrail(
       ],
     });
 
-    console.log(extensionsForPane);
     return [
       ...extensionsForPane,
       invertedEffects.of((tr) => {
@@ -375,6 +374,7 @@ export async function codeMirror6WithVitrail(
 const External = Annotation.define();
 
 export function CodeMirrorWithVitrail({
+  vitrailRef,
   value,
   onChange,
   augmentations,
@@ -391,10 +391,13 @@ export function CodeMirrorWithVitrail({
   props: { [key: string]: any };
   style: any;
   className?: string;
+  vitrailRef: { current: any };
 }) {
   const [vitrail, setVitrail] = useState(null);
   const [view, setView] = useState(null);
   const parent = useRef();
+
+  if (vitrailRef) vitrailRef.current = vitrail;
 
   useEffect(() => {
     const view = new EditorView({

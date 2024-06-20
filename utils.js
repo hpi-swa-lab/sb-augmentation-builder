@@ -300,6 +300,13 @@ export function allViewsDo(parent, cb) {
   }
 }
 
+export function* allChildren(root) {
+  yield root;
+  for (const child of root.childNodes) {
+    yield* allChildren(child);
+  }
+}
+
 export function mapSeparated(list, item, separator) {
   const result = [];
   for (let i = 0; i < list.length; i++) {

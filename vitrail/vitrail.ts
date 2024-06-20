@@ -17,9 +17,11 @@ import { createContext, h, render } from "../external/preact.mjs";
 import {
   Side,
   adjustIndex,
+  allChildren,
   clamp,
   last,
   rangeContains,
+  rangeEqual,
   rangeIntersects,
   rangeShift,
   takeWhile,
@@ -370,15 +372,15 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     const target = last(allChanges).selectionRange;
-    const candidates = this._cursorRoots().flatMap((r) =>
-      cursorPositionsForIndex(r, target[0]),
-    );
-    const focused = candidates.find((p) => (p.element as any).hasFocus());
-    if (!focused) {
-      (candidates[0].element as any).focusRange(
-        candidates[0].index,
-        candidates[0].index,
+    const current = this.getSelection()?.range;
+    if (!current || !rangeEqual(current, target)) {
+      const candidates = this._cursorRoots().flatMap((r) =>
+        cursorPositionsForIndex(r, target[0]),
       );
+      const head =
+        candidates.find((p) => (p.element as any).hasFocus()) ?? candidates[0];
+      const anchor = cursorPositionsForIndex(head.element, target[1])[0]?.index;
+      (head.element as any).focusRange(head.index, anchor ?? head.index);
     }
 
     this.dispatchEvent(
@@ -397,6 +399,18 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         )
         .map((p) => p.view),
     ];
+  }
+
+  getSelection() {
+    for (const root of this._cursorRoots()) {
+      for (const node of allChildren(root)) {
+        if (node.hasFocus?.() && node.getSelection) {
+          let selection = node.getSelection();
+          return { range: selection, element: node };
+        }
+      }
+    }
+    return null;
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -568,6 +582,9 @@ export class Pane<T> {
     };
     (this.view as any).hasFocus = function () {
       return pane.hasFocus();
+    };
+    (this.view as any).getSelection = function () {
+      return rangeShift(pane.getLocalSelectionIndices(), pane.startIndex);
     };
   }
 
@@ -1197,6 +1214,10 @@ class VitrailReplacementContainer extends HTMLElement {
   focusRange(head: number, anchor: number) {
     this._selectedAtStart = head === this.range[0];
     this.focus();
+  }
+
+  getSelection() {
+    return this._selectedAtStart ? this.range[0] : this.range[1];
   }
 
   onClick(e: MouseEvent) {

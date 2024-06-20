@@ -7,7 +7,7 @@ import {
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageFor, languageForPath } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
-import { useContext, useMemo } from "../external/preact-hooks.mjs";
+import { useContext, useMemo, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { request } from "../sandblocks/host.js";
@@ -34,6 +34,7 @@ import {
   VitrailPane,
   useValidateKeepNodes,
 } from "../vitrail/vitrail.ts";
+import { format } from "./format.js";
 import { openComponentInWindow } from "./window.js";
 
 appendCss(`
@@ -54,7 +55,7 @@ appendCss(`
 function extensionsForPath(path) {
   const language = languageForPath(path);
   if (language === languageFor("javascript"))
-    return { cmExtensions: [javascript()], augmentations: [browser(language)] };
+    return { cmExtensions: [javascript()], augmentations: [] };
   return { cmExtensions: [], augmentations: [browser(SBBaseLanguage)] };
 }
 
@@ -64,6 +65,7 @@ function TraceryBrowser({ project, path }) {
     path ? files.find((it) => it.path === path) : files[0],
   );
   const source = useSignal("");
+  const vitrailRef = useRef();
 
   useSignalEffect(() => {
     if (selectedFile.value) {
@@ -77,10 +79,18 @@ function TraceryBrowser({ project, path }) {
   const { augmentations, cmExtensions } = extensionsForPath(
     selectedFile.value.path,
   );
+
+  const formatAndSave = async () => {
+    if (vitrailRef.current)
+      await format(vitrailRef.current, selectedFile.value.path);
+    project.writeFile(selectedFile.value.path, source.value);
+  };
+
   return (
     selectedFile.value &&
     source.value &&
     h(CodeMirrorWithVitrail, {
+      vitrailRef,
       className: "tracery-browser",
       key: selectedFile.value.path,
       value: source.value,
@@ -93,7 +103,7 @@ function TraceryBrowser({ project, path }) {
           {
             key: "Mod-s",
             run: () => {
-              project.writeFile(selectedFile.value.path, source.value);
+              formatAndSave();
               return true;
             },
             preventDefault: true,

@@ -2,7 +2,7 @@ import { SBBlock } from "../../core/model.js";
 import { h } from "../../external/preact.mjs";
 import { Side, findChange, rangeShift } from "../../utils.js";
 import {
-  mapIndex,
+  mapIndexToLocal,
   markInputEditableForNode,
   remapIndices,
   remapIndicesReverse,
@@ -51,14 +51,14 @@ export function bindPlainString(node: SBBlock) {
     range,
     indexMap,
     onLocalChange: (change: Change<any>) => {
-      change.from = mapIndex(indexMap, change.from) + range[0];
-      change.to = mapIndex(indexMap, change.to) + range[0];
+      change.from = mapIndexToLocal(indexMap, change.from) + range[0];
+      change.to = mapIndexToLocal(indexMap, change.to) + range[0];
       if (change.insert)
         change.insert = remapIndicesReverse(change.insert, rules)[0];
       if (change.selectionRange)
         change.selectionRange = [
-          mapIndex(indexMap, change.selectionRange[0]) + range[0],
-          mapIndex(indexMap, change.selectionRange[1]) + range[0],
+          mapIndexToLocal(indexMap, change.selectionRange[0]) + range[0],
+          mapIndexToLocal(indexMap, change.selectionRange[1]) + range[0],
         ];
       node.editor.applyChanges([change]);
     },

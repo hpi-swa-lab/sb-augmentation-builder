@@ -37,7 +37,8 @@ export function markInputEditable(input) {
       {
         root: getFocusHost(input),
         element: input,
-        index: mapIndex(indexMap(), input.selectionStart) + input.range[0],
+        index:
+          mapIndexToLocal(indexMap(), input.selectionStart) + input.range[0],
       },
       forward,
     );
@@ -57,10 +58,14 @@ export function markInputEditable(input) {
   };
   input.focusRange = function (head, anchor) {
     input.focus();
-    input.selectionStart = mapIndex(indexMap(), head) - input.range[0];
-    input.selectionEnd = mapIndex(indexMap(), anchor) - input.range[0];
+    input.selectionStart = mapIndexToLocal(indexMap(), head) - input.range[0];
+    input.selectionEnd = mapIndexToLocal(indexMap(), anchor) - input.range[0];
   };
   input.hasFocus = () => document.activeElement === input;
+  input.getSelection = () => [
+    mapIndexToGlobal(indexMap(), input.selectionStart) + input.range[0],
+    mapIndexToGlobal(indexMap(), input.selectionEnd) + input.range[0],
+  ];
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight" && input.selectionStart === input.value.length)
@@ -71,10 +76,18 @@ export function markInputEditable(input) {
   });
 }
 
-export function mapIndex(indexMap: [number, number][], index: number) {
+export function mapIndexToLocal(indexMap: [number, number][], index: number) {
   for (const [insertIndex, length] of indexMap) {
     if (insertIndex >= index) break;
     index += length;
+  }
+  return index;
+}
+
+export function mapIndexToGlobal(indexMap: [number, number][], index: number) {
+  for (const [insertIndex, length] of indexMap) {
+    if (insertIndex >= index) break;
+    index -= length;
   }
   return index;
 }
