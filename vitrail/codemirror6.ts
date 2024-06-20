@@ -385,7 +385,10 @@ export function CodeMirrorWithVitrail({
       extensions: [
         ...baseCMExtensions,
         EditorView.updateListener.of((update) => {
-          if (!update.transactions.some((t) => t.annotation(External))) {
+          if (
+            !update.transactions.some((t) => t.annotation(External)) &&
+            !update.transactions.some((t) => t.isUserEvent("sync"))
+          ) {
             onChange?.(update.state.doc.toString());
           }
         }),

@@ -33,6 +33,7 @@ import {
 // marker (and not just replacement) support
 // redo needs to be aware of intentToDeleteNodes
 // process replacements in two phases: remove all and buffer, then add all
+// change text just after spawn (while models are still loading)
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -118,7 +119,7 @@ export interface Augmentation<Props extends ReplacementProps> {
   deletionInteraction?: DeletionInteraction;
 }
 
-interface Model {
+export interface Model {
   parse: <T>(sourceString: string, v: Vitrail<T>) => Promise<SBNode>;
   canBeDefault: boolean;
 }

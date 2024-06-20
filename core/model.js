@@ -155,6 +155,10 @@ class _SBBaseLanguage extends SBLanguage {
     const root = new SBBlock("document", null, 0, text.length, true);
     root._language = this;
     root._sourceString = text;
+
+    const content = new SBText(text, 0, text.length);
+    root.appendChild(content);
+
     return root;
   }
 }

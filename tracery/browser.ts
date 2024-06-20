@@ -1,12 +1,18 @@
-import { languageFor } from "../core/languages.js";
+import { languageFor, languageForPath } from "../core/languages.js";
+import { SBBaseLanguage } from "../core/model.js";
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
-import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+import {
+  batch,
+  useSignal,
+  useSignalEffect,
+} from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { request } from "../sandblocks/host.js";
 import { List } from "../sandblocks/list.js";
 import {
   all,
   first,
+  languageSpecific,
   metaexec,
   replace,
   spawnArray,
@@ -16,6 +22,7 @@ import { takeWhile } from "../utils.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import {
   Augmentation,
+  Model,
   Vitrail,
   VitrailContext,
   VitrailPane,
@@ -23,16 +30,23 @@ import {
 } from "../vitrail/vitrail.ts";
 import { openComponentInWindow } from "./window.js";
 
+function augmentationsForPath(path) {
+  const language = languageForPath(path);
+  if (language === languageFor("javascript")) return [browser(language)];
+  return [browser(SBBaseLanguage)];
+}
+
 function TraceryBrowser() {
   const files = useSignal([]);
   const selectedFile = useSignal(null);
-  const source = useSignal("a");
+  const source = useSignal("");
 
   useEffect(() => {
     (async () => {
+      // TODO
+      const rootPath = "/home/tom/Code/squeak/sb-js";
       const root = await request("openProject", {
-        // TODO
-        path: "/home/tom/Code/squeak/sb-js",
+        path: rootPath,
       });
       const out: { path: string; hash: string }[] = [];
       const recurse = (file, path) => {
@@ -46,23 +60,35 @@ function TraceryBrowser() {
             hash: file.hash,
           });
       };
-      for (const child of root.children) recurse(child, "");
-      files.value = out;
+      for (const child of root.children) recurse(child, rootPath);
+      batch(() => {
+        source.value = "";
+        files.value = out;
+        selectedFile.value = out[0];
+      });
     })();
   }, []);
 
   useSignalEffect(() => {
     if (selectedFile.value) {
-      console.log("OPEN", selectedFile.value);
+      source.value = "";
+      request("readFiles", { paths: [selectedFile.value.path] }).then(
+        ([file]) => (source.value = file.data),
+      );
     }
   });
 
-  return h(CodeMirrorWithVitrail, {
-    value: source.value,
-    onChange: (v) => (source.value = v),
-    augmentations: [browser],
-    props: { selectedFile, files },
-  });
+  return (
+    selectedFile.value &&
+    source.value &&
+    h(CodeMirrorWithVitrail, {
+      key: selectedFile.value.path,
+      value: source.value,
+      onChange: (v) => (source.value = v),
+      augmentations: augmentationsForPath(selectedFile.value.path),
+      props: { selectedFile, files },
+    })
+  );
 }
 
 export function openBrowser() {
@@ -70,17 +96,19 @@ export function openBrowser() {
 }
 
 function FullDeclarationPane({ node }) {
-  const list = [
-    ...takeWhile(
-      node.parent.children.slice(0, node.siblingIndex).reverse(),
-      (c) => c.isWhitespace() || c.type === "comment",
-    ),
-    node,
-    ...takeWhile(
-      node.parent.children.slice(node.siblingIndex + 1),
-      (c) => c.isWhitespace() || c.type === "comment",
-    ),
-  ];
+  const list = node.isRoot
+    ? [node]
+    : [
+        ...takeWhile(
+          node.parent.children.slice(0, node.siblingIndex).reverse(),
+          (c) => c.isWhitespace() || c.type === "comment",
+        ),
+        node,
+        ...takeWhile(
+          node.parent.children.slice(node.siblingIndex + 1),
+          (c) => c.isWhitespace() || c.type === "comment",
+        ),
+      ];
 
   return h(
     "div",
@@ -174,48 +202,64 @@ function matchClassMember(node) {
 function matchTopLevel(node) {
   return metaexec(node, (capture) => [
     capture("node"),
-    first([type("export_statement"), (it) => it.childBlock(0)], [(it) => it]),
     first(
       [
-        type("import"),
-        all(
-          ["Import", capture("label")],
-          [(it) => it.sourceString, capture("name")],
+        languageSpecific(
+          "javascript",
+          first(
+            [type("export_statement"), (it) => it.childBlock(0)],
+            [(it) => it],
+          ),
+          first(
+            [
+              type("import"),
+              all(
+                ["Import", capture("label")],
+                [(it) => it.sourceString, capture("name")],
+              ),
+            ],
+            [
+              type("lexical_declaration"),
+              all(
+                [
+                  (it) => it.childBlocks,
+                  (it) => it.map((it) => it.atField("name")?.text).join(", "),
+                  capture("name"),
+                ],
+                [(it) => "Declaration", capture("label")],
+              ),
+            ],
+            [
+              type("function_declaration"),
+              all(
+                [(it) => it.atField("name")?.text, capture("name")],
+                [(it) => "Function", capture("label")],
+              ),
+            ],
+            [
+              type("class_declaration"),
+              all(
+                [(it) => it.atField("name")?.text, capture("name")],
+                [(it) => "Class", capture("label")],
+                [
+                  (it) => it.atField("body")?.childBlocks,
+                  spawnArray(matchClassMember),
+                  capture("members"),
+                ],
+              ),
+            ],
+            [
+              all(
+                [(it) => it.sourceString, capture("name")],
+                [(it) => "Other", capture("label")],
+              ),
+            ],
+          ),
         ),
       ],
       [
-        type("lexical_declaration"),
         all(
-          [
-            (it) => it.childBlocks,
-            (it) => it.map((it) => it.atField("name")?.text).join(", "),
-            capture("name"),
-          ],
-          [(it) => "Declaration", capture("label")],
-        ),
-      ],
-      [
-        type("function_declaration"),
-        all(
-          [(it) => it.atField("name")?.text, capture("name")],
-          [(it) => "Function", capture("label")],
-        ),
-      ],
-      [
-        type("class_declaration"),
-        all(
-          [(it) => it.atField("name")?.text, capture("name")],
-          [(it) => "Class", capture("label")],
-          [
-            (it) => it.atField("body")?.childBlocks,
-            spawnArray(matchClassMember),
-            capture("members"),
-          ],
-        ),
-      ],
-      [
-        all(
-          [(it) => it.sourceString, capture("name")],
+          [(it) => "unknown", capture("name")],
           [(it) => "Other", capture("label")],
         ),
       ],
@@ -223,21 +267,26 @@ function matchTopLevel(node) {
   ]);
 }
 
-export const browser: Augmentation<any> = {
+export const browser: (model: Model) => Augmentation<any> = (model) => ({
   matcherDepth: 1,
-  model: languageFor("javascript"),
+  model,
   match(node) {
     return metaexec(node, (capture) => [
-      type("program"),
+      (it) => it.isRoot,
       all(
         [replace(capture)],
         [
-          (it) => it.childBlocks,
-          spawnArray(matchTopLevel),
+          first(
+            [
+              (it) => it.language === SBBaseLanguage,
+              (it) => [{ name: "unknown", label: "Other", node: it }],
+            ],
+            [(it) => it.childBlocks, spawnArray(matchTopLevel)],
+          ),
           capture("topLevel"),
         ],
       ),
     ]);
   },
   view: TraceryBrowserAugmentation,
-};
+});
