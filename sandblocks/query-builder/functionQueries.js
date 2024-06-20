@@ -406,7 +406,7 @@ export class PipelineBinding {
     return metaexec(node, (capture) => [
       first(
         [
-          query("($_) => $STEP"),
+          query("($any) => $STEP"),
           (it) => it.STEP,
           (it) => new PipelineStepBinding(it, PipelineSteps.FUNCTION),
         ],
