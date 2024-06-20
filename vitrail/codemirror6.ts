@@ -365,19 +365,23 @@ export function CodeMirrorWithVitrail({
   onChange,
   augmentations,
   cmExtensions,
+  props,
 }: {
   value: string;
   onChange: (s: string) => void;
   parent: HTMLElement;
   augmentations: Augmentation<any>[];
   cmExtensions?: any[];
+  props: { [key: string]: any };
 }) {
-  const [view, setView] = useState();
+  const [vitrail, setVitrail] = useState(null);
+  const [view, setView] = useState(null);
   const parent = useRef();
 
   useEffect(() => {
     const view = new EditorView({
       doc: value,
+      root: document,
       extensions: [
         ...baseCMExtensions,
         EditorView.updateListener.of((update) => {
@@ -391,9 +395,15 @@ export function CodeMirrorWithVitrail({
       ],
       parent: parent.current,
     });
-    codeMirror6WithVitrail(view, augmentations, cmExtensions ?? []);
+    codeMirror6WithVitrail(view, augmentations, cmExtensions ?? []).then(
+      setVitrail,
+    );
     setView(view);
   }, []);
+
+  useEffect(() => {
+    if (vitrail) vitrail.props.value = props;
+  }, [vitrail, props]);
 
   useEffect(() => {
     const currentValue = view ? view.state.doc.toString() : "";

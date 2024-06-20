@@ -1,6 +1,8 @@
 import { languageFor } from "../core/languages.js";
-import { useSignal } from "../external/preact-signals.mjs";
+import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
+import { request } from "../sandblocks/host.js";
 import { List } from "../sandblocks/list.js";
 import {
   all,
@@ -11,8 +13,61 @@ import {
   type,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { takeWhile } from "../utils.js";
-import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
+import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
+import {
+  Augmentation,
+  Vitrail,
+  VitrailContext,
+  VitrailPane,
+  useValidateKeepNodes,
+} from "../vitrail/vitrail.ts";
 import { openComponentInWindow } from "./window.js";
+
+function TraceryBrowser() {
+  const files = useSignal([]);
+  const selectedFile = useSignal(null);
+  const source = useSignal("a");
+
+  useEffect(() => {
+    (async () => {
+      const root = await request("openProject", {
+        // TODO
+        path: "/home/tom/Code/squeak/sb-js",
+      });
+      const out: { path: string; hash: string }[] = [];
+      const recurse = (file, path) => {
+        if (file.children)
+          file.children.forEach((child) =>
+            recurse(child, path + "/" + file.name),
+          );
+        else
+          out.push({
+            path: path + "/" + file.name,
+            hash: file.hash,
+          });
+      };
+      for (const child of root.children) recurse(child, "");
+      files.value = out;
+    })();
+  }, []);
+
+  useSignalEffect(() => {
+    if (selectedFile.value) {
+      console.log("OPEN", selectedFile.value);
+    }
+  });
+
+  return h(CodeMirrorWithVitrail, {
+    value: source.value,
+    onChange: (v) => (source.value = v),
+    augmentations: [browser],
+    props: { selectedFile, files },
+  });
+}
+
+export function openBrowser() {
+  openComponentInWindow(TraceryBrowser, {});
+}
 
 function FullDeclarationPane({ node }) {
   const list = [
@@ -47,11 +102,19 @@ function FullDeclarationPane({ node }) {
   );
 }
 
-function TraceryBrowser({ topLevel }) {
+const emptyList = [];
+
+function TraceryBrowserAugmentation({ topLevel, nodes }) {
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+  const files = vitrail.props.value.files ?? { value: [] };
+  const selectedFile = vitrail.props.value.selectedFile ?? { value: null };
+
   const selectedTopLevel = useSignal(null);
   const selectedMember = useSignal(null);
   const selectedNode =
     selectedMember?.value?.node ?? selectedTopLevel?.value?.node;
+
+  useValidateKeepNodes(selectedNode ? [selectedNode] : [], nodes[0].language);
 
   return h(
     "div",
@@ -60,6 +123,13 @@ function TraceryBrowser({ topLevel }) {
       "div",
       { style: { display: "flex" } },
       h(List, {
+        items: files.value,
+        selected: selectedFile.value,
+        setSelected: (s) => (selectedFile.value = s),
+        labelFunc: (it) => it.path,
+        height: 200,
+      }),
+      h(List, {
         items: topLevel,
         selected: selectedTopLevel.value,
         setSelected: (s) => (selectedTopLevel.value = s),
@@ -67,7 +137,7 @@ function TraceryBrowser({ topLevel }) {
         height: 200,
       }),
       h(List, {
-        items: selectedTopLevel?.value?.members ?? [],
+        items: selectedTopLevel?.value?.members ?? emptyList,
         selected: selectedMember.value,
         setSelected: (s) => (selectedMember.value = s),
         labelFunc: (it) => it.name,
@@ -169,5 +239,5 @@ export const browser: Augmentation<any> = {
       ),
     ]);
   },
-  view: TraceryBrowser,
+  view: TraceryBrowserAugmentation,
 };

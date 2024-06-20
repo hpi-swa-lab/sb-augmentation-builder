@@ -41,12 +41,29 @@ import {
   return document.activeElement === this;
 };
 
-const VitrailContext = createContext(null);
+export const VitrailContext = createContext(null);
 
 type ReplacementProps = { [field: string]: any } & {
   nodes: SBNode[];
   replacement: Replacement<any>;
 };
+
+function compareReplacementProps(a: any, b: any) {
+  if (a === b) return true;
+  if (a instanceof SBNode) return a.id === b?.id;
+  if (Array.isArray(a)) {
+    if (a.length !== b?.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  if (typeof a === "object") {
+    for (const key in a) {
+      if (!compareReplacementProps(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  return false;
+}
 
 export interface ModelEditor {
   insertTextFromCommand(position: number, text: string): void;
@@ -63,6 +80,7 @@ export interface ModelEditor {
 export interface Replacement<Props extends ReplacementProps> {
   matchedNode: SBNode;
   nodes: SBNode[];
+  lastMatch: Props;
   view: HTMLElement;
   augmentation: Augmentation<Props>;
 }
@@ -146,6 +164,12 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
   createPane: CreatePaneFunc<T>;
   _showValidationPending: (show: boolean) => void;
+
+  // general-purpose way for the outside world to set values
+  _props = signal({});
+  get props() {
+    return this._props;
+  }
 
   get sourceString() {
     return this._sourceString;
@@ -682,12 +706,14 @@ export class Pane<T> {
     }
 
     for (const replacement of this.replacements) {
-      if (replacement.augmentation.rerender?.(editBuffer)) {
+      const match = this.reRenderReplacement(replacement, editBuffer);
+      if (match) {
         const match = replacement.augmentation.match(
           replacement.matchedNode,
           this,
         );
         replacement.nodes = match.nodes;
+        replacement.lastMatch = match;
         this.renderAugmentation(replacement, match);
       }
     }
@@ -699,7 +725,7 @@ export class Pane<T> {
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
           if (!node) break;
-          if (!rangeContains(this.range, node.range)) break;
+          if (!this.containsNode(node)) break;
 
           const match = this.mayReplace(node, augmentation);
           if (match) this.installReplacement(node, augmentation, match);
@@ -709,6 +735,20 @@ export class Pane<T> {
     }
 
     this.syncReplacements();
+  }
+
+  containsNode(node: SBNode) {
+    if (node.language === this.nodes[0]?.language)
+      return this.nodes.some((n) => n.contains(node));
+    return rangeContains(this.range, node.range);
+  }
+
+  reRenderReplacement(replacement: Replacement<any>, editBuffer: EditBuffer) {
+    if (!replacement.augmentation.rerender?.(editBuffer)) return null;
+
+    const match = replacement.augmentation.match(replacement.matchedNode, this);
+    if (compareReplacementProps(match, replacement.lastMatch)) return null;
+    return match;
   }
 
   mayReplace(node: SBNode, augmentation: Augmentation<any>) {
@@ -760,11 +800,12 @@ export class Pane<T> {
       "vitrail-replacement-container",
     ) as VitrailReplacementContainer;
 
-    const replacement = {
+    const replacement: Replacement<any> = {
       matchedNode,
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
       augmentation,
+      lastMatch: match,
     };
 
     view.vitrail = this.vitrail;
@@ -981,6 +1022,18 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
       (replacement.matchedNode?.connected &&
         replacement.augmentation.match(replacement.matchedNode, pane) !== null),
     [...replacement.nodes, replacement.augmentation],
+  );
+}
+
+export function useValidateKeepNodes(nodes: SBNode[], model?: Model) {
+  console.assert(nodes.length > 0 || model);
+  useValidator(
+    model ?? nodes[0].language,
+    (_root, _diff, changes) =>
+      nodes.every(
+        (node) => changesIntendToDeleteNode(changes, node) || node.connected,
+      ),
+    nodes,
   );
 }
 
