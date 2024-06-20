@@ -2,14 +2,23 @@ export { javascript } from "@codemirror/lang-javascript";
 export { EditorView, basicSetup, minimalSetup } from "codemirror";
 export {
   RangeSet,
-  StateField,
   Prec,
   EditorState,
   StateEffect,
   Transaction,
   Annotation,
+  EditorSelection,
+  MapMode,
+  RangeSetBuilder,
+  StateField,
 } from "@codemirror/state";
-export { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+export {
+  searchKeymap,
+  highlightSelectionMatches,
+  SearchQuery,
+  RegExpCursor,
+  setSearchQuery,
+} from "@codemirror/search";
 export {
   Decoration,
   WidgetType,
@@ -22,6 +31,10 @@ export {
   highlightActiveLineGutter,
   lineNumbers,
   drawSelection,
+  showPanel,
+  ViewPlugin,
+  runScopeHandlers,
+  Direction,
 } from "@codemirror/view";
 export {
   indentWithTab,
@@ -31,6 +44,14 @@ export {
   undo,
   redo,
   invertedEffects,
+  indentLess,
+  indentMore,
+  indentSelection,
+  cursorCharBackward,
+  cursorCharLeft,
+  insertNewlineAndIndent,
+  cursorLineBoundaryForward,
+  cursorLineBoundaryBackward,
 } from "@codemirror/commands";
 export {
   indentOnInput,
@@ -40,6 +61,11 @@ export {
   foldGutter,
   foldKeymap,
   HighlightStyle,
+  matchBrackets,
+  ensureSyntaxTree,
+  StringStream,
+  indentUnit,
+  foldCode,
 } from "@codemirror/language";
 export { lintKeymap } from "@codemirror/lint";
 export {

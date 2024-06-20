@@ -1,6 +1,7 @@
 import {
   EditorView,
   defaultHighlightStyle,
+  drawSelection,
   javascript,
   keymap,
   syntaxHighlighting,
@@ -26,6 +27,7 @@ import {
   CodeMirrorWithVitrail,
   baseCMExtensions,
 } from "../vitrail/codemirror6.ts";
+import { vim } from "../codemirror6/external/codemirror-vim.mjs";
 import {
   Augmentation,
   Model,
@@ -97,8 +99,10 @@ function TraceryBrowser({ project, path }) {
       onChange: (v) => (source.value = v),
       augmentations,
       cmExtensions: [
+        vim(),
         ...cmExtensions,
         ...baseCMExtensions,
+        drawSelection(),
         keymap.of([
           {
             key: "Mod-s",

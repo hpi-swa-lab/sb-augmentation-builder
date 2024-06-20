@@ -18,12 +18,15 @@ openBrowser(
 );
 
 const editor = document.createElement("div");
-render(h("button", { onclick: openBrowser }, "Open Browser"), editor);
+render(
+  h("button", { onclick: () => openBrowser(project) }, "Open Browser"),
+  editor,
+);
 document.body.appendChild(editor);
 
 document.body.addEventListener("keydown", (e) => {
   if (matchesKey(e, "Ctrl-b")) {
-    openBrowser();
+    openBrowser(project);
   } else if (matchesKey(e, "Ctrl-0")) {
     openSearch(project);
   } else {

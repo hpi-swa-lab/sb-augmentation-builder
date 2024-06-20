@@ -59,7 +59,7 @@ const IntentToDelete = StateEffect.define();
 
 export const baseCMExtensions = [
   highlightSpecialChars(),
-  // drawSelection(),
+  drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
   indentOnInput(),
