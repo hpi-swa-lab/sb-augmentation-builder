@@ -384,14 +384,6 @@ export function CodeMirrorWithVitrail({
       root: document,
       extensions: [
         ...baseCMExtensions,
-        EditorView.updateListener.of((update) => {
-          if (
-            !update.transactions.some((t) => t.annotation(External)) &&
-            !update.transactions.some((t) => t.isUserEvent("sync"))
-          ) {
-            onChange?.(update.state.doc.toString());
-          }
-        }),
         history(),
         highlightActiveLineGutter(),
         ...(cmExtensions ?? []),
@@ -403,6 +395,14 @@ export function CodeMirrorWithVitrail({
     );
     setView(view);
   }, []);
+
+  useEffect(() => {
+    const handler = ({ detail: { sourceString } }) => onChange(sourceString);
+    if (vitrail) vitrail.addEventListener("change", handler);
+    return () => {
+      if (vitrail) vitrail.removeEventListener("change", handler);
+    };
+  }, [vitrail]);
 
   useEffect(() => {
     if (vitrail) vitrail.props.value = props;

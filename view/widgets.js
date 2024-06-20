@@ -13,7 +13,6 @@ import {
   useState,
 } from "../external/preact-hooks.mjs";
 import htm from "../external/htm.mjs";
-import { BaseEditor } from "../core/editor.js";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 export { markInputEditable } from "./focus.ts";
 
@@ -114,10 +113,6 @@ export function useJSONComparedState(initialState) {
     initialState,
     (a, b) => JSON.stringify(a) === JSON.stringify(b),
   );
-}
-
-function nextEditor(element) {
-  return orParentThat(element, (p) => p instanceof BaseEditor);
 }
 
 Element.prototype.cursorPositions = function* () {

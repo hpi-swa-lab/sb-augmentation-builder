@@ -482,7 +482,7 @@ export const caseOf = (x, cases, otherwise) => {
 };
 
 // Focus an element without scrolling any of its parents.
-// You may provide a custom function for scrolling if you
+// You may provide a custom function for focusing if you
 // have overridden the default focus function.
 export function focusWithoutScroll(element, focusFn = (e) => e.focus()) {
   const parents = [];

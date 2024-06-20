@@ -1,3 +1,4 @@
+import { keymap } from "../codemirror6/external/codemirror.bundle.js";
 import { languageFor, languageForPath } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
@@ -36,38 +37,12 @@ function augmentationsForPath(path) {
   return [browser(SBBaseLanguage)];
 }
 
-function TraceryBrowser() {
-  const files = useSignal([]);
-  const selectedFile = useSignal(null);
+function TraceryBrowser({ project, path }) {
+  const files = useMemo(() => project.allSources, [project]);
+  const selectedFile = useSignal(
+    path ? files.find((it) => it.path === path) : files[0],
+  );
   const source = useSignal("");
-
-  useEffect(() => {
-    (async () => {
-      // TODO
-      const rootPath = "/home/tom/Code/squeak/sb-js";
-      const root = await request("openProject", {
-        path: rootPath,
-      });
-      const out: { path: string; hash: string }[] = [];
-      const recurse = (file, path) => {
-        if (file.children)
-          file.children.forEach((child) =>
-            recurse(child, path + "/" + file.name),
-          );
-        else
-          out.push({
-            path: path + "/" + file.name,
-            hash: file.hash,
-          });
-      };
-      for (const child of root.children) recurse(child, rootPath);
-      batch(() => {
-        source.value = "";
-        files.value = out;
-        selectedFile.value = out[0];
-      });
-    })();
-  }, []);
 
   useSignalEffect(() => {
     if (selectedFile.value) {
@@ -86,13 +61,25 @@ function TraceryBrowser() {
       value: source.value,
       onChange: (v) => (source.value = v),
       augmentations: augmentationsForPath(selectedFile.value.path),
-      props: { selectedFile, files },
+      cmExtensions: [
+        keymap.of([
+          {
+            key: "Mod-s",
+            run: () => {
+              project.writeFile(selectedFile.value.path, source.value);
+              return true;
+            },
+            preventDefault: true,
+          },
+        ]),
+      ],
+      props: { selectedFile, files, project },
     })
   );
 }
 
-export function openBrowser() {
-  openComponentInWindow(TraceryBrowser, {});
+export function openBrowser(project, props, windowProps) {
+  openComponentInWindow(TraceryBrowser, { project, ...props }, windowProps);
 }
 
 function FullDeclarationPane({ node }) {
@@ -134,8 +121,9 @@ const emptyList = [];
 
 function TraceryBrowserAugmentation({ topLevel, nodes }) {
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
-  const files = vitrail.props.value.files ?? { value: [] };
+  const files = vitrail.props.value.files ?? [];
   const selectedFile = vitrail.props.value.selectedFile ?? { value: null };
+  const project = vitrail.props.value.project;
 
   const selectedTopLevel = useSignal(null);
   const selectedMember = useSignal(null);
@@ -151,10 +139,10 @@ function TraceryBrowserAugmentation({ topLevel, nodes }) {
       "div",
       { style: { display: "flex" } },
       h(List, {
-        items: files.value,
+        items: files,
         selected: selectedFile.value,
         setSelected: (s) => (selectedFile.value = s),
-        labelFunc: (it) => it.path,
+        labelFunc: (it) => it.path.slice(project.path.length + 1),
         height: 200,
       }),
       h(List, {
