@@ -45,27 +45,16 @@ export const pipelineBuilder = {
 //  `
 //  const pipeline = (node) =>
 //    metaexec(node, (capture) => [
-//      (it) => it.type == "program",
-//      (it) => it.children,
 //      all(
 //        [
-//          (it) => it.type == "program",
+//          (it) => it.type == "program2",
 //          (it) => it.children,
-//        ],
-//        [
-//          (it) => it.type == "program",
-//          (it) => it.children,
-//          all(
-//            [(it) => it.type == "program",
-//            (it) => it.children],
-//            capture("test")
-//          )
-//        ],
+//        ]
 //      )
 //    ]);
 //  `,
 //  document.querySelector("#editor")!,
-//  [watch],
+//  [pipelineBuilder],
 //);
 
 const v = createDefaultCodeMirror(
@@ -98,7 +87,7 @@ function collectToplevel(node) {
                     [
                       type("function_declaration"),
                       (it) => it.children.find((it) => it.type == "identifier"),
-                      (it) => ({ name: it, members: [] }),
+                      all([(it) => ({ name: it, members: [] })],[(it) => ({ name: it, members: [] })]),
                     ],
                   ),
                   all(

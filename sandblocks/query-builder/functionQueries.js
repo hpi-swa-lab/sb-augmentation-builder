@@ -500,8 +500,7 @@ export class PipelineBinding {
 
   horizontalLine(first, last, buttonVisibleOverwrite = true) {
     const buttonVisible = useSignal(false);
-
-    if (last) {
+    if (last && !first) {
       return html`<div
         style=${{
           display: "flex",
@@ -509,7 +508,7 @@ export class PipelineBinding {
           position: "relative",
         }}
         onmouseenter=${() => (buttonVisible.value = true)}
-        onmouseleave=${async () => (buttonVisible.value = true)}
+        onmouseleave=${async () => (buttonVisible.value = false)}
       >
         <div
           style=${{
@@ -518,6 +517,7 @@ export class PipelineBinding {
             height: "0px",
             width: "1rem",
           }}
+          id="last"
         ></div>
         <div
           style=${{
@@ -557,6 +557,7 @@ export class PipelineBinding {
             "margin-left": first ? "1rem" : "0rem",
             height: "0px",
           }}
+          id=${first ? "first" : "not first"}
         ></div>
         <div
           style=${{
@@ -647,7 +648,7 @@ export class PipelineStepBinding {
     `;
   }
 
-  removeButton() {
+  removeButton(remove) {
     return html`
       <button
         style=${{
@@ -671,14 +672,78 @@ export class PipelineStepBinding {
           marginRight: "-10px",
           marginTop: "-10px",
         }}
+        onclick=${() => remove()}
       >
         x
       </button>
     `;
   }
 
+  findContainer(node) {
+    //console.log(node.sourceString);
+    if (
+      node.type == "array" ||
+      (node.type == "arguments" &&
+        node.previousSiblingChild.type == "identifier" &&
+        ["first", "all"].includes(node.previousSiblingChild.text))
+    ) {
+      //console.log("returning: \n " + node.sourceString);
+      //console.log(node);
+      return node;
+    } else {
+      //console.log(node.parent);
+      return node.parent ? this.findContainer(node.parent) : null;
+    }
+  }
+
+  findContainerChild(node) {
+    if (
+      node.parent.type == "array" ||
+      (node.parent.type == "arguments" &&
+        node.parent.previousSiblingChild.type == "identifier" &&
+        ["first", "all"].includes(node.parent.previousSiblingChild.text))
+    ) {
+      return node;
+    } else {
+      return this.findContainer(node.parent);
+    }
+  }
+
+  removeElementAndParentIfEmpty(node) {
+    const container = this.findContainer(node.parent);
+    console.log("container:\n" + container.sourceString);
+    const containerChild = container.childBlocks.find((it) =>
+      Array.from(it.allNodes())
+        .map((it) => it.id)
+        .includes(node.id),
+    );
+    console.log("containerChild:\n" + containerChild.sourceString);
+    if (containerChild) {
+      //debugger;
+      console.log("Deleting: containerChild");
+      containerChild.removeSelf();
+      console.log("Remaining Container:\n" + container.sourceString);
+      console.log(container);
+      container.childNodes.forEach((node) => {
+        if (
+          node.type == "," &&
+          (["[", ",", "]", "\n", "(", ")"].includes(
+            node.previousSiblingNode.type,
+          ) ||
+            !node.previousSiblingNode)
+        ) {
+          node.removeSelf();
+        }
+      });
+      //debugger;
+    }
+    //debugger;
+    if (container && container.childBlocks.length == 0) {
+      this.removeElementAndParentIfEmpty(container);
+    }
+  }
+
   getNodeComponent(addButtonRight = false, addButtonBottom = false) {
-    console.log(addButtonRight);
     const haloVisible = useSignal(false);
     return html`
       <div
@@ -687,7 +752,11 @@ export class PipelineStepBinding {
       >
         <div style=${{ position: "relative", display: "flex" }}>
           ${this.getRawNodeComponent()}
-          ${haloVisible.value ? this.removeButton() : null}
+          ${haloVisible.value
+            ? this.removeButton(() => {
+                this.removeElementAndParentIfEmpty(this.node);
+              })
+            : null}
           ${addButtonRight ? addButton(haloVisible.value) : null}
         </div>
         ${addButtonBottom
