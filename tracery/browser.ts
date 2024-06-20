@@ -1,15 +1,14 @@
 import {
+  EditorView,
+  defaultHighlightStyle,
   javascript,
   keymap,
+  syntaxHighlighting,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageFor, languageForPath } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
-import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
-import {
-  batch,
-  useSignal,
-  useSignalEffect,
-} from "../external/preact-signals.mjs";
+import { useContext, useMemo } from "../external/preact-hooks.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { request } from "../sandblocks/host.js";
 import { List } from "../sandblocks/list.js";
@@ -22,8 +21,11 @@ import {
   spawnArray,
   type,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { takeWhile } from "../utils.js";
-import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
+import { appendCss, takeWhile } from "../utils.js";
+import {
+  CodeMirrorWithVitrail,
+  baseCMExtensions,
+} from "../vitrail/codemirror6.ts";
 import {
   Augmentation,
   Model,
@@ -33,6 +35,21 @@ import {
   useValidateKeepNodes,
 } from "../vitrail/vitrail.ts";
 import { openComponentInWindow } from "./window.js";
+
+appendCss(`
+.tracery-browser {
+  display: flex;
+  height: 0;
+  flex: 1 1 0;
+  width: 100%;
+}
+.tracery-browser > .cm-editor {
+  width: 100%;
+}
+  
+.pane-full-width > .cm-editor {
+  width: 100%;
+}`);
 
 function extensionsForPath(path) {
   const language = languageForPath(path);
@@ -64,12 +81,14 @@ function TraceryBrowser({ project, path }) {
     selectedFile.value &&
     source.value &&
     h(CodeMirrorWithVitrail, {
+      className: "tracery-browser",
       key: selectedFile.value.path,
       value: source.value,
       onChange: (v) => (source.value = v),
       augmentations,
       cmExtensions: [
         ...cmExtensions,
+        ...baseCMExtensions,
         keymap.of([
           {
             key: "Mod-s",
@@ -90,7 +109,7 @@ export function openBrowser(project, props, windowProps) {
   openComponentInWindow(TraceryBrowser, { project, ...props }, windowProps);
 }
 
-function FullDeclarationPane({ node }) {
+function FullDeclarationPane({ node, style }) {
   const list = node.isRoot
     ? [node]
     : [
@@ -107,7 +126,7 @@ function FullDeclarationPane({ node }) {
 
   return h(
     "div",
-    { style: { flexDirection: "column" } },
+    { style: { flexDirection: "column", ...style } },
     h(
       "div",
       {},
@@ -121,7 +140,7 @@ function FullDeclarationPane({ node }) {
         "Open",
       ),
     ),
-    h(VitrailPane, { nodes: list }),
+    h(VitrailPane, { nodes: list, className: "pane-full-width" }),
   );
 }
 
@@ -147,6 +166,7 @@ function TraceryBrowserAugmentation({ topLevel, nodes }) {
       "div",
       { style: { display: "flex" } },
       h(List, {
+        style: { flex: 1, maxWidth: "250px" },
         items: files,
         selected: selectedFile.value,
         setSelected: (s) => (selectedFile.value = s),
@@ -154,6 +174,7 @@ function TraceryBrowserAugmentation({ topLevel, nodes }) {
         height: 200,
       }),
       h(List, {
+        style: { flex: 1, maxWidth: "250px" },
         items: topLevel,
         selected: selectedTopLevel.value,
         setSelected: (s) => (selectedTopLevel.value = s),
@@ -161,6 +182,7 @@ function TraceryBrowserAugmentation({ topLevel, nodes }) {
         height: 200,
       }),
       h(List, {
+        style: { flex: 1, maxWidth: "250px" },
         items: selectedTopLevel?.value?.members ?? emptyList,
         selected: selectedMember.value,
         setSelected: (s) => (selectedMember.value = s),
@@ -168,7 +190,8 @@ function TraceryBrowserAugmentation({ topLevel, nodes }) {
         height: 200,
       }),
     ),
-    selectedNode && h(FullDeclarationPane, { node: selectedNode }),
+    selectedNode &&
+      h(FullDeclarationPane, { node: selectedNode, style: { width: "100%" } }),
     // selectedNode && h(VitrailPane, { nodes: [selectedNode] }),
   );
 }

@@ -57,7 +57,7 @@ import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
 
 const IntentToDelete = StateEffect.define();
 
-const baseCMExtensions = [
+export const baseCMExtensions = [
   highlightSpecialChars(),
   // drawSelection(),
   dropCursor(),
@@ -183,6 +183,7 @@ export async function codeMirror6WithVitrail(
       ],
     });
 
+    console.log(extensionsForPane);
     return [
       ...extensionsForPane,
       invertedEffects.of((tr) => {
@@ -379,6 +380,8 @@ export function CodeMirrorWithVitrail({
   augmentations,
   cmExtensions,
   props,
+  style,
+  className,
 }: {
   value: string;
   onChange: (s: string) => void;
@@ -386,6 +389,8 @@ export function CodeMirrorWithVitrail({
   augmentations: Augmentation<any>[];
   cmExtensions?: any[];
   props: { [key: string]: any };
+  style: any;
+  className?: string;
 }) {
   const [vitrail, setVitrail] = useState(null);
   const [view, setView] = useState(null);
@@ -396,7 +401,6 @@ export function CodeMirrorWithVitrail({
       doc: value,
       root: document,
       extensions: [
-        ...baseCMExtensions,
         history(),
         highlightActiveLineGutter(),
         ...(cmExtensions ?? []),
@@ -431,5 +435,5 @@ export function CodeMirrorWithVitrail({
     }
   }, [value, view]);
 
-  return h("div", { ref: parent });
+  return h("div", { ref: parent, style, class: className });
 }
