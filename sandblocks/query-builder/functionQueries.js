@@ -341,7 +341,7 @@ export class PipelineBinding {
               bottom ? this.verticalLine(false, true) : html``,
               bottom
                 ? this.horizontalLine(firstPipeline, lastPipeline, false)
-                : html``,
+                : null,
             ),
           );
 
@@ -358,7 +358,7 @@ export class PipelineBinding {
             },
             this.steps.steps.map((step, index) => {
               return html`<div
-                style=${{ position: "relative", border: "1px dotted green" }}
+                style=${{ position: "relative", border: "0px dotted green" }}
               >
                 ${step.step.component(true)}
                 <div
@@ -509,11 +509,11 @@ export class PipelineBinding {
           position: "relative",
         }}
         onmouseenter=${() => (buttonVisible.value = true)}
-        onmouseleave=${async () => (buttonVisible.value = false)}
+        onmouseleave=${async () => (buttonVisible.value = true)}
       >
         <div
           style=${{
-            "border-top": "2px solid green",
+            "border-top": "2px solid black",
             "margin-left": "0rem",
             height: "0px",
             width: "1rem",
@@ -521,14 +521,14 @@ export class PipelineBinding {
         ></div>
         <div
           style=${{
-            marginLeft: "1rem",
-            marginTop: "-0.5rem",
-            //position: "absolute",
+            marginLeft: "1.5rem",
+            marginTop: "-0.6rem",
+            position: "absolute",
             //top: "100%",
             //right: "50%",
           }}
         >
-          ${addButton(buttonVisible.value)}
+          ${addButton(buttonVisible.value && buttonVisibleOverwrite)}
         </div>
       </div>`;
     } else {
@@ -542,10 +542,10 @@ export class PipelineBinding {
             "margin-left": "1rem",
             "margin-right": "1rem",
             "margin-top": "-5px",
-            border: "1px dotted red",
+            border: "0px dotted red",
             //background: "blue",
             height: "10px",
-            width: "100%",
+            width: last ? "1rem" : "100%",
             opacity: "0.5",
             position: "absolute",
             display: "block",
@@ -563,7 +563,7 @@ export class PipelineBinding {
             display: "block",
             position: "absolute",
             "margin-top": "-13px",
-            "margin-left": "2rem",
+            "margin-left": "1rem",
           }}
         >
           ${addButton(buttonVisible.value && buttonVisibleOverwrite)}
