@@ -5,13 +5,13 @@ import { List } from "../sandblocks/list.js";
 
 function wantsMouseOverFocus(e) {
   return (
-    e.getAttribute("focusable") ||
+    e.hasAttribute("focusable") ||
     (e.tagName === "INPUT" && e.type === "text") ||
     e.tagName === "TEXTAREA"
   );
 }
 
-const mouseOverForFocus = false;
+const mouseOverForFocus = true;
 let globalMousePos = { x: 0, y: 0 };
 document.addEventListener("mousemove", (e) => {
   globalMousePos = { x: e.clientX, y: e.clientY };

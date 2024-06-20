@@ -59,7 +59,7 @@ const IntentToDelete = StateEffect.define();
 
 const baseCMExtensions = [
   highlightSpecialChars(),
-  drawSelection(),
+  // drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
   indentOnInput(),
@@ -70,7 +70,6 @@ const baseCMExtensions = [
   rectangularSelection(),
   crosshairCursor(),
   highlightSelectionMatches(),
-  javascript(),
   EditorView.lineWrapping,
   keymap.of([
     ...closeBracketsKeymap,
@@ -83,6 +82,18 @@ const baseCMExtensions = [
     indentWithTab,
   ]),
 ];
+
+export function createJavaScriptCodeMirror(
+  text: string,
+  parent: HTMLElement,
+  augmentations: Augmentation<any>[],
+  cmExtensions: any[] = [],
+) {
+  return createDefaultCodeMirror(text, parent, augmentations, [
+    javascript(),
+    ...cmExtensions,
+  ]);
+}
 
 export async function createDefaultCodeMirror(
   text: string,
@@ -342,6 +353,8 @@ export async function codeMirror6WithVitrail(
         doc: "",
         parent: document.createElement("div"),
       });
+      host.dom.setAttribute("focusable", "");
+      host.dom.focus = () => host.focus();
       host.dom.style.cssText =
         "display: inline-flex !important; background: #fff";
       return paneFromCM(host, v, fetchAugmentations);

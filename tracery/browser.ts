@@ -1,4 +1,7 @@
-import { keymap } from "../codemirror6/external/codemirror.bundle.js";
+import {
+  javascript,
+  keymap,
+} from "../codemirror6/external/codemirror.bundle.js";
 import { languageFor, languageForPath } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
@@ -31,10 +34,11 @@ import {
 } from "../vitrail/vitrail.ts";
 import { openComponentInWindow } from "./window.js";
 
-function augmentationsForPath(path) {
+function extensionsForPath(path) {
   const language = languageForPath(path);
-  if (language === languageFor("javascript")) return [browser(language)];
-  return [browser(SBBaseLanguage)];
+  if (language === languageFor("javascript"))
+    return { cmExtensions: [javascript()], augmentations: [browser(language)] };
+  return { cmExtensions: [], augmentations: [browser(SBBaseLanguage)] };
 }
 
 function TraceryBrowser({ project, path }) {
@@ -53,6 +57,9 @@ function TraceryBrowser({ project, path }) {
     }
   });
 
+  const { augmentations, cmExtensions } = extensionsForPath(
+    selectedFile.value.path,
+  );
   return (
     selectedFile.value &&
     source.value &&
@@ -60,8 +67,9 @@ function TraceryBrowser({ project, path }) {
       key: selectedFile.value.path,
       value: source.value,
       onChange: (v) => (source.value = v),
-      augmentations: augmentationsForPath(selectedFile.value.path),
+      augmentations,
       cmExtensions: [
+        ...cmExtensions,
         keymap.of([
           {
             key: "Mod-s",
