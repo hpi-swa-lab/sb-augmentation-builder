@@ -45,6 +45,8 @@ const s = createDefaultCodeMirror(
   `
   const pipeline = (node) =>
     metaexec(node, (capture) => [
+          (it) => it.type == "program2",
+          (it) => it.type == "program2",
       all(
         [
           (it) => it.type == "program2",

@@ -339,6 +339,8 @@ export class PipelineBinding {
                       connectFirstNodes && index == 0 && !lastPipeline,
                       lastPipeline && index == 0,
                       index == this.steps.steps.length - 1,
+                      this.node,
+                      index,
                     ),
                   ),
                 );
@@ -355,7 +357,7 @@ export class PipelineBinding {
                 ? this.horizontalLine(
                     firstPipeline,
                     lastPipeline,
-                    false,
+                    true,
                     this.node,
                     this.steps.steps.length,
                   )
@@ -385,7 +387,7 @@ export class PipelineBinding {
                   ${this.horizontalLine(
                     index == 0,
                     index == this.steps.steps.length - 1,
-                    false,
+                    true,
                     this.node,
                     index,
                   )}
@@ -559,7 +561,11 @@ export class PipelineBinding {
     } else {
       return html`<div
         style=${{ position: "relative" }}
-        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseenter=${() => {
+          buttonVisible.value = true;
+          console.log("visible");
+          console.log("buttonVisibleOverwrite: " + buttonVisibleOverwrite);
+        }}
         onmouseleave=${async () => (buttonVisible.value = false)}
       >
         <div
@@ -567,7 +573,7 @@ export class PipelineBinding {
             "margin-left": "1rem",
             "margin-right": "1rem",
             "margin-top": "-5px",
-            border: "0px dotted red",
+            border: "2px dotted red",
             //background: "blue",
             height: "10px",
             width: last ? "1rem" : "100%",
@@ -592,11 +598,13 @@ export class PipelineBinding {
             "margin-left": "1rem",
           }}
         >
-          ${addButton(
-            buttonVisible.value && buttonVisibleOverwrite,
-            container,
-            index,
-          )}
+          <div style=${{ border: "2px dotted red" }}>
+            ${addButton(
+              buttonVisible.value && buttonVisibleOverwrite,
+              container,
+              index,
+            )}
+          </div>
         </div>
       </div>`;
     }
@@ -654,6 +662,11 @@ async function insertStep(container, index, pipelineStep) {
   if (Array.isArray(container)) {
     container = container[0].parent;
   }
+  const isPipeline = ["all", "first"].includes(
+    container.previousSiblingChild.text,
+  );
+
+  //debugger;
   switch (pipelineStep) {
     case PipelineSteps.FUNCTION:
       code = "(it) => it";
@@ -677,8 +690,10 @@ async function insertStep(container, index, pipelineStep) {
       code = "spawnArray()";
       break;
   }
+  if (isPipeline) code = "[" + code + "]";
+
   container.insert(code, "expression", index);
-  console.log(container.sourceString);
+  console.log(container.root.sourceString);
 }
 
 export class PipelineStepBinding {
@@ -702,7 +717,7 @@ export class PipelineStepBinding {
             position: "relative",
           },
         },
-        this.getNodeComponent(first, last),
+        this.getNodeComponent(first, last, container, index),
         connectToRight ? this.horizontalLine(container, index) : null,
       );
     };
@@ -853,7 +868,12 @@ export class PipelineStepBinding {
     }
   }
 
-  getNodeComponent(addButtonRight = false, addButtonBottom = false) {
+  getNodeComponent(
+    addButtonRight = false,
+    addButtonBottom = false,
+    container,
+    index,
+  ) {
     const haloVisible = useSignal(false);
     return html`
       <div
@@ -867,13 +887,15 @@ export class PipelineStepBinding {
                 this.removeElementAndParentIfEmpty(this.node);
               })
             : null}
-          ${addButtonRight ? addButton(haloVisible.value) : null}
+          ${addButtonRight
+            ? addButton(haloVisible.value, container[0].parent.parent, index)
+            : null}
         </div>
         ${addButtonBottom
           ? html`<div
               style=${{ top: "100%", right: "0%", marginLeft: "0.5rem" }}
             >
-              ${addButton(haloVisible.value)}
+              ${addButton(haloVisible.value, container, index + 1)}
               <div></div>
             </div>`
           : null}
