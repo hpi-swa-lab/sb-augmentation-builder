@@ -26,7 +26,7 @@ import {
   PaneFacet,
   baseCMExtensions,
 } from "../vitrail/codemirror6.ts";
-import { vim } from "../codemirror6/external/codemirror-vim.mjs";
+import { vim, Vim } from "../codemirror6/external/codemirror-vim.mjs";
 import {
   Augmentation,
   Model,
@@ -37,6 +37,14 @@ import {
 } from "../vitrail/vitrail.ts";
 import { format } from "./format.js";
 import { openComponentInWindow } from "./window.js";
+
+Vim.map("jk", "<Esc>", "insert");
+Vim.defineEx("write", "w", (cm) =>
+  cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("save")),
+);
+Vim.defineEx("quit", "q", (cm) =>
+  cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
+);
 
 appendCss(`
 .tracery-browser {
@@ -56,11 +64,16 @@ appendCss(`
 function extensionsForPath(path) {
   const language = languageForPath(path);
   if (language === languageFor("javascript"))
-    return { cmExtensions: [javascript()], augmentations: [browser(language)] };
-  return { cmExtensions: [], augmentations: [browser(SBBaseLanguage)] };
+    return { cmExtensions: [javascript()], augmentations: [] };
+  if (language === languageFor("typescript"))
+    return {
+      cmExtensions: [javascript({ typescript: true })],
+      augmentations: [],
+    };
+  return { cmExtensions: [], augmentations: [] };
 }
 
-function TraceryBrowser({ project, path }) {
+function TraceryBrowser({ project, path, window }) {
   const files = useMemo(() => project.allSources, [project]);
   const selectedFile = useSignal(
     path ? files.find((it) => it.path === path) : files[0],
@@ -94,8 +107,9 @@ function TraceryBrowser({ project, path }) {
       vitrailRef,
       className: "tracery-browser",
       key: selectedFile.value.path,
-      value: source.value,
-      onChange: (v) => (source.value = v),
+      value: source,
+      onSave: () => formatAndSave(),
+      onQuit: () => window.close(),
       augmentations,
       cmExtensions: [
         vim(),

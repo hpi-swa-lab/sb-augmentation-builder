@@ -55,6 +55,7 @@ import {
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 
 const IntentToDelete = StateEffect.define();
 
@@ -381,15 +382,14 @@ export const PaneFacet = Facet.define({
 export function CodeMirrorWithVitrail({
   vitrailRef,
   value,
-  onChange,
   augmentations,
   cmExtensions,
   props,
   style,
   className,
+  ...other
 }: {
-  value: string;
-  onChange: (s: string) => void;
+  value: { value: string };
   parent: HTMLElement;
   augmentations: Augmentation<any>[];
   cmExtensions?: any[];
@@ -397,47 +397,69 @@ export function CodeMirrorWithVitrail({
   style: any;
   className?: string;
   vitrailRef: { current: any };
+  [key: string]: any;
 }) {
-  const [vitrail, setVitrail] = useState(null);
-  const [view, setView] = useState(null);
+  const vitrail = useSignal(null);
+  const view = useSignal(null);
   const parent = useRef();
 
-  if (vitrailRef) vitrailRef.current = vitrail;
+  if (vitrailRef) vitrailRef.current = vitrail.value;
 
   useEffect(() => {
-    const view = new EditorView({
-      doc: value,
+    const cm = new EditorView({
+      doc: "",
       root: document,
       extensions: [history(), highlightActiveLineGutter()],
       parent: parent.current,
     });
-    codeMirror6WithVitrail(view, augmentations, cmExtensions ?? []).then(
-      setVitrail,
-    );
-    setView(view);
+    codeMirror6WithVitrail(cm, augmentations, cmExtensions ?? []).then((v) => {
+      vitrail.value = v;
+      view.value = cm;
+    });
   }, []);
 
-  useEffect(() => {
-    const handler = ({ detail: { sourceString } }) => onChange(sourceString);
-    if (vitrail) vitrail.addEventListener("change", handler);
-    return () => {
-      if (vitrail) vitrail.removeEventListener("change", handler);
+  useSignalEffect(() => {
+    const handler = ({ detail: { sourceString } }) => {
+      value.value = sourceString;
     };
-  }, [vitrail]);
+    if (vitrail.value) vitrail.value.addEventListener("change", handler);
+    return () => {
+      if (vitrail.value) vitrail.value.removeEventListener("change", handler);
+    };
+  });
 
   useEffect(() => {
-    if (vitrail) vitrail.props.value = props;
-  }, [vitrail, props]);
+    const handlers = Object.entries(other)
+      .filter(([key]) => key.startsWith("on"))
+      .map(([key, handler]) => [key.slice(2).toLowerCase(), handler]);
+    for (const [eventName, handler] of handlers) {
+      if (vitrail.value) vitrail.value.addEventListener(eventName, handler);
+    }
+    return () => {
+      for (const [eventName, handler] of handlers) {
+        if (vitrail.value)
+          vitrail.value.removeEventListener(eventName, handler);
+      }
+    };
+  }, [other, vitrail.value]);
 
   useEffect(() => {
-    const currentValue = view ? view.state.doc.toString() : "";
-    if (view && value !== currentValue) {
-      view.dispatch({
-        changes: { from: 0, to: currentValue.length, insert: value || "" },
+    if (vitrail.value) vitrail.value.props.value = props;
+  }, [vitrail.value, props]);
+
+  useSignalEffect(() => {
+    const currentValue = vitrail.value?.sourceString ?? "";
+    if (view.value && value.value !== currentValue) {
+      view.value.dispatch({
+        changes: {
+          from: 0,
+          to: currentValue.length,
+          insert: value.value || "",
+        },
         annotations: [External.of(true)],
       });
     }
-  }, [value, view]);
+  });
 
   return h("div", { ref: parent, style, class: className });
 }
