@@ -1,8 +1,13 @@
 import { h, render } from "../external/preact.mjs";
 import { FileProject } from "./project.js";
-import { matchesKey } from "../utils.js";
+import { appendCss, matchesKey } from "../utils.js";
 import { openBrowser } from "./browser.ts";
 import { openSearch } from "./search.js";
+
+appendCss(`
+html {
+  font-family: sans-serif;
+}`);
 
 const project = new FileProject({ folder: "/home/tom/Code/squeak/sb-js" });
 await project.open();

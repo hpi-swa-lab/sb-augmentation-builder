@@ -90,7 +90,12 @@ export function Window({
     );
     all.splice(all.indexOf(root), 1);
     all.push(root);
-    all.forEach((w, i) => (w.style.zIndex = 100 + i));
+    all.forEach((w, i) => {
+      w.style.zIndex = 100 + i;
+      w.style.position = "absolute";
+      w.style.top = 0;
+      w.style.left = 0;
+    });
   };
 
   useEffect(() => {

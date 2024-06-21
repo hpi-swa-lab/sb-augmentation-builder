@@ -46,6 +46,8 @@ import {
 };
 
 export const VitrailContext = createContext(null);
+export const useVitrailProps = () =>
+  useContext(VitrailContext).vitrail.props.value;
 
 type ReplacementProps = { [field: string]: any } & {
   nodes: SBNode[];
@@ -143,6 +145,7 @@ export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
+  hostOptions?: any,
 ) => Pane<T>;
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string, undoable: boolean) => void;
@@ -251,6 +254,9 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   async _loadModel(model: Model) {
     if (!this._models.has(model)) {
       this._models.set(model, await model.parse(this.sourceString, this));
+      this.dispatchEvent(
+        new CustomEvent("newModelLoaded", { detail: { model } }),
+      );
     }
   }
 
@@ -412,6 +418,16 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       }
     }
     return null;
+  }
+
+  selectedNode(model?: Model) {
+    const selection = this.getSelection();
+    if (!selection) return null;
+
+    const { range } = selection;
+    return this._models
+      .get(model ?? this.defaultModel)
+      ?.childEncompassingRange(range);
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -968,6 +984,7 @@ export class Pane<T> {
 
 export function VitrailPane({
   fetchAugmentations,
+  hostOptions,
   nodes,
   style,
   className,
@@ -977,7 +994,7 @@ export function VitrailPane({
   const vitrail = nodes[0]?.editor;
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
-    () => vitrail.createPane(fetchAugmentations),
+    () => vitrail.createPane(fetchAugmentations, hostOptions),
     [vitrail],
   );
 

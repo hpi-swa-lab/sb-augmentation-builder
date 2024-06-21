@@ -356,6 +356,14 @@ function _isEmptyObject(obj) {
   return Object.keys(obj).length === 0 && obj.constructor === Object;
 }
 
+export function arrayEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export function rangeEqual(a, b) {
   console.assert(Array.isArray(a));
   console.assert(Array.isArray(b));

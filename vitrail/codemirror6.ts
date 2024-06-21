@@ -52,9 +52,15 @@ import {
   rangeShift,
   parallelToSequentialChanges,
   isNullRange,
+  arrayEqual,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
-import { useEffect, useRef, useState } from "../external/preact-hooks.mjs";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 
 const IntentToDelete = StateEffect.define();
@@ -190,6 +196,12 @@ export async function codeMirror6WithVitrail(
       invertedEffects.of((tr) => {
         return tr.effects.filter((e) => e.is(IntentToDelete));
       }),
+      EditorView.editable.from(replacementsField, (v) => {
+        const replacement: Replacement<any> | null =
+          v.iter().value?.widget.replacement;
+        // check if there is a single replacement covering the entire pane
+        return !(replacement && arrayEqual(replacement.nodes, pane.nodes));
+      }),
       Prec.highest(
         keymap.of([
           {
@@ -292,6 +304,7 @@ export async function codeMirror6WithVitrail(
     vitrail: Vitrail<EditorView>,
     fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
     isRoot = false,
+    hostOptions?,
   ) {
     const pane = new Pane<EditorView>({
       vitrail,
@@ -338,6 +351,7 @@ export async function codeMirror6WithVitrail(
     host.dispatch({
       effects: StateEffect.appendConfig.of([
         ...extensions(pane),
+        ...(hostOptions?.cmExtensions ? hostOptions.cmExtensions : []),
         ...(isRoot ? [history()] : []),
       ]),
     });
@@ -350,6 +364,7 @@ export async function codeMirror6WithVitrail(
   const v = new Vitrail<EditorView>({
     createPane: (
       fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
+      hostOptions,
     ) => {
       const host = new EditorView({
         doc: "",
@@ -359,7 +374,7 @@ export async function codeMirror6WithVitrail(
       host.dom.focus = () => host.focus();
       host.dom.style.cssText =
         "display: inline-flex !important; background: #fff";
-      return paneFromCM(host, v, fetchAugmentations);
+      return paneFromCM(host, v, fetchAugmentations, false, hostOptions);
     },
     showValidationPending: (show) => {
       if (show) document.body.appendChild(pendingChangesHint);
@@ -380,13 +395,13 @@ export const PaneFacet = Facet.define({
 });
 
 export function CodeMirrorWithVitrail({
-  vitrailRef,
   value,
   augmentations,
   cmExtensions,
   props,
   style,
   className,
+  onLoad,
   ...other
 }: {
   value: { value: string };
@@ -396,14 +411,12 @@ export function CodeMirrorWithVitrail({
   props: { [key: string]: any };
   style: any;
   className?: string;
-  vitrailRef: { current: any };
+  onLoad?: (vitrail: Vitrail<EditorView>) => void;
   [key: string]: any;
 }) {
   const vitrail = useSignal(null);
   const view = useSignal(null);
   const parent = useRef();
-
-  if (vitrailRef) vitrailRef.current = vitrail.value;
 
   useEffect(() => {
     const cm = new EditorView({
@@ -415,6 +428,7 @@ export function CodeMirrorWithVitrail({
     codeMirror6WithVitrail(cm, augmentations, cmExtensions ?? []).then((v) => {
       vitrail.value = v;
       view.value = cm;
+      onLoad?.(v);
     });
   }, []);
 

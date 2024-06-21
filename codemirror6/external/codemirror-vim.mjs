@@ -6140,10 +6140,13 @@ var ht =
     readPos() {
       let { state: o } = this.view,
         c = [];
-      for (let h of o.selection.ranges) {
-        let y = h == o.selection.main,
-          k = Un(this.cm, this.view, h, y);
-        k && c.push(k);
+      // VITRAIL CHANGES FOR DISABLING EDITABLE STATE
+      if (this.view.state.facet(Je.editable)) {
+        for (let h of o.selection.ranges) {
+          let y = h == o.selection.main,
+            k = Un(this.cm, this.view, h, y);
+          k && c.push(k);
+        }
       }
       return { cursors: c };
     }
