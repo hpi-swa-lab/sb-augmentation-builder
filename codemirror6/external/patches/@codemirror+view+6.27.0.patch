@@ -1,0 +1,26 @@
+diff --git a/node_modules/@codemirror/view/dist/index.js b/node_modules/@codemirror/view/dist/index.js
+index b842e91..5a699f6 100644
+--- a/node_modules/@codemirror/view/dist/index.js
++++ b/node_modules/@codemirror/view/dist/index.js
+@@ -8756,10 +8756,10 @@ const selectionLayer = /*@__PURE__*/layer({
+     class: "cm-selectionLayer"
+ });
+ const themeSpec = {
+-    ".cm-line": {
++    "> .cm-content > .cm-line": {
+         "& ::selection, &::selection": { backgroundColor: "transparent !important" },
+     },
+-    ".cm-content": {
++    "> .cm-content": {
+         "& :focus": {
+             caretColor: "initial !important",
+             "&::selection, & ::selection": {
+@@ -8769,7 +8769,7 @@ const themeSpec = {
+     }
+ };
+ if (CanHidePrimary)
+-    themeSpec[".cm-line"].caretColor = themeSpec[".cm-content"].caretColor = "transparent !important";
++    themeSpec["> .cm-content > .cm-line"].caretColor = themeSpec["> .cm-content"].caretColor = "transparent !important";
+ const hideNativeSelection = /*@__PURE__*/Prec.highest(/*@__PURE__*/EditorView.theme(themeSpec));
+ 
+ const setDropCursorPos = /*@__PURE__*/StateEffect.define({
