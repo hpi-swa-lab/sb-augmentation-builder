@@ -1,4 +1,4 @@
-import { div, html } from "../../view/widgets.js";
+import { div, editor, html } from "../../view/widgets.js";
 import { h } from "../../external/preact.mjs";
 import {
   VitrailPane,
@@ -7,6 +7,7 @@ import {
 } from "../../vitrail/vitrail.ts";
 import { useSignal } from "../../external/preact-signals.mjs";
 import { TextArea, bindPlainString } from "./bindings.ts";
+import { languageFor, languageForPath } from "../../core/languages.js";
 
 export function orderFork() {}
 
@@ -291,8 +292,8 @@ export class ColorBinding {
 export class PipelineBinding {
   constructor(node, type = PipelineSteps.PIPELINE) {
     this.type = type;
-    this.node = node;
     this.steps = this.getPipelineSteps(node);
+    this.node = node;
 
     this.component = (
       top,
@@ -318,8 +319,12 @@ export class PipelineBinding {
                 return h(
                   "div",
                   {},
-                  top && index == 0 ? this.verticalLine(true) : html``,
-                  index != 0 ? this.verticalLine() : html``,
+                  top && index == 0
+                    ? this.verticalLine(true, false, this.node, index)
+                    : null,
+                  index != 0
+                    ? this.verticalLine(false, false, this.node, index)
+                    : null,
                   h(
                     "div",
                     {
@@ -334,13 +339,28 @@ export class PipelineBinding {
                       connectFirstNodes && index == 0 && !lastPipeline,
                       lastPipeline && index == 0,
                       index == this.steps.steps.length - 1,
+                      this.node,
+                      index,
                     ),
                   ),
                 );
               }),
-              bottom ? this.verticalLine(false, true) : html``,
               bottom
-                ? this.horizontalLine(firstPipeline, lastPipeline, false)
+                ? this.verticalLine(
+                    false,
+                    true,
+                    this.node,
+                    this.steps.steps.length,
+                  )
+                : null,
+              bottom
+                ? this.horizontalLine(
+                    firstPipeline,
+                    lastPipeline,
+                    true,
+                    this.node,
+                    this.steps.steps.length,
+                  )
                 : null,
             ),
           );
@@ -367,6 +387,9 @@ export class PipelineBinding {
                   ${this.horizontalLine(
                     index == 0,
                     index == this.steps.steps.length - 1,
+                    true,
+                    this.node,
+                    index,
                   )}
                 </div>
               </div>`;
@@ -458,7 +481,7 @@ export class PipelineBinding {
     ]);
   }
 
-  verticalLine(first, last = false) {
+  verticalLine(first, last = false, container, index) {
     //return html`<div style=${{ width: "10px" }}><hr></hr></div>`;
     const buttonVisible = useSignal(false);
 
@@ -493,12 +516,12 @@ export class PipelineBinding {
         onmouseenter=${() => (buttonVisible.value = true)}
         onmouseleave=${async () => (buttonVisible.value = false)}
       >
-        ${addButton(buttonVisible.value)}
+        ${addButton(buttonVisible.value, container, index)}
       </div>
     </div>`;
   }
 
-  horizontalLine(first, last, buttonVisibleOverwrite = true) {
+  horizontalLine(first, last, buttonVisibleOverwrite = true, container, index) {
     const buttonVisible = useSignal(false);
     if (last && !first) {
       return html`<div
@@ -528,13 +551,21 @@ export class PipelineBinding {
             //right: "50%",
           }}
         >
-          ${addButton(buttonVisible.value && buttonVisibleOverwrite)}
+          ${addButton(
+            buttonVisible.value && buttonVisibleOverwrite,
+            container,
+            index,
+          )}
         </div>
       </div>`;
     } else {
       return html`<div
         style=${{ position: "relative" }}
-        onmouseenter=${() => (buttonVisible.value = true)}
+        onmouseenter=${() => {
+          buttonVisible.value = true;
+          console.log("visible");
+          console.log("buttonVisibleOverwrite: " + buttonVisibleOverwrite);
+        }}
         onmouseleave=${async () => (buttonVisible.value = false)}
       >
         <div
@@ -542,7 +573,7 @@ export class PipelineBinding {
             "margin-left": "1rem",
             "margin-right": "1rem",
             "margin-top": "-5px",
-            border: "0px dotted red",
+            border: "2px dotted red",
             //background: "blue",
             height: "10px",
             width: last ? "1rem" : "100%",
@@ -567,22 +598,115 @@ export class PipelineBinding {
             "margin-left": "1rem",
           }}
         >
-          ${addButton(buttonVisible.value && buttonVisibleOverwrite)}
+          <div style=${{ border: "2px dotted red" }}>
+            ${addButton(
+              buttonVisible.value && buttonVisibleOverwrite,
+              container,
+              index,
+            )}
+          </div>
         </div>
       </div>`;
     }
   }
 }
 
-function addButton(visible) {
-  return visible ? html`<button>+</button>` : html``;
+function addButton(visible, container, index) {
+  const visibilityOverwirte = useSignal(false);
+  const selectExpanded = useSignal(false);
+  return visible || visibilityOverwirte.value || selectExpanded.value
+    ? html`
+        <div onclick=${() => (selectExpanded.value = !selectExpanded.value)}>
+          <select>
+            <option
+              value="fuction"
+              onclick=${() =>
+                insertStep(container, index, PipelineSteps.FUNCTION)}
+            >
+              funtion
+            </option>
+            <option
+              value="all"
+              onclick=${() => insertStep(container, index, PipelineSteps.ALL)}
+            >
+              all
+            </option>
+            <option
+              value="first"
+              onclick=${() => insertStep(container, index, PipelineSteps.FIRST)}
+            >
+              first
+            </option>
+            <option
+              value="type"
+              onclick=${() => insertStep(container, index, PipelineSteps.TYPE)}
+            >
+              type
+            </option>
+            <option
+              value="capture"
+              onclick=${() =>
+                insertStep(container, index, PipelineSteps.CAPTURE)}
+            >
+              capture
+            </option>
+          </select>
+        </div>
+      `
+    : null;
+}
+
+async function insertStep(container, index, pipelineStep) {
+  debugger;
+  let code = "";
+  if (Array.isArray(container)) {
+    container = container[0].parent;
+  }
+  const isPipeline = ["all", "first"].includes(
+    container.previousSiblingChild.text,
+  );
+
+  //debugger;
+  switch (pipelineStep) {
+    case PipelineSteps.FUNCTION:
+      code = "(it) => it";
+      break;
+    case PipelineSteps.CAPTURE:
+      code = "capture('')";
+      break;
+    case PipelineSteps.FIRST:
+      code = "first([(it) => it])";
+      break;
+    case PipelineSteps.ALL:
+      code = "all([(it) => it])";
+      break;
+    case PipelineSteps.QUERY:
+      code = "query()";
+      break;
+    case PipelineSteps.TYPE:
+      code = "type()";
+      break;
+    case PipelineSteps.SPAWN_ARRAY:
+      code = "spawnArray()";
+      break;
+  }
+  if (isPipeline) code = "[" + code + "]";
+
+  container.insert(code, "expression", index);
+  console.log(container.root.sourceString);
 }
 
 export class PipelineStepBinding {
   constructor(node, type) {
     this.type = type;
     this.node = node;
-    this.component = (connectToRight = false, first = false, last = false) => {
+    this.component = (
+      connectToRight = false,
+      first = false,
+      last = false,
+      container,
+      index,
+    ) => {
       return h(
         "div",
         {
@@ -593,8 +717,8 @@ export class PipelineStepBinding {
             position: "relative",
           },
         },
-        this.getNodeComponent(first, last),
-        connectToRight ? this.horizontalLine() : null,
+        this.getNodeComponent(first, last, container, index),
+        connectToRight ? this.horizontalLine(container, index) : null,
       );
     };
   }
@@ -603,7 +727,7 @@ export class PipelineStepBinding {
     this.node.sourceString;
   }
 
-  horizontalLine() {
+  horizontalLine(container, index) {
     const buttonVisible = useSignal(false);
 
     return html`
@@ -633,7 +757,7 @@ export class PipelineStepBinding {
             "margin-left": "5px",
           }}
         >
-          ${addButton(buttonVisible.value)}
+          ${addButton(buttonVisible.value, container, index)}
         </div>
         <div
           style=${{
@@ -722,6 +846,7 @@ export class PipelineStepBinding {
       //debugger;
       console.log("Deleting: containerChild");
       containerChild.removeSelf();
+      debugger;
       console.log("Remaining Container:\n" + container.sourceString);
       console.log(container);
       container.childNodes.forEach((node) => {
@@ -743,7 +868,12 @@ export class PipelineStepBinding {
     }
   }
 
-  getNodeComponent(addButtonRight = false, addButtonBottom = false) {
+  getNodeComponent(
+    addButtonRight = false,
+    addButtonBottom = false,
+    container,
+    index,
+  ) {
     const haloVisible = useSignal(false);
     return html`
       <div
@@ -757,13 +887,15 @@ export class PipelineStepBinding {
                 this.removeElementAndParentIfEmpty(this.node);
               })
             : null}
-          ${addButtonRight ? addButton(haloVisible.value) : null}
+          ${addButtonRight
+            ? addButton(haloVisible.value, container[0].parent.parent, index)
+            : null}
         </div>
         ${addButtonBottom
           ? html`<div
               style=${{ top: "100%", right: "0%", marginLeft: "0.5rem" }}
             >
-              ${addButton(haloVisible.value)}
+              ${addButton(haloVisible.value, container, index + 1)}
               <div></div>
             </div>`
           : null}
