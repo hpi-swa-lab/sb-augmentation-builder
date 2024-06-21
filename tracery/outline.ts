@@ -36,7 +36,7 @@ function matchTopLevel(node) {
     first(
       [
         languageSpecific(
-          "javascript",
+          ["javascript", "typescript"],
           first(
             [type("export_statement"), (it) => it.childBlock(0)],
             [(it) => it],
@@ -111,5 +111,5 @@ export function outline(node) {
       ),
       capture("topLevel"),
     ]),
-  ])?.topLevel;
+  ])!.topLevel;
 }

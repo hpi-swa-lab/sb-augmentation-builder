@@ -25,7 +25,6 @@ appendCss(`
 const emptyList = [];
 
 function TraceryBrowser({ project, initialSelection, window }) {
-  const vitrail = useSignal(null);
   const files = useMemo(() => project.allSources, [project]);
   const selectedFile = useSignal(
     initialSelection
@@ -37,13 +36,6 @@ function TraceryBrowser({ project, initialSelection, window }) {
   const selectedMember = useSignal(null);
   const selectedNode =
     selectedMember?.value?.node ?? selectedTopLevel?.value?.node;
-
-  useEffect(() => {
-    if (vitrail.value) {
-      const node = vitrail.value.getModels().get(vitrail.value.defaultModel);
-      topLevel.value = outline(node);
-    }
-  }, [vitrail.value]);
 
   return h(
     "div",
@@ -63,7 +55,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
         style: { flex: 1, maxWidth: "250px" },
         items: topLevel.value,
         selected: selectedTopLevel.value,
-        setSelected: (s) => (selectedTopLevel.value = s),
+        setSelected: (s) => {
+          selectedTopLevel.value = s;
+          selectedMember.value = null;
+        },
         labelFunc: (it) => it.name,
         height: 200,
       }),
@@ -78,7 +73,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
     ),
     selectedFile.value &&
       h(TraceryEditor, {
-        onLoad: (v) => (vitrail.value = v),
+        onLoad: (vitrail) => {
+          const node = vitrail.getModels().get(vitrail.defaultModel);
+          topLevel.value = outline(node);
+        },
         project,
         path: selectedFile.value.path,
         window,
@@ -89,5 +87,9 @@ function TraceryBrowser({ project, initialSelection, window }) {
 }
 
 export function openBrowser(project, props, windowProps) {
-  openComponentInWindow(TraceryBrowser, { project, ...props }, windowProps);
+  openComponentInWindow(
+    TraceryBrowser,
+    { project, ...props },
+    { ...windowProps, initialSize: { x: 700, y: 430 } },
+  );
 }

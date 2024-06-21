@@ -53,6 +53,7 @@ export class TreeSitterLanguage extends SBLanguage {
   // init API
   async ready(options) {
     await (this._readyPromise ??= this._load(options));
+    this.initialized = true;
   }
 
   async _load(options) {
@@ -117,6 +118,7 @@ export class TreeSitterLanguage extends SBLanguage {
   }
 
   _parse(text, oldRoot = null) {
+    console.assert(this.initialized, "language not initialized");
     const parser = new TreeSitter();
     parser.setLanguage(this.tsLanguage);
 

@@ -222,7 +222,7 @@ export class SBNode {
   }
 
   get isRoot() {
-    return !!this._sourceString;
+    return this._sourceString !== undefined;
   }
 
   get sourceString() {

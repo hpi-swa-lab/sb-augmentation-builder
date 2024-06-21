@@ -1,64 +1,103 @@
 import { languageForPath } from "../core/languages.js";
+import { SBNode } from "../core/model.js";
 import { useSignal } from "../external/preact-signals.mjs";
+import { List } from "../sandblocks/list.js";
 import { h, useAsyncEffect } from "../view/widgets.js";
+import { TraceryEditor } from "./editor.ts";
+import { outline } from "./outline.ts";
+import { openComponentInWindow } from "./window.js";
 
 export function openReferences(
   project,
   symbol: string,
   type: "implementors" | "senders",
-) {}
+) {
+  openComponentInWindow(
+    TraceryReferences,
+    { project, symbol, type },
+    { initialSize: { x: 700, y: 430 } },
+  );
+}
 
-function References({ project, symbol, type }) {
+function TraceryReferences({ project, symbol, type, window }) {
   const files = useSignal(null);
-  const selected = useSignal(null);
+  const selectedNode = useSignal(null);
+  const selectedFile = useSignal(null);
 
   useAsyncEffect(async () => {
-    files.value = await findReferences(project, symbol, type);
-    selected.value = files.value[0];
+    const result: {
+      path: string;
+      name: string;
+      node: SBNode;
+      focus: SBNode;
+    }[] = [];
 
-    const contents = await project.readFiles(files.value);
-    contents.map(({ path, data }) => languageForPath(path).parseSync(data));
-  });
+    const paths = await findReferences(project, symbol, type);
+    for (const { path, data } of await project.readFiles(paths)) {
+      const pathName = path.slice(project.path.length + 1);
+      const root = await languageForPath(path).parse(data);
+      for (const { node, name: topLevelName, members } of outline(root)) {
+        let foundAny = false;
+        for (const { node, name: memberName } of members ?? []) {
+          const focus =
+            type === "implementors"
+              ? memberName === symbol
+              : node.blockThat((n) => n.text === symbol);
+          if (focus) {
+            foundAny = true;
+            result.push({
+              path,
+              name: `${pathName}:${topLevelName}:${memberName}`,
+              node,
+              focus,
+            });
+          }
+        }
+        if (!foundAny) {
+          const focus =
+            type === "implementors"
+              ? topLevelName === symbol
+              : node.blockThat((n) => n.text === symbol);
+          if (focus) {
+            result.push({
+              path,
+              name: `${pathName}:${topLevelName}`,
+              node,
+              focus,
+            });
+          }
+        }
+      }
+    }
+
+    selectedFile.value = result[0];
+    files.value = result;
+  }, [symbol, type, project]);
 
   return (
     files.value && [
       h(List, {
         items: files.value,
-        selected: selected.value,
-        setSelected: (s) => (selected.value = s),
-        labelFunc: (it) => it.path.slice(project.path.length + 1),
+        selected: selectedFile.value,
+        setSelected: (s) => (selectedFile.value = s),
+        labelFunc: (it) => it.name,
         height: 200,
       }),
-      h(CodeMirrorWithVitrail, {
-        key: selected.value.path,
-        value: source,
-        onSave: () => formatAndSave(),
-        onQuit: () => window.close(),
-        onshowsenders: () => findReferences("senders"),
-        onshowimplementors: () => findReferences("implementors"),
-        augmentations,
-        cmExtensions: [
-          vim(),
-          ...cmExtensions,
-          ...baseCMExtensions,
-          drawSelection(),
-          lineNumbers({
-            formatNumber: (line, state) =>
-              state.facet(PaneFacet).startLineNumber + line - 1,
-          }),
-          keymap.of([
-            {
-              key: "Mod-s",
-              run: () => {
-                formatAndSave();
-                return true;
-              },
-              preventDefault: true,
-            },
-          ]),
-        ],
-        props: { selectedFile, files, project },
-      }),
+      selectedFile.value &&
+        h(TraceryEditor, {
+          project,
+          key: selectedFile.value,
+          path: selectedFile.value.path,
+          onLoad: (vitrail) => {
+            const node = vitrail.getModels().get(vitrail.defaultModel);
+            selectedNode.value = node.childForRange(
+              selectedFile.value.node.range,
+            );
+          },
+          node: selectedNode.value,
+          window,
+          style: { width: "100%" },
+        }),
     ]
   );
 }
