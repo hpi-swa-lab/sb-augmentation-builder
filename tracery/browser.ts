@@ -1,10 +1,8 @@
 import {
-  EditorView,
-  defaultHighlightStyle,
   drawSelection,
   javascript,
   keymap,
-  syntaxHighlighting,
+  lineNumbers,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageFor, languageForPath } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
@@ -25,6 +23,7 @@ import {
 import { appendCss, takeWhile } from "../utils.js";
 import {
   CodeMirrorWithVitrail,
+  PaneFacet,
   baseCMExtensions,
 } from "../vitrail/codemirror6.ts";
 import { vim } from "../codemirror6/external/codemirror-vim.mjs";
@@ -57,7 +56,7 @@ appendCss(`
 function extensionsForPath(path) {
   const language = languageForPath(path);
   if (language === languageFor("javascript"))
-    return { cmExtensions: [javascript()], augmentations: [] };
+    return { cmExtensions: [javascript()], augmentations: [browser(language)] };
   return { cmExtensions: [], augmentations: [browser(SBBaseLanguage)] };
 }
 
@@ -103,6 +102,10 @@ function TraceryBrowser({ project, path }) {
         ...cmExtensions,
         ...baseCMExtensions,
         drawSelection(),
+        lineNumbers({
+          formatNumber: (line, state) =>
+            state.facet(PaneFacet).startLineNumber + line - 1,
+        }),
         keymap.of([
           {
             key: "Mod-s",

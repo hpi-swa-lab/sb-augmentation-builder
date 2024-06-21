@@ -17,6 +17,31 @@ export class Project extends EventTarget {
     return (await this.readFiles([path]))[0].data;
   }
 
+  async openFile(path) {
+    const content = await this.readFile(path);
+    this.dispatchEvent(
+      new CustomEvent("openFile", { detail: { path, content } }),
+    );
+    return content;
+  }
+
+  closeFile(path) {
+    this.dispatchEvent(new CustomEvent("closeFile", { detail: { path } }));
+  }
+
+  async saveFile(path, content) {
+    await this.writeFile(path, content);
+    this.dispatchEvent(new CustomEvent("saveFile", { detail: { path } }));
+  }
+
+  onChangeFile(path, oldSource, newSource, changes, diff) {
+    this.dispatchEvent(
+      new CustomEvent("changeFile", {
+        detail: { path, oldSource, newSource, changes, diff },
+      }),
+    );
+  }
+
   _data = new Map();
   data(key, ifAbsent) {
     if (this._data.has(key)) return this._data.get(key);

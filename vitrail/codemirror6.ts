@@ -46,6 +46,7 @@ import {
   redo,
   invertedEffects,
   Annotation,
+  Facet,
 } from "../codemirror6/external/codemirror.bundle.js";
 import {
   rangeShift,
@@ -105,7 +106,6 @@ export async function createDefaultCodeMirror(
     doc: text,
     extensions: [
       ...baseCMExtensions,
-      // lineNumbers(),
       history(),
       highlightActiveLineGutter(),
       ...cmExtensions,
@@ -184,6 +184,7 @@ export async function codeMirror6WithVitrail(
     });
 
     return [
+      PaneFacet.of(pane),
       ...extensionsForPane,
       invertedEffects.of((tr) => {
         return tr.effects.filter((e) => e.is(IntentToDelete));
@@ -372,6 +373,10 @@ export async function codeMirror6WithVitrail(
 }
 
 const External = Annotation.define();
+export const PaneFacet = Facet.define({
+  static: true,
+  combine: (values) => values[0],
+});
 
 export function CodeMirrorWithVitrail({
   vitrailRef,
@@ -403,11 +408,7 @@ export function CodeMirrorWithVitrail({
     const view = new EditorView({
       doc: value,
       root: document,
-      extensions: [
-        history(),
-        highlightActiveLineGutter(),
-        ...(cmExtensions ?? []),
-      ],
+      extensions: [history(), highlightActiveLineGutter()],
       parent: parent.current,
     });
     codeMirror6WithVitrail(view, augmentations, cmExtensions ?? []).then(

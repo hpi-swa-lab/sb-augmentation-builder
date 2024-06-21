@@ -11,6 +11,7 @@ export {
   MapMode,
   RangeSetBuilder,
   StateField,
+  Facet,
 } from "@codemirror/state";
 export {
   searchKeymap,

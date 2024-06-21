@@ -36,6 +36,7 @@ import {
 // redo needs to be aware of intentToDeleteNodes
 // process replacements in two phases: remove all and buffer, then add all
 // change text just after spawn (while models are still loading)
+// codemirror: nested editors block cursor rendering
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -519,6 +520,7 @@ export class Pane<T> {
   replacements: Replacement<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
   startIndex: number = -1;
+  startLineNumber: number = -1;
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
@@ -650,6 +652,7 @@ export class Pane<T> {
 
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
     this.startIndex = nodes[0].range[0];
+    this._computeLineNumber();
     this.nodes = nodes;
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
@@ -689,6 +692,8 @@ export class Pane<T> {
       }
       this.startIndex = this.nodes[0].range[0];
     }
+
+    this._computeLineNumber();
   }
 
   updateReplacements(editBuffer: EditBuffer) {
@@ -949,6 +954,15 @@ export class Pane<T> {
       return true;
     }
     return false;
+  }
+
+  _computeLineNumber() {
+    const source = this.vitrail.sourceString;
+    this.startLineNumber = 1;
+    for (let i = 0; i < this.startIndex; i++) {
+      if (source[i] === "\n") this.startLineNumber++;
+    }
+    return this.startLineNumber;
   }
 }
 
