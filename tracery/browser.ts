@@ -28,7 +28,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
   const files = useMemo(() => project.allSources, [project]);
   const selectedFile = useSignal(
     initialSelection
-      ? files.find((it) => it.path === initialSelection[0])
+      ? files.find((it) => it.path === initialSelection.path)
       : files[0],
   );
   const topLevel = useSignal([]);
@@ -50,6 +50,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
         setSelected: (s) => (selectedFile.value = s),
         labelFunc: (it) => it.path.slice(project.path.length + 1),
         height: 200,
+        selectionContext: { path: selectedFile.value?.path },
       }),
       h(List, {
         style: { flex: 1, maxWidth: "250px" },
@@ -61,6 +62,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
         },
         labelFunc: (it) => it.name,
         height: 200,
+        selectionContext: {
+          path: selectedFile.value?.path,
+          topLevel: selectedTopLevel.value?.name,
+        },
       }),
       h(List, {
         style: { flex: 1, maxWidth: "250px" },
@@ -69,6 +74,11 @@ function TraceryBrowser({ project, initialSelection, window }) {
         setSelected: (s) => (selectedMember.value = s),
         labelFunc: (it) => it.name,
         height: 200,
+        selectionContext: {
+          path: selectedFile.value?.path,
+          topLevel: selectedTopLevel.value?.name,
+          member: selectedMember.value?.name,
+        },
       }),
     ),
     selectedFile.value &&
@@ -76,6 +86,14 @@ function TraceryBrowser({ project, initialSelection, window }) {
         onLoad: (vitrail) => {
           const node = vitrail.getModels().get(vitrail.defaultModel);
           topLevel.value = outline(node);
+          selectedTopLevel.value = initialSelection?.topLevel
+            ? topLevel.value.find((it) => it.name === initialSelection.topLevel)
+            : null;
+          selectedMember.value = initialSelection?.member
+            ? selectedTopLevel.value.members?.find(
+                (it) => it.name === initialSelection.member,
+              )
+            : null;
         },
         project,
         path: selectedFile.value.path,

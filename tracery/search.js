@@ -41,7 +41,7 @@ function Search({ project, onClose }) {
       height: "400px",
       onConfirm: (item) => {
         onClose();
-        openBrowser(project, { initialSelection: [item.path] });
+        openBrowser(project, { initialSelection: { path: item.path } });
       },
     }),
   ];

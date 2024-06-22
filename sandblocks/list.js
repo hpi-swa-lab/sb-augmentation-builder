@@ -56,6 +56,7 @@ export function List({
   onConfirm,
   autofocus,
   fuzzy,
+  selectionContext,
 }) {
   labelFunc ??= (x) => x;
 
@@ -94,6 +95,9 @@ export function List({
       class: "sb-list",
       tabIndex: -1,
       focusable: true,
+      ref: (e) => {
+        if (e) e.selectionContext = selectionContext;
+      },
       autofocus,
       style: { maxHeight: height, ...(style ?? {}) },
       onClick: (e) => setSelected(last(visibleItems)),

@@ -31,7 +31,9 @@ document.body.appendChild(editor);
 
 document.body.addEventListener("keydown", (e) => {
   if (matchesKey(e, "Ctrl-b")) {
-    openBrowser(project);
+    openBrowser(project, {
+      initialSelection: document.activeElement.selectionContext,
+    });
   } else if (matchesKey(e, "Ctrl-0")) {
     openSearch(project);
   } else {
