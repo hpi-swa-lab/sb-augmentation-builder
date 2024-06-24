@@ -13,16 +13,35 @@ export function orderFork() {}
 
 export function metaexec(obj, makeScript) {
   let captures = {};
-  const script = makeScript(function (captureName) {
-    return (it) => {
-      captures[captureName] = it;
-      return it;
-    };
-  });
-  const success = exec(obj, ...script);
+  let selectedInput = {};
+  let selectedOutput = {};
+  const script = makeScript(
+    function (captureName) {
+      return (it) => {
+        captures[captureName] = it;
+        return it;
+      };
+    },
+    function () {
+      return (it) => {
+        //debugger;
+        selectedInput = it;
+      };
+    },
+    function () {
+      return (it) => (selectedOutput = it);
+    },
+  );
+  const success = execScript(obj, ...script);
   // FIXME(tobe) which version to we want?
   // return Object.keys(captures).length > 0 ? captures : null;
-  return success ? captures : null;
+  return success
+    ? {
+        captures: captures,
+        selectedInput: selectedInput,
+        selectedOutput: selectedOutput,
+      }
+    : null;
 }
 
 function isAbortReason(next) {
@@ -40,7 +59,7 @@ export function replace(capture) {
   };
 }
 
-function exec(arg, ...script) {
+function execScript(arg, ...script) {
   if (!arg) return null;
   let current = arg;
   for (const predicate of script) {
@@ -72,7 +91,16 @@ export function languageSpecific(language, ...pipeline) {
       (it) => language_list.includes(it.language.name),
       ...pipeline,
     ];
-    return exec(it, ...mod_pipeline);
+    return execScript(it, ...mod_pipeline);
+  };
+}
+
+export function selected(selectedInput, selectedOutput, ...pipeline) {
+  return (it) => {
+    selectedInput(it);
+    const output = execScript(it, ...pipeline);
+    selectedOutput(output);
+    return output;
   };
 }
 
@@ -81,7 +109,7 @@ export function languageSpecific(language, ...pipeline) {
 export function also(...pipeline) {
   return (it) => {
     const og_it = it;
-    exec(it, ...pipeline);
+    execScript(it, ...pipeline);
     return og_it;
   };
 }
@@ -89,7 +117,7 @@ export function also(...pipeline) {
 export function first(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
-      const res = exec(it, ...pipeline);
+      const res = execScript(it, ...pipeline);
       if (res) return res;
     }
     return null;
@@ -106,7 +134,7 @@ export const debugIt = (it) => {
 export function all(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
-      if (isAbortReason(exec(it, ...pipeline))) return null;
+      if (isAbortReason(execScript(it, ...pipeline))) return null;
     }
     // signal that we completed, but return no sensible value
     return true;

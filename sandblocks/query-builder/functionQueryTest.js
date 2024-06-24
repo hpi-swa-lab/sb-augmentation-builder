@@ -10,6 +10,7 @@ import {
   languageSpecific,
   log,
   metaexec,
+  selected,
   spawnArray,
 } from "./functionQueries.js";
 import { drawSelection } from "../../codemirror6/external/codemirror.bundle.js";
@@ -112,7 +113,7 @@ async function queryForBrowser(code) {
   };
 
   function collectMembers(node) {
-    return metaexec(node, (capture) => [
+    return metaexec(node, (capture, selectedInput, selectedOutput) => [
       (it) => it.named,
       (it) => it.type != "comment",
       all(
@@ -129,7 +130,7 @@ async function queryForBrowser(code) {
   }
 
   function collectToplevel(node) {
-    return metaexec(node, (capture) => [
+    return metaexec(node, (capture, selectedInput, selectedOutput) => [
       (it) => it.named,
       (it) => it.type != "comment",
       all(
@@ -178,7 +179,7 @@ async function queryForBrowser(code) {
   }
 
   const pipeline = (node) =>
-    metaexec(node, (capture) => [
+    metaexec(node, (capture, selectedInput, selectedOutput) => [
       (it) => it.type == "program",
       (it) => it.children,
       spawnArray(collectToplevel),
@@ -187,6 +188,26 @@ async function queryForBrowser(code) {
 
   return simSbMatching2(tree, pipeline);
 }
+
+describe("UI-Tool-Tests", () => {
+  test("selected", async () => {
+    console.log("selected test");
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const code = `const x = "test"`;
+    const tree = typescript.parseSync(code);
+
+    const pipeline = (node) =>
+      metaexec(node, (capture, selectedInput, selectedOutput) => [
+        (it) => it.query("const $var = $name"),
+        (it) => it.name,
+        selected(selectedInput(), selectedOutput(), capture("name")),
+      ]);
+
+    const res = simSbMatching2(tree, pipeline);
+    console.log(res[0]);
+  });
+});
 
 describe("New Execution Test", async () => {
   test("TypeFilter", async () => {
@@ -197,7 +218,7 @@ describe("New Execution Test", async () => {
     );
 
     const pipeline = (node) =>
-      metaexec(node, (capture) => [
+      metaexec(node, (capture, selectedInput, selectedOutput) => [
         (it) => it.query("const $name = $obj"),
         (it) => it.obj.type == "array",
         all(
@@ -207,7 +228,7 @@ describe("New Execution Test", async () => {
       ]);
 
     const res = simSbMatching2(tree, pipeline);
-
+    debugger;
     assertEq(res.length, 2);
 
     assertEq(res[0].name, "a");
@@ -375,7 +396,7 @@ function test(string) {
     render(html`<${Browser} />`, container);
   });
 
-  test.view("List", async () => {
+  test("List", async () => {
     const code_ts = `const list = [[[1],[2]],[[3],[4]]]`;
     const code_hsk = `[[1,2],[3,4]]`;
     const code_py = `list = [[1,2],[3,4]]`;
@@ -408,7 +429,7 @@ function test(string) {
     // debugger;
 
     const pipeline = (tree) => {
-      return metaexec(tree, (capture) => [
+      return metaexec(tree, (capture, selectedInput, selectedOutput) => [
         first(
           [
             languageSpecific(
@@ -458,7 +479,7 @@ function test(string) {
     const tree_jv = offscreenTest_jv.getModels().get(languageFor("typescript"));
 
     const pipeline_colorDef = (tree) => {
-      return metaexec(tree, (capture) => [
+      return metaexec(tree, (capture, selectedInput, selectedOutput) => [
         (it) => it.query("const $name = $values"),
         (it) => it.values.sourceString.includes("rgb"),
         all(
@@ -472,7 +493,7 @@ function test(string) {
     const colorDef = simSbMatching2(tree_jv, pipeline_colorDef)[0];
 
     const pipeline_colorOcc = (tree) => {
-      return metaexec(tree, (capture) => [
+      return metaexec(tree, (capture, selectedInput, selectedOutput) => [
         (it) => it.type == "identifier",
         also((it) => it.text, log()),
         (it) => it.text == colorDef.name.text,
