@@ -257,6 +257,7 @@ export const placeholder = {
 
 export const smileys = {
   model: languageFor("javascript"),
+  examples: ["const a = 123"],
   matcherDepth: 3,
   rerender: () => true,
   match: (x, _pane) =>

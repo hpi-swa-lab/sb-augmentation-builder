@@ -129,6 +129,7 @@ function queryOrCreate(query, extract) {
   };
 }
 
+(window as any).languageFor = languageFor;
 export const augmentationBuilder = (model) => ({
   matcherDepth: 8,
   model,
@@ -142,16 +143,8 @@ export const augmentationBuilder = (model) => ({
         [objectField("match"), capture("match")],
         [objectField("view"), capture("view")],
         [
-          first(
-            [
-              queryOrCreate(
-                "let a = {examples: [$_array]}",
-                extractType("pair"),
-              ),
-              (it) => it.array,
-            ],
-            // [ queryDeep("let a = {examples: $value}", extractType("pair")), (it) => it.value, ],
-          ),
+          queryOrCreate("let a = {examples: [$_array]}", extractType("pair")),
+          (it) => it.array,
           capture("examples"),
         ],
       ),
@@ -233,7 +226,6 @@ class MaybeEditor implements ModelEditor {
   transaction(cb: () => void): void {}
 
   insertTextFromCommand(position: number, text: string) {
-    debugger;
     this.parent.insert(this.template.sourceString, this.template.type, 0);
     this.editor.insertTextFromCommand(position, text);
   }
