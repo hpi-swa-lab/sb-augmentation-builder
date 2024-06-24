@@ -4,7 +4,7 @@ import { appendCss, matchesKey } from "../utils.js";
 import { openBrowser } from "./browser.ts";
 import { openSearch } from "./search.js";
 import { useAsyncEffect, useLocalStorageSignal } from "../view/widgets.js";
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 
 appendCss(`
 html {
@@ -20,6 +20,24 @@ function Tracery() {
       projectPath.value ? new FileProject({ folder: projectPath.value }) : null,
     [projectPath.value],
   );
+
+  useEffect(() => {
+    const listener = (e) => {
+      if (matchesKey(e, "Ctrl-b")) {
+        openBrowser(project, {
+          initialSelection: document.activeElement.selectionContext,
+        });
+      } else if (matchesKey(e, "Ctrl-0")) {
+        openSearch(project);
+      } else {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.body.addEventListener("keydown", listener);
+    return () => document.body.removeEventListener("keydown", listener);
+  }, [project]);
 
   useAsyncEffect(async () => {
     if (project) {
@@ -76,17 +94,3 @@ function Tracery() {
 const editor = document.createElement("div");
 render(h(Tracery), editor);
 document.body.appendChild(editor);
-
-document.body.addEventListener("keydown", (e) => {
-  if (matchesKey(e, "Ctrl-b")) {
-    openBrowser(project, {
-      initialSelection: document.activeElement.selectionContext,
-    });
-  } else if (matchesKey(e, "Ctrl-0")) {
-    openSearch(project);
-  } else {
-    return;
-  }
-  e.preventDefault();
-  e.stopPropagation();
-});
