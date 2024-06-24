@@ -418,6 +418,7 @@ export class PipelineBinding {
                 )}
               </div>`;
             }),
+            addButton(true, this.node, 1),
           );
         default:
           return html`<div>Not yet implemented</div>`;
@@ -563,8 +564,6 @@ export class PipelineBinding {
         style=${{ position: "relative" }}
         onmouseenter=${() => {
           buttonVisible.value = true;
-          console.log("visible");
-          console.log("buttonVisibleOverwrite: " + buttonVisibleOverwrite);
         }}
         onmouseleave=${async () => (buttonVisible.value = false)}
       >
@@ -657,7 +656,6 @@ function addButton(visible, container, index) {
 }
 
 async function insertStep(container, index, pipelineStep) {
-  debugger;
   let code = "";
   if (Array.isArray(container)) {
     container = container[0].parent;
@@ -675,10 +673,10 @@ async function insertStep(container, index, pipelineStep) {
       code = "capture('')";
       break;
     case PipelineSteps.FIRST:
-      code = "first([(it) => it])";
+      code = "first([(it) => it],[(it) => it])";
       break;
     case PipelineSteps.ALL:
-      code = "all([(it) => it])";
+      code = "all([(it) => it],[(it) => it])";
       break;
     case PipelineSteps.QUERY:
       code = "query()";
@@ -693,7 +691,7 @@ async function insertStep(container, index, pipelineStep) {
   if (isPipeline) code = "[" + code + "]";
 
   container.insert(code, "expression", index);
-  console.log(container.root.sourceString);
+  //console.log(container.root.sourceString);
 }
 
 export class PipelineStepBinding {
@@ -835,20 +833,20 @@ export class PipelineStepBinding {
 
   removeElementAndParentIfEmpty(node) {
     const container = this.findContainer(node.parent);
-    console.log("container:\n" + container.sourceString);
+    //console.log("container:\n" + container.sourceString);
     const containerChild = container.childBlocks.find((it) =>
       Array.from(it.allNodes())
         .map((it) => it.id)
         .includes(node.id),
     );
-    console.log("containerChild:\n" + containerChild.sourceString);
+    //console.log("containerChild:\n" + containerChild.sourceString);
     if (containerChild) {
       //debugger;
-      console.log("Deleting: containerChild");
-      containerChild.removeSelf();
-      debugger;
-      console.log("Remaining Container:\n" + container.sourceString);
-      console.log(container);
+      //console.log("Deleting: containerChild");
+      //containerChild.removeSelf();
+      //debugger;
+      //console.log("Remaining Container:\n" + container.sourceString);
+      //console.log(container);
       container.childNodes.forEach((node) => {
         if (
           node.type == "," &&
@@ -924,6 +922,7 @@ export class PipelineStepBinding {
       //background: "#333",
       display: "inline-block",
       position: "relative",
+      marginRight: "5px",
     };
 
     switch (this.type) {
