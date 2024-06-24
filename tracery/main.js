@@ -7,6 +7,7 @@ import { openSearch } from "./search.js";
 appendCss(`
 html {
   font-family: sans-serif;
+  font-size: 13px;
 }`);
 
 const project = new FileProject({ folder: "/home/tom/Code/squeak/sb-js" });

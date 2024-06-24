@@ -4,7 +4,6 @@ import {
   lineNumbers,
   keymap,
   javascript,
-  EditorView,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
@@ -30,14 +29,19 @@ import {
   useValidateKeepNodes,
   useVitrailProps,
 } from "../vitrail/vitrail.ts";
+import { openExplorer } from "./explorer.ts";
 import { format } from "./format.js";
 import { openReferences } from "./references.ts";
 
 Vim.map("jk", "<Esc>", "insert");
+Vim.mapCommand("<C-e>", "action", "quit");
 Vim.defineEx("write", "w", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("save")),
 );
 Vim.defineEx("quit", "q", (cm) =>
+  cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
+);
+Vim.defineAction("quit", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
 );
 Vim.defineAction("showsenders", (cm) => {
