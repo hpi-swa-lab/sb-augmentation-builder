@@ -552,17 +552,17 @@ export function makeUUID() {
   });
 }
 
-export function appendCss(text) {
+export function appendCss(text, parent) {
   const style = document.createElement("style");
   style.textContent = text;
-  document.head.appendChild(style);
+  (parent ?? document.head).appendChild(style);
 }
 
-export function linkCss(url) {
+export function linkCss(url, parent) {
   const style = document.createElement("link");
   style.rel = "stylesheet";
   style.href = url;
-  document.head.appendChild(style);
+  (parent ?? document.head).appendChild(style);
 }
 
 export function clsx(...args) {

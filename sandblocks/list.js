@@ -40,7 +40,8 @@ appendCss(`
   padding: 0 0.25rem;
 }
 .sb-list .selected {
-  background: #ccc;
+  background: rgb(40, 131, 241);
+  color: #fff;
 }
 .search-result {
   background-color: #ffe17d;
@@ -137,7 +138,10 @@ export function List({
           },
         },
         h("span", {
-          style: { marginRight: "0.25rem", color: "#69f" },
+          style: {
+            marginRight: "0.25rem",
+            color: selected === item ? "#fff" : "rgb(40, 131, 241)",
+          },
           class: withDo(iconFunc(item), (i) =>
             i ? "codicon codicon-" + i : null,
           ),
