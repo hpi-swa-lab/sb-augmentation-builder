@@ -48,6 +48,8 @@ function TraceryReferences({ project, symbol, type, window }) {
             result.push({
               path,
               name: `${pathName}:${topLevelName}:${memberName}`,
+              topLevel: topLevelName,
+              member: memberName,
               node,
               focus,
             });
@@ -62,6 +64,7 @@ function TraceryReferences({ project, symbol, type, window }) {
             result.push({
               path,
               name: `${pathName}:${topLevelName}`,
+              topLevel: topLevelName,
               node,
               focus,
             });
@@ -84,6 +87,7 @@ function TraceryReferences({ project, symbol, type, window }) {
             setSelected: (s) => (selectedFile.value = s),
             labelFunc: (it) => it.name,
             height: 200,
+            selectionContext: selectedFile.value,
           }),
           selectedFile.value &&
             h(TraceryEditor, {
