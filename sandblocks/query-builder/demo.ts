@@ -62,7 +62,7 @@ export const pipelineBuilder = {
 const v = createDefaultCodeMirror(
   `
 function collectToplevel(node) {
-    return metaexec(node, (capture) => [
+    return metaexec(node, (capture,selectedInput,selectedOutput) => [
       (it) => it.named,
       (it) => it.type != "comment",
       all(
@@ -78,7 +78,7 @@ function collectToplevel(node) {
                 [
                   first(
                     [
-                      type("class_declaration"),
+                      selected(type("class_declaration")),
                       query("class $name {$$$members}"),
                     ],
                     [
