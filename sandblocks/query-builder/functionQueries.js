@@ -12,6 +12,9 @@ import { languageFor, languageForPath } from "../../core/languages.js";
 export function orderFork() {}
 
 export function metaexec(obj, makeScript) {
+  return _metaexec(obj, makeScript)?.captures;
+}
+export function _metaexec(obj, makeScript) {
   let captures = {};
   let selectedInput = {};
   let selectedOutput = {};
