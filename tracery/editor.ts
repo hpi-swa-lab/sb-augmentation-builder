@@ -25,6 +25,7 @@ import {
   Augmentation,
   Model,
   SelectionInteraction,
+  Vitrail,
   VitrailContext,
   VitrailPane,
   useValidateKeepNodes,
@@ -33,10 +34,12 @@ import {
 import { augmentationBuilder } from "./augmentation-builder.ts";
 import { format } from "./format.js";
 import { openReferences } from "./references.ts";
+import { watch, wrapWithWatch } from "./watch.js";
 import { openComponentInWindow } from "./window.js";
 
 Vim.map("jk", "<Esc>", "insert");
 Vim.mapCommand("<C-e>", "action", "quit");
+Vim.mapCommand("<C-q>", "action", "wrapwithwatch");
 Vim.defineEx("write", "w", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("save")),
 );
@@ -45,6 +48,11 @@ Vim.defineEx("quit", "q", (cm) =>
 );
 Vim.defineAction("quit", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
+);
+Vim.defineAction("wrapwithwatch", (cm) =>
+  cm.cm6.state
+    .facet(PaneFacet)
+    .vitrail.dispatchEvent(new CustomEvent("wrapwithwatch")),
 );
 Vim.defineAction("showsenders", (cm) => {
   cm.cm6.state
@@ -64,12 +72,12 @@ function extensionsForPath(path) {
   if (language === languageFor("javascript"))
     return {
       cmExtensions: [javascript()],
-      augmentations: [augmentationBuilder(language)],
+      augmentations: [augmentationBuilder(language), watch(language)],
     };
   if (language === languageFor("typescript"))
     return {
       cmExtensions: [javascript({ typescript: true })],
-      augmentations: [augmentationBuilder(language)],
+      augmentations: [augmentationBuilder(language), watch(language)],
     };
   return { cmExtensions: [], augmentations: [] };
 }
@@ -140,7 +148,7 @@ export function openNodeInWindow(node: SBNode, props: any = {}) {
 
 export function TraceryEditor({ project, path, nodes, window, onLoad }) {
   const source = useSignal(null);
-  const vitrail = useSignal(null);
+  const vitrail: { value: Vitrail<any> } = useSignal(null);
 
   useEffect(() => {
     if (path) {
@@ -163,6 +171,13 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     openReferences(project, symbol, type);
   };
 
+  const _wrapWithWatch = () => {
+    const node = vitrail.value
+      .selectedNode()
+      ?.orParentThat((n) => n.isExpression);
+    wrapWithWatch(node);
+  };
+
   const language = languageForPath(path) ?? SBBaseLanguage;
   return (
     path &&
@@ -179,6 +194,7 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       onQuit: () => window?.close(),
       onshowsenders: () => findReferences("senders"),
       onshowimplementors: () => findReferences("implementors"),
+      onwrapwithwatch: () => _wrapWithWatch(),
       augmentations: [...augmentations, singleDeclaration(language)],
       cmExtensions: [
         vim(),
@@ -190,6 +206,14 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
             key: "Mod-s",
             run: () => {
               formatAndSave();
+              return true;
+            },
+            preventDefault: true,
+          },
+          {
+            key: "Mod-q",
+            run: () => {
+              _wrapWithWatch();
               return true;
             },
             preventDefault: true,

@@ -144,6 +144,10 @@ export class SBLanguage {
     root._editor = editor;
     return root;
   }
+
+  isExpression(node) {
+    return false;
+  }
 }
 
 class _SBBaseLanguage extends SBLanguage {
@@ -275,6 +279,10 @@ export class SBNode {
 
   get field() {
     return this._field;
+  }
+
+  get isExpression() {
+    return false;
   }
 
   atField(field) {
@@ -806,6 +814,10 @@ export class SBBlock extends SBNode {
     return (this._literalHash ??= hashCombine(
       this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0),
     ));
+  }
+
+  get isExpression() {
+    return this.language.isExpression(this);
   }
 }
 

@@ -276,6 +276,12 @@ export class TreeSitterLanguage extends SBLanguage {
     return this._matchesType(rule, myType);
   }
 
+  isExpression(node) {
+    // TODO parametrize the name of the expression type
+    const rule = this._grammarNodeFor(node);
+    return rule.name === "expression";
+  }
+
   // FIXME cb should only be called once we know that we have a full match
   _matchRule(rule, pending, cb) {
     switch (rule.type) {
@@ -295,9 +301,14 @@ export class TreeSitterLanguage extends SBLanguage {
         if (this.compatibleType(pending[0]?.type, rule.name)) {
           cb(pending.shift(), rule);
         } else {
-          // advertise the slot
-          cb(null, rule);
-          throw new NoMatch();
+          // inline?
+          if (rule.name[0] === "_" || this.grammar.inline.includes(rule.name)) {
+            this._matchRule(this.grammar.rules[rule.name], pending, cb);
+          } else {
+            // advertise the slot
+            cb(null, rule);
+            throw new NoMatch();
+          }
         }
         break;
       case "ALIAS":
@@ -308,6 +319,7 @@ export class TreeSitterLanguage extends SBLanguage {
         }
         break;
       case "CHOICE":
+        let didMatch = false;
         for (const member of rule.members) {
           // FIXME assumes that is can commit early to a choice,
           // instead we should be exploring all possible results
@@ -316,11 +328,13 @@ export class TreeSitterLanguage extends SBLanguage {
             this._matchRule(member, copy, cb);
             // shrink to same size and continue
             while (pending.length > copy.length) pending.shift();
+            didMatch = true;
             break;
           } catch (e) {
             if (!(e instanceof NoMatch)) throw e;
           }
         }
+        if (!didMatch) throw new NoMatch();
         break;
       case "REPEAT1":
         this._matchRule(rule.content, pending, cb);
