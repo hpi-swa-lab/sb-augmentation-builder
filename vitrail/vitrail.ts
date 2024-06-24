@@ -1248,7 +1248,9 @@ class VitrailReplacementContainer extends HTMLElement {
   }
 
   getSelection() {
-    return this._selectedAtStart ? this.range[0] : this.range[1];
+    return this._selectedAtStart
+      ? [this.range[0], this.range[0]]
+      : [this.range[1], this.range[1]];
   }
 
   onClick(e: MouseEvent) {

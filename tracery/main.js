@@ -15,7 +15,12 @@ await project.open();
 
 openBrowser(
   project,
-  {},
+  {
+    initialSelection: {
+      path: "/home/tom/Code/squeak/sb-js/tracery/augmentation-builder.ts",
+      topLevel: "augmentationBuilder",
+    },
+  },
   {
     doNotStartAttached: true,
     initialPosition: { x: 100, y: 100 },

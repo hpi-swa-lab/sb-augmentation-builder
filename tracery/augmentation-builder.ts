@@ -13,12 +13,12 @@ import {
   all,
   replace,
   first,
-  debugIt,
   query,
-  queryDeep,
+  debugIt,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
+import { openNodeInWindow } from "./editor.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -129,9 +129,9 @@ function queryOrCreate(query, extract) {
   };
 }
 
-export const augmentationBuilder = {
-  matcherDepth: 4,
-  model: languageFor("javascript"),
+export const augmentationBuilder = (model) => ({
+  matcherDepth: 8,
+  model,
   rerender: () => true,
   match: (node) =>
     metaexec(node, (capture) => [
@@ -139,7 +139,6 @@ export const augmentationBuilder = {
       replace(capture),
       all(
         [objectField("matcherDepth"), capture("depth")],
-        [objectField("model"), capture("model")],
         [objectField("match"), capture("match")],
         [objectField("view"), capture("view")],
         [
@@ -166,7 +165,22 @@ export const augmentationBuilder = {
     return h(
       "div",
       { style: { display: "flex", border: "1px solid #333" } },
-      h("div", {}, "Augmentation", h(VitrailPane, { nodes: [node] })),
+      h(
+        "div",
+        {},
+        "Augmentation",
+        h(
+          "button",
+          {
+            onClick: () =>
+              openNodeInWindow(node, {
+                fetchAugmentations: () => [augmentationBuilder(node.language)],
+              }),
+          },
+          "Open",
+        ),
+        h(VitrailPane, { nodes: [node] }),
+      ),
       h(
         "table",
         { style: { width: 400 } },
@@ -202,7 +216,7 @@ export const augmentationBuilder = {
       ),
     );
   },
-};
+});
 
 class MaybeEditor implements ModelEditor {
   editor: Vitrail<any>;

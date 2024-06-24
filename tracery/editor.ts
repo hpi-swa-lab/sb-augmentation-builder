@@ -6,7 +6,7 @@ import {
   javascript,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
-import { SBBaseLanguage } from "../core/model.js";
+import { SBBaseLanguage, SBNode } from "../core/model.js";
 import { useEffect } from "../external/preact-hooks.mjs";
 import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
@@ -25,13 +25,15 @@ import {
   Augmentation,
   Model,
   SelectionInteraction,
+  VitrailContext,
   VitrailPane,
   useValidateKeepNodes,
   useVitrailProps,
 } from "../vitrail/vitrail.ts";
-import { openExplorer } from "./explorer.ts";
+import { augmentationBuilder } from "./augmentation-builder.ts";
 import { format } from "./format.js";
 import { openReferences } from "./references.ts";
+import { openComponentInWindow } from "./window.js";
 
 Vim.map("jk", "<Esc>", "insert");
 Vim.mapCommand("<C-e>", "action", "quit");
@@ -60,16 +62,19 @@ Vim.mapCommand("gm", "action", "showimplementors");
 function extensionsForPath(path) {
   const language = languageForPath(path);
   if (language === languageFor("javascript"))
-    return { cmExtensions: [javascript()], augmentations: [] };
+    return {
+      cmExtensions: [javascript()],
+      augmentations: [augmentationBuilder(language)],
+    };
   if (language === languageFor("typescript"))
     return {
       cmExtensions: [javascript({ typescript: true })],
-      augmentations: [],
+      augmentations: [augmentationBuilder(language)],
     };
   return { cmExtensions: [], augmentations: [] };
 }
 
-function FullDeclarationPane({ node }) {
+function FullDeclarationPane({ node, ...props }) {
   useValidateKeepNodes([node], node.language);
 
   const list = node.isRoot
@@ -87,6 +92,7 @@ function FullDeclarationPane({ node }) {
       ];
 
   return h(VitrailPane, {
+    ...props,
     nodes: list,
     className: "pane-full-width",
     hostOptions: {
@@ -116,6 +122,21 @@ const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
     return h(FullDeclarationPane, { node, key: node });
   },
 });
+
+function FullDeclarationPaneWindow({ node, ...props }) {
+  return h(
+    VitrailContext.Provider,
+    { value: { vitrail: node.editor } },
+    h(
+      "div",
+      { style: { height: "100%", overflowY: "auto" } },
+      h(FullDeclarationPane, { node, ...props }),
+    ),
+  );
+}
+export function openNodeInWindow(node: SBNode, props: any = {}) {
+  openComponentInWindow(FullDeclarationPaneWindow, { node, ...props });
+}
 
 export function TraceryEditor({ project, path, node, window, onLoad }) {
   const source = useSignal(null);
