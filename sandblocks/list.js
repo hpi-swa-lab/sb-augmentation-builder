@@ -4,7 +4,7 @@ import {
   useState,
   useMemo,
 } from "../external/preact-hooks.mjs";
-import { appendCss, last, sequenceMatch } from "../utils.js";
+import { appendCss, last, sequenceMatch, withDo } from "../utils.js";
 import { h } from "../view/widgets.js";
 
 function highlightSubstring(string, search) {
@@ -32,6 +32,7 @@ appendCss(`
 .sb-list {
   max-height: 100px;
   overflow-y: auto;
+  line-height: 1.5rem;
 }
 .sb-list-item {
   white-space: nowrap;
@@ -49,6 +50,7 @@ appendCss(`
 export function List({
   items,
   labelFunc,
+  iconFunc,
   setSelected,
   selected,
   height,
@@ -59,6 +61,7 @@ export function List({
   selectionContext,
 }) {
   labelFunc ??= (x) => x;
+  iconFunc ??= (x) => x?.icon;
 
   const selectedRef = useRef(null);
 
@@ -133,6 +136,12 @@ export function List({
             onConfirm?.(item);
           },
         },
+        h("span", {
+          style: { marginRight: "0.25rem", color: "#69f" },
+          class: withDo(iconFunc(item), (i) =>
+            i ? "codicon codicon-" + i : null,
+          ),
+        }),
         fuzzy
           ? labelFunc(item)
           : highlightSubstring(labelFunc(item), filterString),

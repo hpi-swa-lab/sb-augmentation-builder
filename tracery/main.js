@@ -1,6 +1,6 @@
 import { h, render } from "../external/preact.mjs";
 import { FileProject } from "./project.js";
-import { appendCss, matchesKey } from "../utils.js";
+import { appendCss, linkCss, matchesKey } from "../utils.js";
 import { openBrowser } from "./browser.ts";
 import { openSearch } from "./search.js";
 import { useAsyncEffect, useLocalStorageSignal } from "../view/widgets.js";
@@ -10,6 +10,10 @@ appendCss(`
 html {
   font-family: sans-serif;
   font-size: 13px;
+}`);
+linkCss("../external/codicon/codicon.css");
+appendCss(`.codicon {
+  vertical-align: middle;
 }`);
 
 function Tracery() {

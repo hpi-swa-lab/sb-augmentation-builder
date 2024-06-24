@@ -28,21 +28,23 @@ function TraceryReferences({ project, symbol, type, window }) {
     const result: {
       path: string;
       name: string;
-      node: SBNode;
+      nodes: SBNode[];
       focus: SBNode;
+      topLevel: string;
+      member?: string;
     }[] = [];
 
     const paths = await findReferences(project, symbol, type);
     for (const { path, data } of await project.readFiles(paths)) {
       const pathName = path.slice(project.path.length + 1);
       const root = await languageForPath(path).parse(data);
-      for (const { node, name: topLevelName, members } of outline(root)) {
+      for (const { nodes, name: topLevelName, members } of outline(root)) {
         let foundAny = false;
-        for (const { node, name: memberName } of members ?? []) {
+        for (const { nodes, name: memberName } of members ?? []) {
           const focus =
             type === "implementors"
               ? memberName === symbol
-              : node.blockThat((n) => n.text === symbol);
+              : nodes[0].blockThat((n) => n.text === symbol);
           if (focus) {
             foundAny = true;
             result.push({
@@ -50,7 +52,7 @@ function TraceryReferences({ project, symbol, type, window }) {
               name: `${pathName}:${topLevelName}:${memberName}`,
               topLevel: topLevelName,
               member: memberName,
-              node,
+              nodes,
               focus,
             });
           }
@@ -59,13 +61,13 @@ function TraceryReferences({ project, symbol, type, window }) {
           const focus =
             type === "implementors"
               ? topLevelName === symbol
-              : node.blockThat((n) => n.text === symbol);
+              : nodes[0].blockThat((n) => n.text === symbol);
           if (focus) {
             result.push({
               path,
               name: `${pathName}:${topLevelName}`,
               topLevel: topLevelName,
-              node,
+              nodes,
               focus,
             });
           }

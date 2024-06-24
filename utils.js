@@ -558,6 +558,13 @@ export function appendCss(text) {
   document.head.appendChild(style);
 }
 
+export function linkCss(url) {
+  const style = document.createElement("link");
+  style.rel = "stylesheet";
+  style.href = url;
+  document.head.appendChild(style);
+}
+
 export function clsx(...args) {
   return args.filter(Boolean).join(" ");
 }

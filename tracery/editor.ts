@@ -15,7 +15,7 @@ import {
   metaexec,
   replace,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { takeWhile } from "../utils.js";
+import { last, takeWhile } from "../utils.js";
 import {
   CodeMirrorWithVitrail,
   baseCMExtensions,
@@ -74,19 +74,19 @@ function extensionsForPath(path) {
   return { cmExtensions: [], augmentations: [] };
 }
 
-function FullDeclarationPane({ node, ...props }) {
-  useValidateKeepNodes([node], node.language);
+function FullDeclarationPane({ nodes, ...props }) {
+  useValidateKeepNodes(nodes, nodes[0].language);
 
-  const list = node.isRoot
-    ? [node]
+  const list = nodes[0].isRoot
+    ? nodes
     : [
         ...takeWhile(
-          node.parent.children.slice(0, node.siblingIndex).reverse(),
+          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
           (c) => c.isWhitespace() || c.type === "comment",
         ),
-        node,
+        ...nodes,
         ...takeWhile(
-          node.parent.children.slice(node.siblingIndex + 1),
+          last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
           (c) => c.isWhitespace() || c.type === "comment",
         ),
       ];
@@ -117,28 +117,28 @@ const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
   match(node) {
     return metaexec(node, (capture) => [(it) => it.isRoot, replace(capture)]);
   },
-  view: ({ nodes }) => {
-    const node = useVitrailProps().node ?? nodes[0];
-    return h(FullDeclarationPane, { node, key: node });
+  view: ({ nodes: topLevel }) => {
+    const nodes = useVitrailProps().nodes ?? topLevel;
+    return h(FullDeclarationPane, { nodes, key: nodes[0].id });
   },
 });
 
-function FullDeclarationPaneWindow({ node, ...props }) {
+function FullDeclarationPaneWindow({ nodes, ...props }) {
   return h(
     VitrailContext.Provider,
-    { value: { vitrail: node.editor } },
+    { value: { vitrail: nodes[0].editor } },
     h(
       "div",
       { style: { height: "100%", overflowY: "auto" } },
-      h(FullDeclarationPane, { node, ...props }),
+      h(FullDeclarationPane, { nodes, ...props }),
     ),
   );
 }
 export function openNodeInWindow(node: SBNode, props: any = {}) {
-  openComponentInWindow(FullDeclarationPaneWindow, { node, ...props });
+  openComponentInWindow(FullDeclarationPaneWindow, { nodes: [node], ...props });
 }
 
-export function TraceryEditor({ project, path, node, window, onLoad }) {
+export function TraceryEditor({ project, path, nodes, window, onLoad }) {
   const source = useSignal(null);
   const vitrail = useSignal(null);
 
@@ -196,7 +196,7 @@ export function TraceryEditor({ project, path, node, window, onLoad }) {
           },
         ]),
       ],
-      props: { project, node },
+      props: { project, nodes },
     })
   );
 }

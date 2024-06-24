@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
-import { useSignal } from "../external/preact-signals.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { List } from "../sandblocks/list.js";
 import { appendCss } from "../utils.js";
@@ -35,8 +35,14 @@ function TraceryBrowser({ project, initialSelection, window }) {
   const topLevel = useSignal([]);
   const selectedTopLevel = useSignal(null);
   const selectedMember = useSignal(null);
-  const selectedNode =
-    selectedMember?.value?.node ?? selectedTopLevel?.value?.node;
+  const selectedNodes =
+    selectedMember?.value?.nodes ?? selectedTopLevel?.value?.nodes;
+
+  // need to unset these before rendering if we get deleted
+  if (selectedTopLevel.value?.node && !selectedTopLevel.value.node.connected)
+    selectedTopLevel.value = null;
+  if (selectedMember.value?.node && !selectedMember.value.node.connected)
+    selectedMember.value = null;
 
   return enabled.value
     ? h(
@@ -48,6 +54,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
           h(List, {
             style: { flex: 1, maxWidth: "250px" },
             items: files,
+            iconFunc: (it) => "symbol-file",
             selected: selectedFile.value,
             setSelected: (s) => (selectedFile.value = s),
             labelFunc: (it) => it.path.slice(project.path.length + 1),
@@ -110,7 +117,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
             project,
             path: selectedFile.value.path,
             window,
-            node: selectedNode,
+            nodes: selectedNodes,
             style: { width: "100%" },
           }),
       )

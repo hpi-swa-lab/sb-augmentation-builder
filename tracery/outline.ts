@@ -4,19 +4,22 @@ import {
   first,
   languageSpecific,
   metaexec,
+  replace,
   spawnArray,
   type,
 } from "../sandblocks/query-builder/functionQueries.js";
+import { withDo } from "../utils.js";
 
 function matchClassMember(node) {
   return metaexec(node, (capture) => [
-    capture("node"),
+    replace(capture),
     first(
       [
         type("method_definition"),
         all(
           [(it) => it.atField("name")?.text, capture("name")],
           [(it) => "Method", capture("label")],
+          [(it) => "symbol-method", capture("icon")],
         ),
       ],
       [
@@ -24,6 +27,7 @@ function matchClassMember(node) {
         all(
           [(it) => it.atField("name")?.text, capture("name")],
           [(it) => "Field", capture("label")],
+          [(it) => "symbol-field", capture("icon")],
         ),
       ],
     ),
@@ -32,7 +36,7 @@ function matchClassMember(node) {
 
 function matchTopLevel(node) {
   return metaexec(node, (capture) => [
-    capture("node"),
+    replace(capture),
     first(
       [
         languageSpecific(
@@ -43,10 +47,11 @@ function matchTopLevel(node) {
           ),
           first(
             [
-              type("import"),
+              type("import_statement"),
               all(
-                ["Import", capture("label")],
-                [(it) => it.sourceString, capture("name")],
+                [(it) => "Import", capture("label")],
+                [(it) => it.sourceString.slice(7), capture("name")],
+                [(it) => "symbol-interface", capture("icon")],
               ),
             ],
             [
@@ -58,6 +63,20 @@ function matchTopLevel(node) {
                   capture("name"),
                 ],
                 [(it) => "Declaration", capture("label")],
+                [(it) => "symbol-variable", capture("icon")],
+              ),
+            ],
+            [
+              type("function_declaration"),
+              (it) =>
+                withDo(
+                  it.atField("name")?.text?.[0],
+                  (firstLetter) => firstLetter.toUpperCase() === firstLetter,
+                ),
+              all(
+                [(it) => it.atField("name")?.text, capture("name")],
+                [(it) => "Component", capture("label")],
+                [(it) => "symbol-parameter", capture("icon")],
               ),
             ],
             [
@@ -65,6 +84,7 @@ function matchTopLevel(node) {
               all(
                 [(it) => it.atField("name")?.text, capture("name")],
                 [(it) => "Function", capture("label")],
+                [(it) => "symbol-method", capture("icon")],
               ),
             ],
             [
@@ -72,6 +92,7 @@ function matchTopLevel(node) {
               all(
                 [(it) => it.atField("name")?.text, capture("name")],
                 [(it) => "Class", capture("label")],
+                [(it) => "symbol-class", capture("icon")],
                 [
                   (it) => it.atField("body")?.childBlocks,
                   spawnArray(matchClassMember),
@@ -81,8 +102,9 @@ function matchTopLevel(node) {
             ],
             [
               all(
-                [(it) => it.sourceString, capture("name")],
+                [(it) => it.sourceString.slice(0, 25) + "...", capture("name")],
                 [(it) => "Other", capture("label")],
+                [(it) => "symbol-misc", capture("icon")],
               ),
             ],
           ),
@@ -92,10 +114,33 @@ function matchTopLevel(node) {
         all(
           [(it) => "unknown", capture("name")],
           [(it) => "Other", capture("label")],
+          [(it) => "symbol-misc", capture("icon")],
         ),
       ],
     ),
   ]);
+}
+
+function mergeGroups(nodes) {
+  const out: any[] = [];
+  for (const symbol of nodes) {
+    if (symbol.label === "Import") {
+      const last = out[out.length - 1];
+      if (last && last.label === "Import") {
+        last.nodes.push(symbol.nodes[0]);
+      } else {
+        out.push({
+          name: "imports",
+          label: "Import",
+          nodes: [symbol.nodes[0]],
+          icon: "symbol-interface",
+        });
+      }
+      continue;
+    }
+    out.push(symbol);
+  }
+  return out;
 }
 
 export function outline(node) {
@@ -105,10 +150,18 @@ export function outline(node) {
       first(
         [
           (it) => it.language === SBBaseLanguage,
-          (it) => [{ name: "unknown", label: "Other", node: it }],
+          (it) => [
+            {
+              name: "unknown",
+              label: "Other",
+              nodes: [it],
+              icon: "symbol-misc",
+            },
+          ],
         ],
         [(it) => it.childBlocks, spawnArray(matchTopLevel)],
       ),
+      mergeGroups,
       capture("topLevel"),
     ]),
   ])!.topLevel;

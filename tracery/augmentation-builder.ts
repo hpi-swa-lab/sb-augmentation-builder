@@ -113,8 +113,6 @@ function _NodeListItem({ onInsert, node, view, add }) {
   ];
 }
 
-query("let a = {examples: []}", extractType("pair"));
-
 function queryOrCreate(query, extract) {
   return (it) => {
     const match = it.findQuery(query, extract);
