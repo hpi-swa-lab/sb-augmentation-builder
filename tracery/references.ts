@@ -74,32 +74,34 @@ function TraceryReferences({ project, symbol, type, window }) {
     files.value = result;
   }, [symbol, type, project]);
 
-  return (
-    files.value && [
-      h(List, {
-        items: files.value,
-        selected: selectedFile.value,
-        setSelected: (s) => (selectedFile.value = s),
-        labelFunc: (it) => it.name,
-        height: 200,
-      }),
-      selectedFile.value &&
-        h(TraceryEditor, {
-          project,
-          key: selectedFile.value,
-          path: selectedFile.value.path,
-          onLoad: (vitrail) => {
-            const node = vitrail.getModels().get(vitrail.defaultModel);
-            selectedNode.value = node.childForRange(
-              selectedFile.value.node.range,
-            );
-          },
-          node: selectedNode.value,
-          window,
-          style: { width: "100%" },
-        }),
-    ]
-  );
+  return files.value
+    ? files.value.length < 1
+      ? "No result."
+      : [
+          h(List, {
+            items: files.value,
+            selected: selectedFile.value,
+            setSelected: (s) => (selectedFile.value = s),
+            labelFunc: (it) => it.name,
+            height: 200,
+          }),
+          selectedFile.value &&
+            h(TraceryEditor, {
+              project,
+              key: selectedFile.value,
+              path: selectedFile.value.path,
+              onLoad: (vitrail) => {
+                const node = vitrail.getModels().get(vitrail.defaultModel);
+                selectedNode.value = node.childForRange(
+                  selectedFile.value.node.range,
+                );
+              },
+              node: selectedNode.value,
+              window,
+              style: { width: "100%" },
+            }),
+        ]
+    : "Loading ...";
 }
 
 async function findReferences(
@@ -123,6 +125,14 @@ async function findReferences(
             ["function", "method_definition", "function_declaration"].includes(
               x.type,
             ),
+          (x) => x.atField("name"),
+          (x) => implementors.push(x.text),
+        );
+        node.exec(
+          (x) => x.type === "export_statement",
+          (x) => x.atField("declaration"),
+          (x) => x.type === "lexical_declaration",
+          (x) => x.childBlock(0),
           (x) => x.atField("name"),
           (x) => implementors.push(x.text),
         );
