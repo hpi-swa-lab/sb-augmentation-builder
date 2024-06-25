@@ -26,10 +26,15 @@ import { openNodeInWindow } from "./editor.ts";
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
 
-function NodeList({ container, view, style, wrap, add }) {
+function NodeList({ container, items, view, style, wrap, add, remove }) {
   console.log("container");
   console.log(container);
-  const nodes = Array.isArray(container) ? container : container.childBlocks;
+  console.log("items");
+  console.log(items);
+  const nodes = items ?? container.childBlocks;
+  console.log("nodes");
+  console.log(nodes);
+  console.log("****************************************");
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
@@ -58,6 +63,27 @@ function NodeList({ container, view, style, wrap, add }) {
       },
       "+",
     );
+  remove ??= (position, ref, onclick, onmouseleave) =>
+    h("div", {
+      ref,
+      onclick,
+      onmouseleave,
+      style: {
+        width: "1rem",
+        height: "1rem",
+        background: "#FF0000",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        lineHeight: "1",
+        color: "#fff",
+        cursor: "pointer",
+        position: position ? "fixed" : "static",
+        top: position?.[1],
+        left: position?.[0],
+      },
+    });
   style = { display: "flex", flexDirection: "column", ...style };
 
   return wrap(
@@ -66,21 +92,31 @@ function NodeList({ container, view, style, wrap, add }) {
       : nodes.map((it, index) =>
           h(_NodeListItem, {
             onInsert: (atEnd) =>
-              container.insert("'a'", "expression", index + (atEnd ? 1 : 0)),
+              container.insert(
+                "(it) => it",
+                "expression",
+                index + (atEnd ? 1 : 0), //Jan (I) changed this and now feels stupid
+              ),
+            onRemove: () => {
+              //nodes[index].removeSelf();
+              console.log("remove");
+            },
             node: it,
             view,
             add,
+            remove,
           }),
         ),
   );
 }
 
-function _NodeListItem({ onInsert, node, view, add }) {
+function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
   const hoverStart = useSignal(false);
   const hoverEnd = useSignal(false);
   const showAddPoint = useSignal(null);
   const ref = useRef();
   const addRef = useRef();
+  const removeRef = useRef();
 
   useSignalEffect(() => {
     if (hoverStart.value || hoverEnd.value) {
@@ -102,13 +138,14 @@ function _NodeListItem({ onInsert, node, view, add }) {
   return [
     showAddPoint.value &&
       add(showAddPoint.value, addRef, () => onInsert(hoverEnd.value), hideAdd),
+    showAddPoint.value && remove(removeRef, () => onRemove(), hideAdd),
     view(
       node,
       ref,
       (e) => {
         const box = ref.current.getBoundingClientRect();
-        hoverStart.value = e.clientY < box.top + box.height * 0.1;
-        hoverEnd.value = e.clientY > box.top + box.height * 0.9;
+        hoverStart.value = e.clientY < box.top + box.height * 0.9;
+        hoverEnd.value = e.clientY > box.top + box.height * 0.1;
       },
       (e) => {
         if (addRef.current && addRef.current.contains(e.relatedTarget)) return;
@@ -154,20 +191,20 @@ function getPipelineStep(node) {
         (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
       ],
       [
-        query("all($$$STEPS)"),
+        query("all($_STEPS)"),
         (it) => it.STEPS,
         (it) => ({
           node: it,
-          steps: getPipelineSteps(it),
+          steps: getPipelineSteps(it.childBlocks),
           stepType: PipelineSteps.ALL,
         }),
       ],
       [
-        query("first($$$STEPS)"),
+        query("first($_STEPS)"),
         (it) => it.STEPS,
         (it) => ({
           node: it,
-          steps: getPipelineSteps(it),
+          steps: getPipelineSteps(it.childBlocks),
           stepType: PipelineSteps.FIRST,
         }),
       ],
@@ -197,7 +234,7 @@ function getPipelineStep(node) {
         (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
       ],
       [
-        query("[$$$STEPS]"),
+        query("[$_STEPS]"),
         (it) => it.STEPS,
         (it) => ({
           node: it,
@@ -231,6 +268,7 @@ export const augmentationBuilder = (model) => ({
   rerender: () => true,
   match: (node) =>
     metaexec(node, (capture) => [
+      (it) => it,
       type("object"),
       replace(capture),
       all(
@@ -240,8 +278,7 @@ export const augmentationBuilder = (model) => ({
           capture("match"),
           (it) =>
             it.findQuery("(node) => metaexec($input, ($capture) => $pipeline)"),
-          (it) => getPipelineSteps(it.pipeline),
-          (it) => it.steps,
+          (it) => ({ node: it, steps: getPipelineSteps(it.pipeline) }),
           capture("steps"),
         ],
         [objectField("view"), capture("view")],
@@ -275,7 +312,8 @@ export const augmentationBuilder = (model) => ({
           "Open",
         ),
         h(NodeList, {
-          container: steps,
+          container: steps.node.pipeline,
+          items: steps.steps.steps,
           wrap: (it) =>
             h(
               "div",
@@ -325,9 +363,13 @@ export const augmentationBuilder = (model) => ({
 });
 
 function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
+  console.log("StepType");
+  console.log(step.step.stepType);
+  console.log(step);
   return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.step.stepType)
     ? h(NodeList, {
-        container: step.step.steps.steps,
+        container: step.step.node,
+        items: step.step.steps.steps,
         wrap: (it) =>
           h(
             "div",
@@ -348,7 +390,8 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
       })
     : step.step.stepType == PipelineSteps.PIPELINE
       ? h(NodeList, {
-          container: step.step.steps.steps,
+          container: step.step.node,
+          items: step.step.steps.steps,
           wrap: (it) =>
             h(
               "div",

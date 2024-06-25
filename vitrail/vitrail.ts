@@ -991,7 +991,7 @@ export function VitrailPane({
   ref,
 }) {
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
-  console.log(nodes);
+  //console.log(nodes);
   const vitrail = nodes[0]?.editor;
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
