@@ -160,9 +160,9 @@ export function type(typeName) {
   return (it) => it.type === typeName;
 }
 
-export function log(prefix = null) {
+export function log(prefix = "") {
   return (it) => {
-    if (prefix) console.log(prefix);
+    if (prefix != "") console.log(prefix);
     console.log(it);
     return it;
   };

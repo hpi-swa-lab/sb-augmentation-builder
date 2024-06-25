@@ -15,7 +15,10 @@ import {
   first,
   query,
   debugIt,
+  spawnArray,
+  log,
 } from "../sandblocks/query-builder/functionQueries.js";
+import { html } from "../view/widgets.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodeInWindow } from "./editor.ts";
@@ -24,7 +27,9 @@ const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
 
 function NodeList({ container, view, style, wrap, add }) {
-  const nodes = container.childBlocks;
+  console.log("container");
+  console.log(container);
+  const nodes = Array.isArray(container) ? container : container.childBlocks;
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
@@ -127,6 +132,98 @@ function queryOrCreate(query, extract) {
   };
 }
 
+const PipelineSteps = {
+  ALL: "all",
+  FIRST: "first",
+  FUNCTION: "function",
+  SPAWN_ARRAY: "spawnArray",
+  CAPTURE: "capture",
+  PIPELINE: "pipeline",
+  QUERY: "query",
+  REPLACE: "replace",
+  TYPE: "type",
+  OTHER: "other",
+};
+
+function getPipelineStep(node) {
+  return metaexec(node, (capture) => [
+    first(
+      [
+        query("($any) => $STEP"),
+        (it) => it.STEP,
+        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
+      ],
+      [
+        query("all($$$STEPS)"),
+        (it) => it.STEPS,
+        (it) => ({
+          node: it,
+          steps: getPipelineSteps(it),
+          stepType: PipelineSteps.ALL,
+        }),
+      ],
+      [
+        query("first($$$STEPS)"),
+        (it) => it.STEPS,
+        (it) => ({
+          node: it,
+          steps: getPipelineSteps(it),
+          stepType: PipelineSteps.FIRST,
+        }),
+      ],
+      [
+        query("capture($NAME)"),
+        (it) => it.NAME,
+        (it) => ({ node: it, stepType: PipelineSteps.CAPTURE }),
+      ],
+      [
+        query("query($QUERY)"),
+        (it) => it.QUERY,
+        (it) => ({ node: it, stepType: PipelineSteps.QUERY }),
+      ],
+      [
+        query("replace($REPLACE)"),
+        (it) => it.REPLACE,
+        (it) => ({ node: it, stepType: PipelineSteps.REPLACE }),
+      ],
+      [
+        query("type($TYPE)"),
+        (it) => it.TYPE,
+        (it) => ({ node: it, stepType: PipelineSteps.TYPE }),
+      ],
+      [
+        query("spawnArray($CALL)"),
+        (it) => it.CALL,
+        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
+      ],
+      [
+        query("[$$$STEPS]"),
+        (it) => it.STEPS,
+        (it) => ({
+          node: it,
+          steps: getPipelineSteps(it),
+          stepType: PipelineSteps.PIPELINE,
+        }),
+      ],
+      [
+        (it) => ({
+          node: it,
+          stepType: PipelineSteps.OTHER,
+        }),
+      ],
+    ),
+    capture("step"),
+  ]);
+}
+
+function getPipelineSteps(node) {
+  return metaexec(node, (capture) => [
+    first([(it) => Array.isArray(it)], [(it) => it.childBlocks]),
+    spawnArray((it) => getPipelineStep(it)),
+    capture("steps"),
+  ]);
+}
+
 (window as any).languageFor = languageFor;
 export const augmentationBuilder = (model) => ({
   matcherDepth: 8,
@@ -138,7 +235,15 @@ export const augmentationBuilder = (model) => ({
       replace(capture),
       all(
         [objectField("matcherDepth"), capture("depth")],
-        [objectField("match"), capture("match")],
+        [
+          objectField("match"),
+          capture("match"),
+          (it) =>
+            it.findQuery("(node) => metaexec($input, ($capture) => $pipeline)"),
+          (it) => getPipelineSteps(it.pipeline),
+          (it) => it.steps,
+          capture("steps"),
+        ],
         [objectField("view"), capture("view")],
         [
           queryOrCreate("let a = {examples: [$_array]}", extractType("pair")),
@@ -147,12 +252,11 @@ export const augmentationBuilder = (model) => ({
         ],
       ),
     ]),
-  view: ({ examples, nodes: [node] }) => {
+  view: ({ steps, examples, nodes: [node] }) => {
     const augmentation = useMemo(
       () => eval(`const a = ${node.sourceString}; a`),
       [node.sourceString],
     );
-
     return h(
       "div",
       { style: { display: "flex", border: "1px solid #333" } },
@@ -170,7 +274,18 @@ export const augmentationBuilder = (model) => ({
           },
           "Open",
         ),
-        h(VitrailPane, { nodes: [node] }),
+        h(NodeList, {
+          container: steps,
+          wrap: (it) =>
+            h(
+              "div",
+              { style: { display: "flex", flexDirection: "column" } },
+              it,
+            ),
+          view: (step, ref, onmousemove, onmouseleave) =>
+            displayPipelineStep(step, ref, onmousemove, onmouseleave),
+        }),
+        //h(VitrailPane, { nodes: [node] }),
       ),
       h(
         "table",
@@ -208,6 +323,71 @@ export const augmentationBuilder = (model) => ({
     );
   },
 });
+
+function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
+  return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.step.stepType)
+    ? h(NodeList, {
+        container: step.step.steps.steps,
+        wrap: (it) =>
+          h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                flexDirection: "row",
+                marginLeft: "1rem",
+                marginRight: "1rem",
+                borderTop: "2px solid black",
+              },
+              id: step.step.stepType,
+            },
+            it,
+          ),
+        view: (step) =>
+          displayPipelineStep(step, ref, onmousemove, onmouseleave),
+      })
+    : step.step.stepType == PipelineSteps.PIPELINE
+      ? h(NodeList, {
+          container: step.step.steps.steps,
+          wrap: (it) =>
+            h(
+              "div",
+              { style: { display: "flex", flexDirection: "column" } },
+              h("div", {
+                style: {
+                  borderLeft: "2px solid black",
+                  marginLeft: "1rem",
+                  height: "2rem",
+                },
+              }),
+              it,
+            ),
+          view: (step, ref, onmousemove, onmouseleave) =>
+            displayPipelineStep(step, ref, onmousemove, onmouseleave),
+        })
+      : h(
+          "div",
+          {
+            id: "NodeList",
+            style: { border: "0px red dotted", paddingRight: "10px" },
+          },
+          h(
+            "div",
+            { style: { border: "2px solid black", display: "inline-block" } },
+            h(VitrailPane, { nodes: [step.step.node] }),
+          ),
+          h("div", {
+            style: {
+              borderLeft: "2px solid black",
+              marginLeft: "1rem",
+              height: "2rem",
+            },
+            ref,
+            onmouseleave,
+            onmousemove,
+          }),
+        );
+}
 
 class MaybeEditor implements ModelEditor {
   editor: Vitrail<any>;
