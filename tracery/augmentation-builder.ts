@@ -290,10 +290,13 @@ export const augmentationBuilder = (model) => ({
       ),
     ]),
   view: ({ steps, examples, nodes: [node] }) => {
-    const augmentation = useMemo(
-      () => eval(`const a = ${node.sourceString}; a`),
-      [node.sourceString],
-    );
+    const augmentation = useMemo(() => {
+      try {
+        eval(`const a = ${node.sourceString}; a`);
+      } catch (e) {
+        console.log("Failed to eval augmentation", e);
+      }
+    }, [node.sourceString]);
     return h(
       "div",
       { style: { display: "flex", border: "1px solid #333" } },
