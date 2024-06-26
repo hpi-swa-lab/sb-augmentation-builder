@@ -63,8 +63,9 @@ function NodeList({ container, items, view, style, wrap, add, remove }) {
       },
       "+",
     );
-  remove ??= (position, ref, onclick, onmouseleave) =>
-    h("div", {
+  remove ??= (position, ref, onclick, onmouseleave) => {
+    //debugger;
+    return h("div", {
       ref,
       onclick,
       onmouseleave,
@@ -84,6 +85,7 @@ function NodeList({ container, items, view, style, wrap, add, remove }) {
         left: position?.[0],
       },
     });
+  };
   style = { display: "flex", flexDirection: "column", ...style };
 
   return wrap(
@@ -113,32 +115,44 @@ function NodeList({ container, items, view, style, wrap, add, remove }) {
 function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
   const hoverStart = useSignal(false);
   const hoverEnd = useSignal(false);
-  const showAddPoint = useSignal(null);
+  const hoverNode = useSignal(false);
+  const showAddPointTop = useSignal(null);
+  const showAddPointBottom = useSignal(null);
+  const showRemovePoint = useSignal(null);
+
   const ref = useRef();
   const addRef = useRef();
   const removeRef = useRef();
 
   useSignalEffect(() => {
-    if (hoverStart.value || hoverEnd.value) {
+    //if (hoverStart.value || hoverEnd.value) {
+    if (hoverNode.value) {
       const rect = ref.current.getBoundingClientRect();
-      showAddPoint.value = [
-        rect.x,
-        rect.y + rect.height * (hoverStart.value ? 0.05 : 0.95),
-      ];
+      showAddPointTop.value = [rect.left + 9, rect.top - 13];
+      showAddPointBottom.value = [rect.left + 9, rect.top + rect.height];
+      showRemovePoint.value = [rect.left + rect.width - 10, rect.top - 5];
     } else {
-      showAddPoint.value = null;
+      showAddPointTop.value = null;
+      showRemovePoint.value = null;
+      showAddPointBottom.value = null;
     }
   });
 
-  const hideAdd = () => {
+  const hideHalo = () => {
     hoverEnd.value = false;
     hoverStart.value = false;
+    hoverNode.value = false;
   };
 
+  const hoverPadding = 100;
+
   return [
-    showAddPoint.value &&
-      add(showAddPoint.value, addRef, () => onInsert(hoverEnd.value), hideAdd),
-    showAddPoint.value && remove(removeRef, () => onRemove(), hideAdd),
+    showAddPointTop.value &&
+      add(showAddPointTop.value, addRef, () => onInsert(false), hideHalo),
+    showAddPointBottom.value &&
+      add(showAddPointBottom.value, addRef, () => onInsert(true), hideHalo),
+    showRemovePoint.value &&
+      remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
     view(
       node,
       ref,
@@ -146,10 +160,16 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
         const box = ref.current.getBoundingClientRect();
         hoverStart.value = e.clientY < box.top + box.height * 0.9;
         hoverEnd.value = e.clientY > box.top + box.height * 0.1;
+        //FIXME: Why does the hoverPadding has no effect?
+        hoverNode.value =
+          e.clientY > box.top - hoverPadding &&
+          e.clientY < box.top + box.height + hoverPadding &&
+          e.clientX > box.left - hoverPadding &&
+          e.clientX < box.left + box.width + hoverPadding;
       },
       (e) => {
         if (addRef.current && addRef.current.contains(e.relatedTarget)) return;
-        hideAdd();
+        hideHalo();
       },
     ),
   ];
@@ -399,13 +419,17 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
             h(
               "div",
               { style: { display: "flex", flexDirection: "column" } },
-              h("div", {
-                style: {
-                  borderLeft: "2px solid black",
-                  marginLeft: "1rem",
-                  height: "2rem",
-                },
-              }),
+              h(
+                "div",
+                {},
+                h("div", {
+                  style: {
+                    borderLeft: "2px solid black",
+                    marginLeft: "1rem",
+                    height: "2rem",
+                  },
+                }),
+              ),
               it,
             ),
           view: (step, ref, onmousemove, onmouseleave) =>
@@ -415,20 +439,33 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
           "div",
           {
             id: "NodeList",
-            style: { border: "0px red dotted", paddingRight: "10px" },
+            style: { border: "1px red dotted", paddingRight: "10px" },
           },
           h(
             "div",
-            { style: { border: "2px solid black", display: "inline-block" } },
-            step.step.stepType === PipelineSteps.REPLACE
-              ? [
-                  codicon("replace-all", {
-                    fontSize: "1.75rem",
-                    marginRight: "0.25rem",
-                  }),
-                  "Replace",
-                ]
-              : h(VitrailPane, { nodes: [step.step.node] }),
+            {
+              style: { display: "inline-block" },
+              ref,
+              onmouseleave,
+              onmousemove,
+            },
+            h(
+              "div",
+              { style: { border: "2px solid black", display: "inline-block" } },
+              h(
+                "div",
+                {},
+                step.step.stepType === PipelineSteps.REPLACE
+                  ? [
+                      codicon("replace-all", {
+                        fontSize: "1.75rem",
+                        marginRight: "0.25rem",
+                      }),
+                      "Replace",
+                    ]
+                  : h(VitrailPane, { nodes: [step.step.node] }),
+              ),
+            ),
           ),
           h("div", {
             style: {
@@ -436,9 +473,6 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
               marginLeft: "1rem",
               height: "2rem",
             },
-            ref,
-            onmouseleave,
-            onmousemove,
           }),
         );
 }
