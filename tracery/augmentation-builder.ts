@@ -21,7 +21,7 @@ import {
 import { Codicon, codicon, html } from "../view/widgets.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
-import { openNodeInWindow } from "./editor.ts";
+import { openNodesInWindow } from "./editor.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -347,7 +347,7 @@ export const augmentationBuilder = (model) => ({
           "button",
           {
             onClick: () =>
-              openNodeInWindow(node, {
+              openNodesInWindow([node], {
                 fetchAugmentations: () => [augmentationBuilder(node.language)],
               }),
           },

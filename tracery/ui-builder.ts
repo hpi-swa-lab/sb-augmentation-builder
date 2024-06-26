@@ -15,7 +15,7 @@ import {
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
-import { openNodeInWindow } from "./editor.ts";
+import { openNodesInWindow } from "./editor.ts";
 
 export const uiBuilder = (model): Augmentation<any> => ({
   model,
@@ -93,7 +93,7 @@ function PropEditor({ name, value }) {
         cursor: "pointer",
         position: "relative",
       },
-      onClick: () => openNodeInWindow(value),
+      onClick: () => openNodesInWindow([value]),
     },
     name,
     hovered.value &&

@@ -4,7 +4,7 @@ import { h } from "../external/preact.mjs";
 import { List } from "../sandblocks/list.js";
 import { appendCss } from "../utils.js";
 import { openComponentInWindow } from "./window.js";
-import { TraceryEditor } from "./editor.ts";
+import { TraceryEditor, openNodesInWindow } from "./editor.ts";
 import { outline } from "./outline.ts";
 
 appendCss(`
@@ -91,12 +91,24 @@ function TraceryBrowser({ project, initialSelection, window }) {
             },
           }),
           h(
-            "button",
-            {
-              style: { height: "1.5rem" },
-              onClick: () => (enabled.value = !enabled.value),
-            },
-            "Toggle",
+            "div",
+            {},
+            h(
+              "button",
+              {
+                style: { height: "1.5rem" },
+                onClick: () => (enabled.value = !enabled.value),
+              },
+              "Toggle",
+            ),
+            h(
+              "button",
+              {
+                style: { height: "1.5rem" },
+                onClick: () => openNodesInWindow(selectedNodes),
+              },
+              "Open",
+            ),
           ),
         ),
         selectedFile.value &&

@@ -154,8 +154,8 @@ function FullDeclarationPaneWindow({ nodes, ...props }) {
     ),
   );
 }
-export function openNodeInWindow(node: SBNode, props: any = {}) {
-  openComponentInWindow(FullDeclarationPaneWindow, { nodes: [node], ...props });
+export function openNodesInWindow(nodes: SBNode[], props: any = {}) {
+  openComponentInWindow(FullDeclarationPaneWindow, { nodes, ...props });
 }
 
 export function TraceryEditor({ project, path, nodes, window, onLoad }) {
