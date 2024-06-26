@@ -51,7 +51,11 @@ export const placeholder = (model) => ({
       placeholder: nodes[0].text
         .substring("__VI_PLACEHOLDER_".length)
         .replace(/_/g, " "),
-      oninput: (e) => nodes[0].replaceWith(e.target.value, [nodes[0]]),
+      oninput: (e) =>
+        nodes[0].replaceWith(e.target.value, {
+          intentDeleteNodes: [nodes[0]],
+          requireContinueInput: true,
+        }),
     });
   },
 });

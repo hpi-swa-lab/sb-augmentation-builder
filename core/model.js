@@ -635,9 +635,9 @@ export class SBNode {
   }
 
   // edit operations
-  replaceWith(str, intentDeleteNodes) {
+  replaceWith(str, editOptions) {
     if (typeof str === "number") str = str.toString();
-    this.editor.replaceTextFromCommand(this.range, str, intentDeleteNodes);
+    this.editor.replaceTextFromCommand(this.range, str, editOptions);
   }
 
   wrapWith(start, end) {

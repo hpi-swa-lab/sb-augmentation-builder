@@ -77,7 +77,7 @@ export interface ModelEditor {
   replaceTextFromCommand(
     range: [number, number],
     text: string,
-    intentDeleteNodes?: SBNode[],
+    editOptions: { intentDeleteNodes?: SBNode[] },
   ): void;
 
   transaction(cb: () => void): void;
@@ -140,6 +140,8 @@ export interface ReversibleChange<T> {
   // Optional list of nodes that the user explicitly requested to be deleted.
   // May be used by validations to determine if a change is valid.
   intentDeleteNodes?: SBNode[];
+  // Indicate that editing should continue, relevant if modal editing is used
+  requireContinueInput?: boolean;
 }
 export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
@@ -154,6 +156,7 @@ export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
 ) => Augmentation<any>[] | null;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
+type PaneEnsureContinueEditing = () => void;
 type PaneFocusRangeFunc = (head: number, anchor: number) => void;
 type ValidatorFunc<T> = (
   root: SBNode,
@@ -379,8 +382,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     const target = last(allChanges).selectionRange;
-    const current = this.getSelection()?.range;
-    if (!current || !rangeEqual(current, target)) {
+    let current = this.getSelection();
+    if (!current?.range || !rangeEqual(current?.range, target)) {
       const candidates = this._cursorRoots().flatMap((r) =>
         cursorPositionsForIndex(r, target[0]),
       );
@@ -388,6 +391,11 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         candidates.find((p) => (p.element as any).hasFocus()) ?? candidates[0];
       const anchor = cursorPositionsForIndex(head.element, target[1])[0]?.index;
       (head.element as any).focusRange(head.index, anchor ?? head.index);
+      current = { element: head.element, range: target };
+    }
+
+    if (changes.some((c) => c.requireContinueInput)) {
+      this.paneForView(current?.element)?.ensureContinueEditing();
     }
 
     this.dispatchEvent(
@@ -490,7 +498,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   replaceTextFromCommand(
     range: [number, number],
     text: string,
-    intentDeleteNodes?: SBNode[],
+    editOptions: {
+      intentDeleteNodes?: SBNode[];
+      requireContinueInput: boolean;
+    },
   ) {
     range = this.adjustRange(range, true);
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
@@ -500,12 +511,12 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         to: range[1],
         insert: text,
         selectionRange: [range[0] + text.length, range[0] + text.length],
-        intentDeleteNodes,
         inverse: {
           from: range[0],
           to: range[0] + text.length,
           insert: previousText,
         },
+        ...editOptions,
       },
     ]);
   }
@@ -543,6 +554,7 @@ export class Pane<T> {
   hasFocus: () => boolean;
   _applyLocalChanges: PaneApplyLocalChangesFunc<T>;
   getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
+  ensureContinueEditing: PaneEnsureContinueEditing;
   getText: PaneGetTextFunc;
   setText: PaneSetTextFunc;
   syncReplacements: () => void;
@@ -568,6 +580,7 @@ export class Pane<T> {
     hasFocus,
     syncReplacements,
     getLocalSelectionIndices,
+    ensureContinueEditing,
     fetchAugmentations,
     applyLocalChanges,
   }: {
@@ -577,6 +590,7 @@ export class Pane<T> {
     syncReplacements: () => void;
     hasFocus: () => boolean;
     focusRange: PaneFocusRangeFunc;
+    ensureContinueEditing: PaneEnsureContinueEditing;
     getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
     fetchAugmentations: PaneFetchAugmentationsFunc<T>;
     applyLocalChanges: PaneApplyLocalChangesFunc<T>;
@@ -590,6 +604,7 @@ export class Pane<T> {
     this.getText = getText;
     this.hasFocus = hasFocus;
     this.focusRange = focusRange;
+    this.ensureContinueEditing = ensureContinueEditing;
     this.syncReplacements = syncReplacements;
     this._applyLocalChanges = applyLocalChanges;
     this.getLocalSelectionIndices = getLocalSelectionIndices;

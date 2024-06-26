@@ -53,10 +53,12 @@ import {
   parallelToSequentialChanges,
   isNullRange,
   arrayEqual,
+  withDo,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+import { Vim, getCM } from "../codemirror6/external/codemirror-vim.mjs";
 
 const IntentToDelete = StateEffect.define();
 
@@ -306,6 +308,9 @@ export async function codeMirror6WithVitrail(
       view: host.dom,
       host,
       fetchAugmentations,
+      ensureContinueEditing: () =>
+        // FIXME does this insert an i if we are already in insert mode?
+        withDo(getCM(host), (cm) => cm && Vim.handleKey(cm, "i")),
       getLocalSelectionIndices: () => [
         host.state.selection.main.head,
         host.state.selection.main.anchor,
