@@ -677,6 +677,7 @@ export class TSQuery {
       // if we have a multi match for children, match the prefix and suffix
       // of the template (if any), then collect the remaining children
       if (leading >= 0) {
+        if (leading > b.childNodes.length) return false;
         for (let i = 0; i < leading; i++) {
           if (!this._match(a.childNodes[i], b.childNodes[i], captures))
             return false;

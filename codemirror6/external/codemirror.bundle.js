@@ -17629,17 +17629,17 @@ const selectionLayer = /*@__PURE__*/layer({
     class: "cm-selectionLayer"
 });
 const themeSpec = {
-    "> .cm-scroller > .cm-content > .cm-line": {
-        "& ::selection, &::selection": { backgroundColor: "transparent !important" },
-    },
     "> .cm-scroller > .cm-content": {
-        "& :focus": {
+        "& :not(.cm-content):focus": {
             caretColor: "initial !important",
             "&::selection, & ::selection": {
                 backgroundColor: "Highlight !important"
             }
         }
-    }
+    },
+    "> .cm-scroller > .cm-content > .cm-line": {
+        "& ::selection, &::selection": { backgroundColor: "transparent !important" },
+    },
 };
 if (CanHidePrimary)
     themeSpec["> .cm-scroller > .cm-content > .cm-line"].caretColor = themeSpec["> .cm-scroller > .cm-content"].caretColor = "transparent !important";

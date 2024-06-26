@@ -990,10 +990,14 @@ export function VitrailPane({
 }) {
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   //console.log(nodes);
-  const vitrail = nodes[0]?.editor;
+  const vitrail: Vitrail<any> = nodes[0]?.editor;
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
-    () => vitrail.createPane(fetchAugmentations, hostOptions),
+    () =>
+      vitrail.createPane(
+        fetchAugmentations ?? ((p) => p?.fetchAugmentations()),
+        hostOptions,
+      ),
     [vitrail],
   );
 

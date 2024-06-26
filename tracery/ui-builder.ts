@@ -9,13 +9,12 @@ import {
   query,
   replace,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { Augmentation } from "../vitrail/vitrail.ts";
+import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
 
 export const uiBuilder = (model): Augmentation<any> => ({
   model,
   match: (it) =>
     metaexec(it, (capture) => [
-      (it) => false,
       replace(capture),
       query("h($tag, $props, $$$children)"),
       all(
@@ -30,7 +29,13 @@ export const uiBuilder = (model): Augmentation<any> => ({
       ),
     ]),
   view: ({ tag, props, children }) =>
-    h("div", { style: { border: "1px solid #ccc", borderRadius: "3px" } }, tag),
+    h(
+      "div",
+      { style: { border: "1px solid #ccc", borderRadius: "3px" } },
+      tag,
+      h("br"),
+      h(VitrailPane, { nodes: children }),
+    ),
   rerender: () => true,
   matcherDepth: 3,
 });
