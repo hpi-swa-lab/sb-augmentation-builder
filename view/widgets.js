@@ -37,6 +37,11 @@ export const icon = (name) =>
     },
     name,
   );
+export const codicon = (name, style) =>
+  h("span", {
+    class: "codicon codicon-" + name,
+    style: { verticalAlign: "bottom", ...style },
+  });
 
 function _Editor({ editorRef, ...props }) {
   return h("sb-editor", { ...props, ref: editorRef });

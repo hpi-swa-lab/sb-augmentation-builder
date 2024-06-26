@@ -18,7 +18,7 @@ import {
   spawnArray,
   log,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { html } from "../view/widgets.js";
+import { codicon, html } from "../view/widgets.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodeInWindow } from "./editor.ts";
@@ -420,7 +420,15 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
           h(
             "div",
             { style: { border: "2px solid black", display: "inline-block" } },
-            h(VitrailPane, { nodes: [step.step.node] }),
+            step.step.stepType === PipelineSteps.REPLACE
+              ? [
+                  codicon("replace-all", {
+                    fontSize: "1.75rem",
+                    marginRight: "0.25rem",
+                  }),
+                  "Replace",
+                ]
+              : h(VitrailPane, { nodes: [step.step.node] }),
           ),
           h("div", {
             style: {

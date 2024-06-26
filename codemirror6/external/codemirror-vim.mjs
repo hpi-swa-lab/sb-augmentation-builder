@@ -6185,7 +6185,7 @@ var Wn = {
     },
     "&:not(.cm-focused) > .cm-scroller > .cm-cursorLayer > .cm-fat-cursor": {
       background: "none",
-      outline: "solid 1px #ff9696",
+      // outline: "solid 1px #ff9696",
       color: "transparent !important",
     },
   },

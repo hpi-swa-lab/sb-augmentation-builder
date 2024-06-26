@@ -5,7 +5,7 @@ import {
   useMemo,
 } from "../external/preact-hooks.mjs";
 import { appendCss, last, sequenceMatch, withDo } from "../utils.js";
-import { h } from "../view/widgets.js";
+import { codicon, h } from "../view/widgets.js";
 
 function highlightSubstring(string, search) {
   if (!search) return string;
@@ -137,15 +137,12 @@ export function List({
             onConfirm?.(item);
           },
         },
-        h("span", {
-          style: {
+        withDo(iconFunc(item), (i) =>
+          codicon(i, {
             marginRight: "0.25rem",
             color: selected === item ? "#fff" : "rgb(40, 131, 241)",
-          },
-          class: withDo(iconFunc(item), (i) =>
-            i ? "codicon codicon-" + i : null,
-          ),
-        }),
+          }),
+        ),
         fuzzy
           ? labelFunc(item)
           : highlightSubstring(labelFunc(item), filterString),
