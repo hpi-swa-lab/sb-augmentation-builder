@@ -14,14 +14,14 @@ import {
   replace,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
+import { Augmentation } from "../vitrail/vitrail.ts";
 import { openNodesInWindow } from "./editor.ts";
+import { NodeArray } from "./node-array.ts";
 
 export const uiBuilder = (model): Augmentation<any> => ({
   model,
   match: (it) =>
     metaexec(it, (capture) => [
-      replace(capture),
       query("h($tag, $props, $$$children)"),
       all(
         [
@@ -49,7 +49,7 @@ export const uiBuilder = (model): Augmentation<any> => ({
         [(it) => it.children, capture("children")],
       ),
     ]),
-  view: ({ tag, props, children }) =>
+  view: ({ tag, props, children, nodes }) =>
     h(
       "span",
       { style: { display: "inline-block" } },
@@ -70,7 +70,12 @@ export const uiBuilder = (model): Augmentation<any> => ({
       h(
         "span",
         { style: { display: "inline-block", paddingLeft: "1rem" } },
-        h(VitrailPane, { nodes: children }),
+        h(NodeArray, {
+          items: children,
+          container: nodes[0].atField("arguments"),
+          baseIndex: 2,
+        }),
+        // h(VitrailPane, { nodes: children }),
       ),
     ),
   rerender: () => true,

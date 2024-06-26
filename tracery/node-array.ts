@@ -12,12 +12,14 @@ export function NodeArray({
   view,
   style,
   insertItem,
+  baseIndex,
 
   wrap,
   add,
   remove,
 }) {
-  nodeFromItem ??= (it) => it?.node ?? it;
+  nodeFromItem ??= (it) =>
+    it?.node ? it.node.orParentThat((p) => p.parent === container) : it;
   items ??= container.childBlocks;
 
   insertItem ??= () => createPlaceholder("expression");
@@ -72,16 +74,21 @@ export function NodeArray({
     });
   style = { display: "flex", flexDirection: "column", ...style };
 
+  baseIndex ??=
+    items.length > 0
+      ? container.childBlocks.indexOf(nodeFromItem(items[0]))
+      : 0;
+  const insert = async (index: number) => {
+    const item = await insertItem(baseIndex + index);
+    if (item) container.insert(item, "expression", baseIndex + index);
+  };
+
   return wrap(
     items.length === 0
-      ? add(null, null, () => container.insert("'a'", "expression", 0))
+      ? add(null, null, () => insert(0))
       : items.map((it, index) =>
           h(_NodeArrayItem, {
-            onInsert: async (atEnd) => {
-              const item = await insertItem(index, atEnd);
-              if (item)
-                container.insert(item, "expression", index + (atEnd ? 1 : 0));
-            },
+            onInsert: (atEnd) => insert(index + (atEnd ? 1 : 0)),
             onRemove: () => {
               let nodeToDelete = nodeFromItem(items[index]);
               if (container.childBlocks.length == 1) {
