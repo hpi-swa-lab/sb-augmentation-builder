@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
-import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+import { useMemo } from "../external/preact-hooks.mjs";
+import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { List } from "../sandblocks/list.js";
 import { appendCss } from "../utils.js";

@@ -6276,7 +6276,10 @@ var Qn =
   Oe = Rn(R),
   Jn = 250,
   zn = Je.baseTheme({
-    ".cm-vimMode .cm-cursorLayer:not(.cm-vimCursorLayer)": { display: "none" },
+    // VITRAIL FIX FOR NESTED EDITORS
+    ".cm-vimMode > .cm-cursorLayer:not(.cm-vimCursorLayer)": {
+      display: "none",
+    },
     ".cm-vim-panel": {
       padding: "0px 10px",
       fontFamily: "monospace",
