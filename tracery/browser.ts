@@ -145,6 +145,6 @@ export function openBrowser(project, props, windowProps) {
   openComponentInWindow(
     TraceryBrowser,
     { project, ...props },
-    { ...windowProps, initialSize: { x: 700, y: 430 } },
+    { initialSize: { x: 700, y: 430 }, ...windowProps },
   );
 }

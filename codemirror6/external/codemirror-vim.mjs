@@ -6173,7 +6173,9 @@ function Vn(f) {
 var Wn = {
     // VITRAIL CHANGES FOR NESTED EDITORS
     ".cm-vimMode > .cm-content > .cm-line": {
-      "& ::selection": { backgroundColor: "transparent !important" },
+      "& :not(:focus)::selection": {
+        backgroundColor: "transparent !important",
+      },
       "&::selection": { backgroundColor: "transparent !important" },
       caretColor: "transparent !important",
     },

@@ -747,10 +747,6 @@ export class Pane<T> {
     for (const replacement of this.replacements) {
       const match = this.reRenderReplacement(replacement, editBuffer);
       if (match) {
-        const match = replacement.augmentation.match(
-          replacement.matchedNode,
-          this,
-        );
         replacement.nodes = match.nodes;
         replacement.lastMatch = match;
         this.renderAugmentation(replacement, match);
@@ -799,6 +795,8 @@ export class Pane<T> {
       return false;
     const match = augmentation.match(node, this);
     if (!match) return false;
+    if (!match.nodes)
+      throw new Error("Augmentation does not define what nodes to replace.");
     if (
       this.replacements.some((r) =>
         rangeContains(

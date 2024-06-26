@@ -34,6 +34,7 @@ import {
 import { augmentationBuilder } from "./augmentation-builder.ts";
 import { format } from "./format.js";
 import { openReferences } from "./references.ts";
+import { uiBuilder } from "./ui-builder.ts";
 import { watch, wrapWithWatch } from "./watch.js";
 import { openComponentInWindow } from "./window.js";
 
@@ -72,12 +73,20 @@ function extensionsForPath(path) {
   if (language === languageFor("javascript"))
     return {
       cmExtensions: [javascript()],
-      augmentations: [augmentationBuilder(language), watch(language)],
+      augmentations: [
+        augmentationBuilder(language),
+        watch(language),
+        uiBuilder(language),
+      ],
     };
   if (language === languageFor("typescript"))
     return {
       cmExtensions: [javascript({ typescript: true })],
-      augmentations: [augmentationBuilder(language), watch(language)],
+      augmentations: [
+        augmentationBuilder(language),
+        watch(language),
+        uiBuilder(language),
+      ],
     };
   return { cmExtensions: [], augmentations: [] };
 }

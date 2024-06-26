@@ -60,7 +60,7 @@ function Tracery() {
         {
           doNotStartAttached: true,
           initialPosition: { x: 100, y: 100 },
-          initialSize: { x: 800, y: 600 },
+          initialSize: { x: 800, y: 800 },
         },
       );
     }

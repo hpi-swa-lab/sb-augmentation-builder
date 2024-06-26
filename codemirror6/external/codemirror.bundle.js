@@ -17629,10 +17629,10 @@ const selectionLayer = /*@__PURE__*/layer({
     class: "cm-selectionLayer"
 });
 const themeSpec = {
-    "> .cm-content > .cm-line": {
+    "> .cm-scroller > .cm-content > .cm-line": {
         "& ::selection, &::selection": { backgroundColor: "transparent !important" },
     },
-    "> .cm-content": {
+    "> .cm-scroller > .cm-content": {
         "& :focus": {
             caretColor: "initial !important",
             "&::selection, & ::selection": {
@@ -17642,7 +17642,7 @@ const themeSpec = {
     }
 };
 if (CanHidePrimary)
-    themeSpec["> .cm-content > .cm-line"].caretColor = themeSpec["> .cm-content"].caretColor = "transparent !important";
+    themeSpec["> .cm-scroller > .cm-content > .cm-line"].caretColor = themeSpec["> .cm-scroller > .cm-content"].caretColor = "transparent !important";
 const hideNativeSelection = /*@__PURE__*/Prec.highest(/*@__PURE__*/EditorView.theme(themeSpec));
 
 const setDropCursorPos = /*@__PURE__*/StateEffect.define({
