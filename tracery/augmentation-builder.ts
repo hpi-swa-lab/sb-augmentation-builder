@@ -65,7 +65,7 @@ export const augmentationBuilder = (model) => ({
     }, [node.sourceString]);
     return h(
       "div",
-      { style: { display: "flex", border: "1px solid #333" }, focusable: true },
+      { style: { display: "flex", border: "1px solid #333" } },
       h(
         "div",
         {},

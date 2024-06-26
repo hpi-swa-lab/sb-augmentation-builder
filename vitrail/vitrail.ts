@@ -741,7 +741,9 @@ export class Pane<T> {
     for (const root of changedNodes) {
       for (const node of root.andAllParents()) {
         const replacement = this.getReplacementFor(node);
-        const match = replacement?.augmentation.match(node, this);
+        const match = replacement
+          ? this.matchAugmentation(node, replacement.augmentation)
+          : null;
         // check for replacements that are now gone because a change made them invalid
         if (replacement && !match) {
           this.uninstallReplacement(replacement);
@@ -786,8 +788,18 @@ export class Pane<T> {
   reRenderReplacement(replacement: Replacement<any>, editBuffer: EditBuffer) {
     if (!replacement.augmentation.rerender?.(editBuffer)) return null;
 
-    const match = replacement.augmentation.match(replacement.matchedNode, this);
+    const match = this.matchAugmentation(
+      replacement.matchedNode,
+      replacement.augmentation,
+    );
     if (compareReplacementProps(match, replacement.lastMatch)) return null;
+    return match;
+  }
+
+  matchAugmentation(node: SBNode, augmentation: Augmentation<any>) {
+    const match = augmentation.match(node, this);
+    if (!match) return null;
+    match.nodes = [node];
     return match;
   }
 
@@ -799,10 +811,9 @@ export class Pane<T> {
       this.parentPane?.replacements.some((r) => r.matchedNode === this.nodes[0])
     )
       return false;
-    const match = augmentation.match(node, this);
+    const match = this.matchAugmentation(node, augmentation);
     if (!match) return false;
-    if (!match.nodes)
-      throw new Error("Augmentation does not define what nodes to replace.");
+    if (!match.nodes) match.nodes = [node];
     if (
       this.replacements.some((r) =>
         rangeContains(
@@ -1098,9 +1109,16 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
     (_root, _diff, changes) =>
       changesIntendToDeleteNode(changes, replacement.matchedNode) ||
       (replacement.matchedNode?.connected &&
-        replacement.augmentation.match(replacement.matchedNode, pane) !== null),
+        pane.matchAugmentation(
+          replacement.matchedNode,
+          replacement.augmentation,
+        ) !== null),
     [...replacement.nodes, replacement.augmentation],
   );
+}
+
+export function useValidateNoError(nodes: SBNode[]) {
+  useValidator(nodes[0].language, () => !nodes.some((n) => n.hasError), nodes);
 }
 
 export function useValidateKeepNodes(nodes: SBNode[], model?: Model) {

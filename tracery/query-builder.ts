@@ -7,18 +7,18 @@ import {
   query,
   replace,
   spawnArray,
+  type,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
-import { VitrailPane } from "../vitrail/vitrail.ts";
+import { VitrailPane, useValidateNoError } from "../vitrail/vitrail.ts";
 
 export const queryBuilder = (model) => ({
-  matcherDepth: 8,
+  matcherDepth: Infinity,
   model,
   rerender: () => true,
   match: (node) =>
     metaexec(node, (capture) => [
-      replace(capture),
       query("metaexec($input, ($capture) => $pipeline)"),
       (it) => it.pipeline,
       capture("pipeline"),
@@ -26,12 +26,21 @@ export const queryBuilder = (model) => ({
       spawnArray(getPipelineStep),
       capture("steps"),
     ]),
-  view: ({ steps, pipeline }) =>
-    h(NodeArray, {
+  view: ({ steps, pipeline, nodes }) => {
+    useValidateNoError(nodes);
+
+    return h(NodeArray, {
       container: pipeline,
       items: steps,
       wrap: (it) =>
-        h("div", { style: { display: "flex", flexDirection: "column" } }, it),
+        h(
+          "div",
+          {
+            focusable: true,
+            style: { display: "flex", flexDirection: "column" },
+          },
+          it,
+        ),
       view: (step, ref, onmousemove, onmouseleave) =>
         h(PipelineStep, {
           step,
@@ -39,7 +48,8 @@ export const queryBuilder = (model) => ({
           onmousemove,
           onmouseleave,
         }),
-    }),
+    });
+  },
 });
 
 const PipelineSteps = {

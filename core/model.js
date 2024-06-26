@@ -498,6 +498,12 @@ export class SBNode {
     this.parent.insert(string, type, this.parent.childBlocks.indexOf(this) + 1);
   }
 
+  get hasError() {
+    return (
+      this.type === "ERROR" || this.children.some((child) => child.hasError)
+    );
+  }
+
   // The nodes that should be deleted, when a delete action is invoked
   // on this node. the concept and wording originates from cursorless'
   // `removalRange`.
