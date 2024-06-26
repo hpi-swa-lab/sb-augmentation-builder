@@ -97,14 +97,18 @@ function NodeList({ container, items, view, style, wrap, add, remove }) {
               container.insert(
                 "(it) => it",
                 "expression",
-                index + (atEnd ? 1 : 0), //Jan (I) changed this and now feels stupid
+                index + (atEnd ? 1 : 0),
               ),
             onRemove: () => {
               let nodeToDelete = nodes[index].step.node;
-              while (nodeToDelete.parent.id != container.id) {
-                nodeToDelete = nodeToDelete.parent;
+              if (container.childBlocks.length == 1) {
+                container.removeSelf();
+              } else {
+                while (nodeToDelete.parent.id != container.id) {
+                  nodeToDelete = nodeToDelete.parent;
+                }
+                nodeToDelete.removeSelf();
               }
-              nodeToDelete.removeSelf();
             },
             node: it,
             view,
@@ -124,7 +128,8 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
   const showRemovePoint = useSignal(null);
 
   const ref = useRef();
-  const addRef = useRef();
+  const addRefTop = useRef();
+  const addRefBottom = useRef();
   const removeRef = useRef();
 
   useSignalEffect(() => {
@@ -144,16 +149,22 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
   const hideHalo = () => {
     hoverEnd.value = false;
     hoverStart.value = false;
-    //hoverNode.value = false;
+    hoverNode.value = false;
   };
 
+  //TODO: padding is useless, because onmouseleave overwrites this
   const hoverPadding = 100;
 
   return [
     showAddPointTop.value &&
-      add(showAddPointTop.value, addRef, () => onInsert(false), hideHalo),
+      add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo),
     showAddPointBottom.value &&
-      add(showAddPointBottom.value, addRef, () => onInsert(true), hideHalo),
+      add(
+        showAddPointBottom.value,
+        addRefBottom,
+        () => onInsert(true),
+        hideHalo,
+      ),
     showRemovePoint.value &&
       remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
     view(
@@ -163,7 +174,6 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
         const box = ref.current.getBoundingClientRect();
         hoverStart.value = e.clientY < box.top + box.height * 0.9;
         hoverEnd.value = e.clientY > box.top + box.height * 0.1;
-        //FIXME: Why does the hoverPadding has no effect?
         hoverNode.value =
           e.clientY > box.top - hoverPadding &&
           e.clientY < box.top + box.height + hoverPadding &&
@@ -171,7 +181,13 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
           e.clientX < box.left + box.width + hoverPadding;
       },
       (e) => {
-        if (addRef.current && addRef.current.contains(e.relatedTarget)) return;
+        if (
+          (addRefTop.current && addRefTop.current.contains(e.relatedTarget)) ||
+          (addRefBottom.current &&
+            addRefBottom.current.contains(e.relatedTarget)) ||
+          (removeRef.current && removeRef.current.contains(e.relatedTarget))
+        )
+          return;
         hideHalo();
       },
     ),
@@ -447,14 +463,16 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
           h(
             "div",
             {
-              style: { display: "inline-block" },
-              ref,
+              style: { display: "inline-block", padding: "0px" },
               onmouseleave,
               onmousemove,
             },
             h(
               "div",
-              { style: { border: "2px solid black", display: "inline-block" } },
+              {
+                ref,
+                style: { border: "2px solid black", display: "inline-block" },
+              },
               h(
                 "div",
                 {},
