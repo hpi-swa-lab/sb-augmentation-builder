@@ -18,7 +18,7 @@ import {
   spawnArray,
   log,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { codicon, html } from "../view/widgets.js";
+import { Codicon, codicon, html } from "../view/widgets.js";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodeInWindow } from "./editor.ts";
@@ -460,9 +460,9 @@ function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
                 {},
                 step.step.stepType === PipelineSteps.REPLACE
                   ? [
-                      codicon("replace-all", {
-                        fontSize: "1.75rem",
-                        marginRight: "0.25rem",
+                      h(Codicon, {
+                        name: "replace-all",
+                        style: { fontSize: "1.75rem", marginRight: "0.25rem" },
                       }),
                       "Replace",
                     ]

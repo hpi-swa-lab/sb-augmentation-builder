@@ -17,6 +17,10 @@ function wantsMouseOverFocus(e) {
   );
 }
 
+export function parentWindow(dom) {
+  return orParentThat(dom, (e) => e.tagName === "TRACERY-WINDOW");
+}
+
 const mouseOverForFocus = true;
 let globalMousePos = { x: 0, y: 0 };
 document.addEventListener("mousemove", (e) => {

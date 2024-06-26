@@ -1,4 +1,5 @@
 import { extractType } from "../core/model.js";
+import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -14,6 +15,7 @@ import {
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
+import { openNodeInWindow } from "./editor.ts";
 
 export const uiBuilder = (model): Augmentation<any> => ({
   model,
@@ -62,22 +64,7 @@ export const uiBuilder = (model): Augmentation<any> => ({
           },
         },
         h("span", { style: { color: "blue", marginRight: "0.25rem" } }, tag),
-        props.map(({ key, value }) =>
-          h(
-            "span",
-            {
-              style: {
-                background: "#eee",
-                padding: "0.1rem 0.5rem",
-                marginLeft: "0.25rem",
-                borderRadius: "9999px",
-                cursor: "pointer",
-              },
-              key,
-            },
-            key,
-          ),
-        ),
+        props.map(({ key, value }) => h(PropEditor, { key, value, name: key })),
       ),
       h("br"),
       h(
@@ -89,3 +76,44 @@ export const uiBuilder = (model): Augmentation<any> => ({
   rerender: () => true,
   matcherDepth: 3,
 });
+
+function PropEditor({ name, value }) {
+  const hovered = useSignal(false);
+
+  return h(
+    "span",
+    {
+      onmouseenter: () => (hovered.value = true),
+      onmouseleave: () => (hovered.value = false),
+      style: {
+        background: "#eee",
+        padding: "0.1rem 0.5rem",
+        marginLeft: "0.25rem",
+        borderRadius: "9999px",
+        cursor: "pointer",
+        position: "relative",
+      },
+      onClick: () => openNodeInWindow(value),
+    },
+    name,
+    hovered.value &&
+      h(
+        "span",
+        {
+          style: {
+            position: "absolute",
+            top: "100%",
+            left: "50%",
+            width: "max-content",
+            transform: "translate(-50%, 0)",
+            background: "#fff",
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "5px",
+            zIndex: 10000000,
+          },
+        },
+        value.sourceString,
+      ),
+  );
+}

@@ -1,11 +1,6 @@
 import "../external/preact-debug.js";
 import { h, render } from "../external/preact.mjs";
-import {
-  appendCss,
-  orParentThat,
-  parentWithTag,
-  rangeDistance,
-} from "../utils.js";
+import { orParentThat, parentWithTag } from "../utils.js";
 import {
   useEffect,
   useMemo,

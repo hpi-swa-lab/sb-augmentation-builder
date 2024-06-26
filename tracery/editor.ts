@@ -36,7 +36,7 @@ import { format } from "./format.js";
 import { openReferences } from "./references.ts";
 import { uiBuilder } from "./ui-builder.ts";
 import { watch, wrapWithWatch } from "./watch.js";
-import { openComponentInWindow } from "./window.js";
+import { openComponentInWindow, parentWindow } from "./window.js";
 
 Vim.map("jk", "<Esc>", "insert");
 Vim.mapCommand("<C-e>", "action", "quit");
@@ -44,11 +44,14 @@ Vim.mapCommand("<C-q>", "action", "wrapwithwatch");
 Vim.defineEx("write", "w", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("save")),
 );
-Vim.defineEx("quit", "q", (cm) =>
-  cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
+Vim.defineEx(
+  "quit",
+  "q",
+  (cm) => (parentWindow(cm.cm6.state.facet(PaneFacet).view) as any)?.close(),
 );
-Vim.defineAction("quit", (cm) =>
-  cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("quit")),
+Vim.defineAction(
+  "quit",
+  (cm) => (parentWindow(cm.cm6.state.facet(PaneFacet).view) as any)?.close(),
 );
 Vim.defineAction("wrapwithwatch", (cm) =>
   cm.cm6.state
