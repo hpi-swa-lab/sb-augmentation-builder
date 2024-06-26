@@ -16,18 +16,18 @@ export const queryBuilder = (model) => ({
   matcherDepth: 8,
   model,
   rerender: () => true,
-  match: (node) =>
+  match: (node, pane) =>
     metaexec(node, (capture) => [
       replace(capture),
-      (it) => it.findQuery("metaexec($input, ($capture) => $pipeline)"),
+      query("metaexec($input, ($capture) => $pipeline)"),
       (it) => it.pipeline,
       capture("pipeline"),
       (it) => it.childBlocks,
       spawnArray(getPipelineStep),
       capture("steps"),
     ]),
-  view: ({ steps, pipeline }) => {
-    return h(NodeArray, {
+  view: ({ steps, pipeline }) =>
+    h(NodeArray, {
       container: pipeline,
       items: steps,
       wrap: (it) =>
@@ -39,8 +39,7 @@ export const queryBuilder = (model) => ({
           onmousemove,
           onmouseleave,
         }),
-    });
-  },
+    }),
 });
 
 const PipelineSteps = {

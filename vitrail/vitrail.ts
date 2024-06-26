@@ -790,6 +790,7 @@ export class Pane<T> {
     if (this.getReplacementFor(node)) return null;
     // prevent recursion
     if (
+      this.nodes[0] === node &&
       this.parentPane?.replacements.some((r) => r.matchedNode === this.nodes[0])
     )
       return false;
