@@ -16,7 +16,7 @@ export const queryBuilder = (model) => ({
   matcherDepth: 8,
   model,
   rerender: () => true,
-  match: (node, pane) =>
+  match: (node) =>
     metaexec(node, (capture) => [
       replace(capture),
       query("metaexec($input, ($capture) => $pipeline)"),

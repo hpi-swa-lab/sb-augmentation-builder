@@ -55,12 +55,7 @@ import {
   arrayEqual,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
-import {
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "../external/preact-hooks.mjs";
+import { useEffect, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 
 const IntentToDelete = StateEffect.define();

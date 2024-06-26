@@ -554,6 +554,10 @@ export class Pane<T> {
     ]);
   }
 
+  get sourceString() {
+    return this.vitrail.sourceString.slice(this.range[0], this.range[1]);
+  }
+
   constructor({
     vitrail,
     view,
@@ -592,6 +596,7 @@ export class Pane<T> {
     this._fetchAugmentations = fetchAugmentations;
 
     let pane = this;
+    (this.view as any)._debugPane = this;
     (this.view as any).cursorPositions = function* () {
       yield* pane.paneCursorPositions();
     };
@@ -702,7 +707,7 @@ export class Pane<T> {
     ) {
       // depending on how the AST shifted, we may be off; if we have
       // pendingChanges, the AST won't update.
-      const targetText = this.nodes.map((n) => n.sourceString).join("");
+      const targetText = this.sourceString;
       if (this.getText() !== targetText) {
         this.setText(targetText, true);
       }

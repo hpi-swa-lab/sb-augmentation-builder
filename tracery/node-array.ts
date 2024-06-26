@@ -7,20 +7,16 @@ import { VitrailPane } from "../vitrail/vitrail.ts";
 export function NodeArray({
   container,
   items,
+  nodeFromItem,
   view,
   style,
   wrap,
   add,
   remove,
 }) {
-  // console.log("container");
-  // console.log(container);
-  // console.log("items");
-  // console.log(items);
-  const nodes = items ?? container.childBlocks;
-  // console.log("nodes");
-  // console.log(nodes);
-  // console.log("****************************************");
+  nodeFromItem ??= (it) => it?.node ?? it;
+  items ??= container.childBlocks;
+
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
@@ -75,9 +71,9 @@ export function NodeArray({
   style = { display: "flex", flexDirection: "column", ...style };
 
   return wrap(
-    nodes.length === 0
+    items.length === 0
       ? add(null, null, () => container.insert("'a'", "expression", 0))
-      : nodes.map((it, index) =>
+      : items.map((it, index) =>
           h(_NodeArrayItem, {
             onInsert: (atEnd) =>
               container.insert(
@@ -86,7 +82,7 @@ export function NodeArray({
                 index + (atEnd ? 1 : 0),
               ),
             onRemove: () => {
-              let nodeToDelete = nodes[index].step.node;
+              let nodeToDelete = nodeFromItem(items[index]);
               if (container.childBlocks.length == 1) {
                 container.removeSelf();
               } else {
