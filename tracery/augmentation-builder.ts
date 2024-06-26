@@ -12,187 +12,14 @@ import {
   type,
   all,
   replace,
-  first,
-  query,
-  debugIt,
-  spawnArray,
-  log,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { Codicon, codicon, html } from "../view/widgets.js";
+import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodesInWindow } from "./editor.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
-
-function NodeList({ container, items, view, style, wrap, add, remove }) {
-  // console.log("container");
-  // console.log(container);
-  // console.log("items");
-  // console.log(items);
-  const nodes = items ?? container.childBlocks;
-  // console.log("nodes");
-  // console.log(nodes);
-  // console.log("****************************************");
-  view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
-    h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
-  wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
-  add ??= (position, ref, onclick, onmouseleave) =>
-    h(
-      "div",
-      {
-        ref,
-        onclick,
-        onmouseleave,
-        style: {
-          width: "1rem",
-          height: "1rem",
-          background: "#555",
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          lineHeight: "1",
-          color: "#fff",
-          cursor: "pointer",
-          position: position ? "fixed" : "static",
-          top: position?.[1],
-          left: position?.[0],
-        },
-      },
-      "+",
-    );
-  remove ??= (position, ref, onclick, onmouseleave) => {
-    //debugger;
-    return h("div", {
-      ref,
-      onclick,
-      onmouseleave,
-      style: {
-        width: "1rem",
-        height: "1rem",
-        background: "#FF0000",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: "1",
-        color: "#fff",
-        cursor: "pointer",
-        position: position ? "fixed" : "static",
-        top: position?.[1],
-        left: position?.[0],
-      },
-    });
-  };
-  style = { display: "flex", flexDirection: "column", ...style };
-
-  return wrap(
-    nodes.length === 0
-      ? add(null, null, () => container.insert("'a'", "expression", 0))
-      : nodes.map((it, index) =>
-          h(_NodeListItem, {
-            onInsert: (atEnd) =>
-              container.insert(
-                "(it) => it",
-                "expression",
-                index + (atEnd ? 1 : 0),
-              ),
-            onRemove: () => {
-              let nodeToDelete = nodes[index].step.node;
-              if (container.childBlocks.length == 1) {
-                container.removeSelf();
-              } else {
-                while (nodeToDelete.parent.id != container.id) {
-                  nodeToDelete = nodeToDelete.parent;
-                }
-                nodeToDelete.removeSelf();
-              }
-            },
-            node: it,
-            view,
-            add,
-            remove,
-          }),
-        ),
-  );
-}
-
-function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
-  const hoverStart = useSignal(false);
-  const hoverEnd = useSignal(false);
-  const hoverNode = useSignal(false);
-  const showAddPointTop = useSignal(null);
-  const showAddPointBottom = useSignal(null);
-  const showRemovePoint = useSignal(null);
-
-  const ref = useRef();
-  const addRefTop = useRef();
-  const addRefBottom = useRef();
-  const removeRef = useRef();
-
-  useSignalEffect(() => {
-    //if (hoverStart.value || hoverEnd.value) {
-    if (hoverNode.value) {
-      const rect = ref.current.getBoundingClientRect();
-      showAddPointTop.value = [rect.left + 9, rect.top - 13];
-      showAddPointBottom.value = [rect.left + 9, rect.top + rect.height];
-      showRemovePoint.value = [rect.left + rect.width - 10, rect.top - 5];
-    } else {
-      showAddPointTop.value = null;
-      showRemovePoint.value = null;
-      showAddPointBottom.value = null;
-    }
-  });
-
-  const hideHalo = () => {
-    hoverEnd.value = false;
-    hoverStart.value = false;
-    hoverNode.value = false;
-  };
-
-  //TODO: padding is useless, because onmouseleave overwrites this
-  const hoverPadding = 100;
-
-  return [
-    showAddPointTop.value &&
-      add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo),
-    showAddPointBottom.value &&
-      add(
-        showAddPointBottom.value,
-        addRefBottom,
-        () => onInsert(true),
-        hideHalo,
-      ),
-    showRemovePoint.value &&
-      remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
-    view(
-      node,
-      ref,
-      (e) => {
-        const box = ref.current.getBoundingClientRect();
-        hoverStart.value = e.clientY < box.top + box.height * 0.9;
-        hoverEnd.value = e.clientY > box.top + box.height * 0.1;
-        hoverNode.value =
-          e.clientY > box.top - hoverPadding &&
-          e.clientY < box.top + box.height + hoverPadding &&
-          e.clientX > box.left - hoverPadding &&
-          e.clientX < box.left + box.width + hoverPadding;
-      },
-      (e) => {
-        if (
-          (addRefTop.current && addRefTop.current.contains(e.relatedTarget)) ||
-          (addRefBottom.current &&
-            addRefBottom.current.contains(e.relatedTarget)) ||
-          (removeRef.current && removeRef.current.contains(e.relatedTarget))
-        )
-          return;
-        hideHalo();
-      },
-    ),
-  ];
-}
 
 function queryOrCreate(query, extract) {
   return (it) => {
@@ -208,98 +35,6 @@ function queryOrCreate(query, extract) {
   };
 }
 
-const PipelineSteps = {
-  ALL: "all",
-  FIRST: "first",
-  FUNCTION: "function",
-  SPAWN_ARRAY: "spawnArray",
-  CAPTURE: "capture",
-  PIPELINE: "pipeline",
-  QUERY: "query",
-  REPLACE: "replace",
-  TYPE: "type",
-  OTHER: "other",
-};
-
-function getPipelineStep(node) {
-  return metaexec(node, (capture) => [
-    first(
-      [
-        query("($any) => $STEP"),
-        (it) => it.STEP,
-        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
-      ],
-      [
-        query("all($_STEPS)"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: getPipelineSteps(it.childBlocks),
-          stepType: PipelineSteps.ALL,
-        }),
-      ],
-      [
-        query("first($_STEPS)"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: getPipelineSteps(it.childBlocks),
-          stepType: PipelineSteps.FIRST,
-        }),
-      ],
-      [
-        query("capture($NAME)"),
-        (it) => it.NAME,
-        (it) => ({ node: it, stepType: PipelineSteps.CAPTURE }),
-      ],
-      [
-        query("query($QUERY)"),
-        (it) => it.QUERY,
-        (it) => ({ node: it, stepType: PipelineSteps.QUERY }),
-      ],
-      [
-        query("replace($REPLACE)"),
-        (it) => it.REPLACE,
-        (it) => ({ node: it, stepType: PipelineSteps.REPLACE }),
-      ],
-      [
-        query("type($TYPE)"),
-        (it) => it.TYPE,
-        (it) => ({ node: it, stepType: PipelineSteps.TYPE }),
-      ],
-      [
-        query("spawnArray($CALL)"),
-        (it) => it.CALL,
-        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
-      ],
-      [
-        query("[$_STEPS]"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: getPipelineSteps(it),
-          stepType: PipelineSteps.PIPELINE,
-        }),
-      ],
-      [
-        (it) => ({
-          node: it,
-          stepType: PipelineSteps.OTHER,
-        }),
-      ],
-    ),
-    capture("step"),
-  ]);
-}
-
-function getPipelineSteps(node) {
-  return metaexec(node, (capture) => [
-    first([(it) => Array.isArray(it)], [(it) => it.childBlocks]),
-    spawnArray((it) => getPipelineStep(it)),
-    capture("steps"),
-  ]);
-}
-
 (window as any).languageFor = languageFor;
 export const augmentationBuilder = (model) => ({
   matcherDepth: 8,
@@ -307,28 +42,20 @@ export const augmentationBuilder = (model) => ({
   rerender: () => true,
   match: (node) =>
     metaexec(node, (capture) => [
-      (it) => it,
       type("object"),
       replace(capture),
       all(
         [objectField("matcherDepth"), capture("depth")],
-        [
-          objectField("match"),
-          capture("match"),
-          (it) =>
-            it.findQuery("(node) => metaexec($input, ($capture) => $pipeline)"),
-          (it) => ({ node: it, steps: getPipelineSteps(it.pipeline) }),
-          capture("steps"),
-        ],
+        [objectField("match"), capture("match")],
         [objectField("view"), capture("view")],
         [
-          queryOrCreate("let a = {examples: [$_array]}", extractType("pair")),
+          queryOrCreate("({examples: [$_array]})", extractType("pair")),
           (it) => it.array,
           capture("examples"),
         ],
       ),
     ]),
-  view: ({ steps, examples, nodes: [node] }) => {
+  view: ({ examples, nodes: [node] }) => {
     const augmentation = useMemo(() => {
       try {
         eval(`const a = ${node.sourceString}; a`);
@@ -353,19 +80,7 @@ export const augmentationBuilder = (model) => ({
           },
           "Open",
         ),
-        h(NodeList, {
-          container: steps.node.pipeline,
-          items: steps.steps.steps,
-          wrap: (it) =>
-            h(
-              "div",
-              { style: { display: "flex", flexDirection: "column" } },
-              it,
-            ),
-          view: (step, ref, onmousemove, onmouseleave) =>
-            displayPipelineStep(step, ref, onmousemove, onmouseleave),
-        }),
-        //h(VitrailPane, { nodes: [node] }),
+        h(VitrailPane, { nodes: [node] }),
       ),
       h(
         "table",
@@ -376,7 +91,7 @@ export const augmentationBuilder = (model) => ({
           h("td", {}, "Examples"),
           h("td", {}, "Preview"),
         ),
-        h(NodeList, {
+        h(NodeArray, {
           container: examples,
           wrap: (it) => it,
           view: (it, ref, onmousemove, onmouseleave) => {
@@ -403,100 +118,6 @@ export const augmentationBuilder = (model) => ({
     );
   },
 });
-
-function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
-  // console.log("StepType");
-  // console.log(step.step.stepType);
-  // console.log(step);
-  return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.step.stepType)
-    ? h(NodeList, {
-        container: step.step.node,
-        items: step.step.steps.steps,
-        wrap: (it) =>
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                flexDirection: "row",
-                marginLeft: "1rem",
-                marginRight: "1rem",
-                borderTop: "2px solid black",
-              },
-              id: step.step.stepType,
-            },
-            it,
-          ),
-        view: (step) =>
-          displayPipelineStep(step, ref, onmousemove, onmouseleave),
-      })
-    : step.step.stepType == PipelineSteps.PIPELINE
-      ? h(NodeList, {
-          container: step.step.node,
-          items: step.step.steps.steps,
-          wrap: (it) =>
-            h(
-              "div",
-              { style: { display: "flex", flexDirection: "column" } },
-              h(
-                "div",
-                {},
-                h("div", {
-                  style: {
-                    borderLeft: "2px solid black",
-                    marginLeft: "1rem",
-                    height: "2rem",
-                  },
-                }),
-              ),
-              it,
-            ),
-          view: (step, ref, onmousemove, onmouseleave) =>
-            displayPipelineStep(step, ref, onmousemove, onmouseleave),
-        })
-      : h(
-          "div",
-          {
-            id: "NodeList",
-            style: { border: "1px red dotted", paddingRight: "10px" },
-          },
-          h(
-            "div",
-            {
-              style: { display: "inline-block", padding: "0px" },
-              onmouseleave,
-              onmousemove,
-            },
-            h(
-              "div",
-              {
-                ref,
-                style: { border: "2px solid black", display: "inline-block" },
-              },
-              h(
-                "div",
-                {},
-                step.step.stepType === PipelineSteps.REPLACE
-                  ? [
-                      h(Codicon, {
-                        name: "replace-all",
-                        style: { fontSize: "1.75rem", marginRight: "0.25rem" },
-                      }),
-                      "Replace",
-                    ]
-                  : h(VitrailPane, { nodes: [step.step.node] }),
-              ),
-            ),
-          ),
-          h("div", {
-            style: {
-              borderLeft: "2px solid black",
-              marginLeft: "1rem",
-              height: "2rem",
-            },
-          }),
-        );
-}
 
 class MaybeEditor implements ModelEditor {
   editor: Vitrail<any>;

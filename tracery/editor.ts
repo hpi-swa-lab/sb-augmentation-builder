@@ -33,6 +33,7 @@ import {
 } from "../vitrail/vitrail.ts";
 import { augmentationBuilder } from "./augmentation-builder.ts";
 import { format } from "./format.js";
+import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
 import { uiBuilder } from "./ui-builder.ts";
 import { watch, wrapWithWatch } from "./watch.js";
@@ -78,6 +79,7 @@ function extensionsForPath(path) {
       cmExtensions: [javascript()],
       augmentations: [
         augmentationBuilder(language),
+        queryBuilder(language),
         watch(language),
         uiBuilder(language),
       ],
@@ -87,6 +89,7 @@ function extensionsForPath(path) {
       cmExtensions: [javascript({ typescript: true })],
       augmentations: [
         augmentationBuilder(language),
+        queryBuilder(language),
         watch(language),
         uiBuilder(language),
       ],

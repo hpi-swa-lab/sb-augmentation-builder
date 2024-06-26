@@ -146,7 +146,8 @@ export function all(...pipelines) {
 
 export function captureAll(capture) {
   return (it) => {
-    for (const key of it) capture(key, it[key]);
+    for (const key in it) capture(key)(it[key]);
+    return it;
   };
 }
 
