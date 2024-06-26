@@ -980,14 +980,27 @@ export class Pane<T> {
   }
 }
 
-export function VitrailPane({
+type VitrailPaneProps = {
+  fetchAugmentations?: PaneFetchAugmentationsFunc<any>;
+  hostOptions: any;
+  nodes: SBNode[];
+  style: any;
+  className: string;
+  ref;
+};
+export function VitrailPane(props: VitrailPaneProps) {
+  if (props.nodes && props.nodes.length > 0) return h(_VitrailPane, props);
+  else return null;
+}
+
+function _VitrailPane({
   fetchAugmentations,
   hostOptions,
   nodes,
   style,
   className,
   ref,
-}) {
+}: VitrailPaneProps) {
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   //console.log(nodes);
   const vitrail: Vitrail<any> = nodes[0]?.editor;

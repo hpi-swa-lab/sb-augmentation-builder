@@ -671,31 +671,32 @@ export class TSQuery {
       return true;
     }
     if (!a.isText && !b.isText && a.type === b.type) {
-      const leading = a.childNodes.findIndex((c) =>
+      const aChildren = a.childNodes.filter((n) => n.text !== ",");
+      const bChildren = b.childNodes.filter((n) => n.text !== ",");
+      const leading = aChildren.findIndex((c) =>
         c.text.startsWith(this.multiPrefix),
       );
       // if we have a multi match for children, match the prefix and suffix
       // of the template (if any), then collect the remaining children
       if (leading >= 0) {
-        if (leading > b.childNodes.length) return false;
+        if (leading > bChildren.length) return false;
         for (let i = 0; i < leading; i++) {
-          if (!this._match(a.childNodes[i], b.childNodes[i], captures))
-            return false;
+          if (!this._match(aChildren[i], bChildren[i], captures)) return false;
         }
-        let trailing = a.childNodes.length - leading - 1;
+        let trailing = aChildren.length - leading - 1;
         for (let i = 0; i < trailing; i++) {
           if (
             !this._match(
-              a.childNodes[a.childNodes.length - i - 1],
-              b.childNodes[b.childNodes.length - i - 1],
+              aChildren[aChildren.length - i - 1],
+              bChildren[bChildren.length - i - 1],
               captures,
             )
           )
             return false;
         }
         captures.push([
-          a.childNodes[leading].text.slice(this.multiPrefix.length),
-          b.childNodes.slice(leading, -trailing).filter((n) => n.named),
+          aChildren[leading].text.slice(this.multiPrefix.length),
+          bChildren.slice(leading, -trailing).filter((n) => n.named),
         ]);
         return true;
       }
