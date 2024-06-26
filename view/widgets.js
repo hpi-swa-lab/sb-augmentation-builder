@@ -35,7 +35,7 @@ export const icon = (name) =>
 export const codicon = (name, style) =>
   h("span", {
     class: "codicon codicon-" + name,
-    style: { verticalAlign: "bottom", ...style },
+    style: { verticalAlign: "text-bottom", ...style },
   });
 export function Codicon({ name, style }) {
   return codicon(name, style);

@@ -77,12 +77,11 @@ export function NodeArray({
       ? add(null, null, () => container.insert("'a'", "expression", 0))
       : items.map((it, index) =>
           h(_NodeArrayItem, {
-            onInsert: async (atEnd) =>
-              container.insert(
-                await insertItem(index, atEnd),
-                "expression",
-                index + (atEnd ? 1 : 0),
-              ),
+            onInsert: async (atEnd) => {
+              const item = await insertItem(index, atEnd);
+              if (item)
+                container.insert(item, "expression", index + (atEnd ? 1 : 0));
+            },
             onRemove: () => {
               let nodeToDelete = nodeFromItem(items[index]);
               if (container.childBlocks.length == 1) {

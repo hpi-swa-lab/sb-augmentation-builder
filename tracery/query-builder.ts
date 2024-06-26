@@ -1,21 +1,33 @@
 import { h } from "../external/preact.mjs";
 import {
   captureAll,
-  debugIt,
   first,
   metaexec,
   query,
-  replace,
   spawnArray,
-  type,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
 import {
-  VitrailPane,
   VitrailPaneWithWhitespace,
   useValidateNoError,
 } from "../vitrail/vitrail.ts";
+import { choose } from "./window.js";
+import { createPlaceholder } from "../vitrail/placeholder.ts";
+import {
+  TextArea,
+  bindPlainString,
+} from "../sandblocks/query-builder/bindings.ts";
+
+async function insertItem() {
+  return (
+    await choose([
+      { label: "Type Match", text: `type("")` },
+      { label: "Function", text: `it => ${createPlaceholder("it")}` },
+      { label: "Capture", text: `capture("")` },
+    ])
+  )?.text;
+}
 
 export const queryBuilder = (model) => ({
   matcherDepth: Infinity,
@@ -36,6 +48,7 @@ export const queryBuilder = (model) => ({
     return h(NodeArray, {
       container: pipeline,
       items: steps,
+      insertItem,
       wrap: (it) =>
         h(
           "div",
@@ -151,10 +164,34 @@ function PipelineStep({
   // console.log(step);
   // useValidator(step.step.node.language, step.steps.steps);
 
+  function viewForLeaf() {
+    switch (stepType) {
+      case PipelineSteps.REPLACE:
+        return [
+          h(Codicon, {
+            name: "replace-all",
+            style: { marginRight: "0.25rem" },
+          }),
+          "Replace",
+        ];
+      case PipelineSteps.CAPTURE:
+        return [
+          h(Codicon, { name: "bookmark", style: { marginRight: "0.25rem" } }),
+          h(TextArea, bindPlainString(node)),
+        ];
+      default:
+        return h(VitrailPaneWithWhitespace, {
+          nodes: [node],
+          ignoreLeft: true,
+        });
+    }
+  }
+
   return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(stepType)
     ? h(NodeArray, {
         container: node,
         items: steps,
+        insertItem,
         wrap: (it) =>
           h(
             "div",
@@ -166,7 +203,6 @@ function PipelineStep({
                 marginRight: "1rem",
                 borderTop: "2px solid black",
               },
-              id: stepType,
             },
             it,
           ),
@@ -177,6 +213,7 @@ function PipelineStep({
       ? h(NodeArray, {
           container: node,
           items: steps,
+          insertItem,
           wrap: (it) =>
             h(
               "div",
@@ -199,10 +236,7 @@ function PipelineStep({
         })
       : h(
           "div",
-          {
-            id: "NodeList",
-            style: { border: "1px red dotted", paddingRight: "10px" },
-          },
+          { style: { border: "1px red dotted", paddingRight: "10px" } },
           h(
             "div",
             {
@@ -214,24 +248,13 @@ function PipelineStep({
               "div",
               {
                 ref: containerRef,
-                style: { border: "2px solid black", display: "inline-block" },
+                style: {
+                  border: "2px solid black",
+                  display: "inline-block",
+                  padding: "0.25rem",
+                },
               },
-              h(
-                "div",
-                {},
-                stepType === PipelineSteps.REPLACE
-                  ? [
-                      h(Codicon, {
-                        name: "replace-all",
-                        style: { fontSize: "1.75rem", marginRight: "0.25rem" },
-                      }),
-                      "Replace",
-                    ]
-                  : h(VitrailPaneWithWhitespace, {
-                      nodes: [node],
-                      ignoreLeft: true,
-                    }),
-              ),
+              h("div", {}, viewForLeaf()),
             ),
           ),
           h("div", {
