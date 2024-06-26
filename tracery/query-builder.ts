@@ -11,7 +11,11 @@ import {
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
-import { VitrailPane, useValidateNoError } from "../vitrail/vitrail.ts";
+import {
+  VitrailPane,
+  VitrailPaneWithWhitespace,
+  useValidateNoError,
+} from "../vitrail/vitrail.ts";
 
 export const queryBuilder = (model) => ({
   matcherDepth: Infinity,
@@ -223,7 +227,10 @@ function PipelineStep({
                       }),
                       "Replace",
                     ]
-                  : h(VitrailPane, { nodes: [node] }),
+                  : h(VitrailPaneWithWhitespace, {
+                      nodes: [node],
+                      ignoreLeft: true,
+                    }),
               ),
             ),
           ),

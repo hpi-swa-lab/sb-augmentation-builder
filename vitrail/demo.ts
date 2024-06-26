@@ -1,6 +1,6 @@
 import { languageFor } from "../core/languages.js";
 import { extractType } from "../core/model.js";
-import { useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { useEffect } from "../external/preact-hooks.mjs";
 import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
@@ -10,23 +10,17 @@ import {
 } from "../sandblocks/query-builder/bindings.ts";
 import {
   all,
-  first,
-  languageSpecific,
   metaexec,
   optional,
   replace,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, clsx } from "../utils.js";
-import { markInputEditableForNode } from "../view/focus.ts";
 import { ForceLayout } from "./force-layout.ts";
 import {
-  SelectionInteraction,
   VitrailPane,
   VitrailPaneWithWhitespace,
-  changesIntendToDeleteNode,
   useValidateKeepReplacement,
-  useValidator,
 } from "./vitrail.ts";
 
 const objectField = (field) => (it) =>
@@ -211,47 +205,6 @@ export const watch = {
         oninput: (e) => (checked.value = e.target.checked),
       }),
     );
-  },
-};
-
-export function createPlaceholder(label: string) {
-  return "__VI_PLACEHOLDER_" + label.replace(/ /g, "_");
-}
-
-export const placeholder = {
-  model: languageFor("javascript"),
-  matcherDepth: 1,
-  match: (x, _pane) =>
-    metaexec(x, (capture) => [
-      first([
-        languageSpecific(
-          "javascript",
-          (it) => it.type === "identifier",
-          (it) => it.text.startsWith("__VI_PLACEHOLDER"),
-          replace(capture),
-        ),
-      ]),
-    ]),
-  selectionInteraction: SelectionInteraction.Skip,
-  view: ({ nodes, replacement }) => {
-    const text = useMemo(() => nodes[0].text, []);
-
-    useValidateKeepReplacement(replacement);
-    // prevent changes after the placeholder from changing our label
-    useValidator(
-      languageFor("javascript"),
-      (_root, _diff, changes) =>
-        changesIntendToDeleteNode(changes, nodes[0]) || nodes[0].text === text,
-      [nodes[0].text],
-    );
-
-    return h("input", {
-      ref: markInputEditableForNode(nodes[0].range),
-      placeholder: nodes[0].text
-        .substring("__VI_PLACEHOLDER_".length)
-        .replace(/_/g, " "),
-      oninput: (e) => nodes[0].replaceWith(e.target.value, [nodes[0]]),
-    });
   },
 };
 

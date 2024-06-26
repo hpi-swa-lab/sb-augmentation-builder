@@ -2,6 +2,7 @@ import { SBNode } from "../core/model.js";
 import { useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
+import { createPlaceholder } from "../vitrail/placeholder.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 
 export function NodeArray({
@@ -10,6 +11,8 @@ export function NodeArray({
   nodeFromItem,
   view,
   style,
+  insertItem,
+
   wrap,
   add,
   remove,
@@ -17,6 +20,7 @@ export function NodeArray({
   nodeFromItem ??= (it) => it?.node ?? it;
   items ??= container.childBlocks;
 
+  insertItem ??= () => createPlaceholder("expression");
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
@@ -45,9 +49,8 @@ export function NodeArray({
       },
       "+",
     );
-  remove ??= (position, ref, onclick, onmouseleave) => {
-    //debugger;
-    return h("div", {
+  remove ??= (position, ref, onclick, onmouseleave) =>
+    h("div", {
       ref,
       onclick,
       onmouseleave,
@@ -67,7 +70,6 @@ export function NodeArray({
         left: position?.[0],
       },
     });
-  };
   style = { display: "flex", flexDirection: "column", ...style };
 
   return wrap(
@@ -75,9 +77,9 @@ export function NodeArray({
       ? add(null, null, () => container.insert("'a'", "expression", 0))
       : items.map((it, index) =>
           h(_NodeArrayItem, {
-            onInsert: (atEnd) =>
+            onInsert: async (atEnd) =>
               container.insert(
-                "(it) => it",
+                await insertItem(index, atEnd),
                 "expression",
                 index + (atEnd ? 1 : 0),
               ),

@@ -21,6 +21,7 @@ import {
   baseCMExtensions,
   PaneFacet,
 } from "../vitrail/codemirror6.ts";
+import { placeholder } from "../vitrail/placeholder.ts";
 import {
   Augmentation,
   Model,
@@ -82,6 +83,7 @@ function extensionsForPath(path) {
         queryBuilder(language),
         watch(language),
         uiBuilder(language),
+        placeholder(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -92,6 +94,7 @@ function extensionsForPath(path) {
         queryBuilder(language),
         watch(language),
         uiBuilder(language),
+        placeholder(language),
       ],
     };
   return { cmExtensions: [], augmentations: [] };
