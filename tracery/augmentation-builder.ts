@@ -27,14 +27,14 @@ const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
 
 function NodeList({ container, items, view, style, wrap, add, remove }) {
-  console.log("container");
-  console.log(container);
-  console.log("items");
-  console.log(items);
+  // console.log("container");
+  // console.log(container);
+  // console.log("items");
+  // console.log(items);
   const nodes = items ?? container.childBlocks;
-  console.log("nodes");
-  console.log(nodes);
-  console.log("****************************************");
+  // console.log("nodes");
+  // console.log(nodes);
+  // console.log("****************************************");
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
   wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
@@ -100,8 +100,11 @@ function NodeList({ container, items, view, style, wrap, add, remove }) {
                 index + (atEnd ? 1 : 0), //Jan (I) changed this and now feels stupid
               ),
             onRemove: () => {
-              //nodes[index].removeSelf();
-              console.log("remove");
+              let nodeToDelete = nodes[index].step.node;
+              while (nodeToDelete.parent.id != container.id) {
+                nodeToDelete = nodeToDelete.parent;
+              }
+              nodeToDelete.removeSelf();
             },
             node: it,
             view,
@@ -141,7 +144,7 @@ function _NodeListItem({ onInsert, onRemove, node, view, add, remove }) {
   const hideHalo = () => {
     hoverEnd.value = false;
     hoverStart.value = false;
-    hoverNode.value = false;
+    //hoverNode.value = false;
   };
 
   const hoverPadding = 100;
@@ -386,9 +389,9 @@ export const augmentationBuilder = (model) => ({
 });
 
 function displayPipelineStep(step, ref, onmousemove, onmouseleave) {
-  console.log("StepType");
-  console.log(step.step.stepType);
-  console.log(step);
+  // console.log("StepType");
+  // console.log(step.step.stepType);
+  // console.log(step);
   return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.step.stepType)
     ? h(NodeList, {
         container: step.step.node,
