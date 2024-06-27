@@ -1,9 +1,11 @@
 import { Project } from "../core/project.js";
 import { button } from "../view/widgets.js";
-import { request } from "../sandblocks/host.js";
+import { request, withSocket } from "../sandblocks/host.js";
 import { openComponentInWindow } from "./window.js";
 
 export class FileProject extends Project {
+  path;
+
   static deserialize(obj) {
     if (typeof obj.path !== "string") return null;
     return new FileProject({ folder: obj.path });
@@ -12,6 +14,14 @@ export class FileProject extends Project {
   constructor(options) {
     super();
     ({ folder: this.path } = options);
+
+    withSocket((socket) => {
+      socket.on("fileChange", async ({ event, path, data }) => {
+        if (["unlink", "add"].includes(event))
+          // FIXME do not reopen entire project
+          this.root = await request("openProject", { path: this.path });
+      });
+    });
   }
 
   get name() {
@@ -19,6 +29,11 @@ export class FileProject extends Project {
   }
 
   async open() {
+    this.root = await request("openProject", { path: this.path });
+  }
+
+  async createFile(path, data) {
+    await request("writeFile", { path, data });
     this.root = await request("openProject", { path: this.path });
   }
 

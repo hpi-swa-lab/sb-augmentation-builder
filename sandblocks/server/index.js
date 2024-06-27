@@ -12,6 +12,7 @@ import crypto from "crypto";
 import https from "https";
 import { hotReload } from "./hot-reload.js";
 import { typescript } from "./typescript.js";
+import chokidar from "chokidar";
 
 let key, cert;
 try {
@@ -54,6 +55,25 @@ function handler(socket, name, cb) {
   socket.on(name, callback(cb));
 }
 
+let lastWrites = new Map();
+
+function listenToFileChanges(path, socket) {
+  const watcher = chokidar
+    .watch(path, { ignored: /node_modules/, ignoreInitial: true })
+    .on("all", async (event, path) => {
+      let data = null;
+      try {
+        data = await promisify(fs.readFile)(path, "utf-8");
+      } catch (e) {}
+
+      if (data === null || lastWrites.get(path) !== data) {
+        socket.emit("fileChange", { event, path, data });
+      }
+      lastWrites.set(path, data);
+    });
+  socket.on("disconnect", () => watcher.close());
+}
+
 io.on("connection", (socket) => {
   const cleanup = [];
 
@@ -62,6 +82,7 @@ io.on("connection", (socket) => {
   });
 
   handler(socket, "writeFile", async ({ path, data }) => {
+    lastWrites.set(path, data);
     await promisify(fs.writeFile)(path, data);
     return {};
   });
@@ -106,6 +127,8 @@ io.on("connection", (socket) => {
       }
       return output;
     };
+
+    listenToFileChanges(path, socket);
 
     const ignore = new Gitignore();
     return {

@@ -16,6 +16,7 @@ import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodesInWindow } from "./editor.ts";
 import { openBrowser } from "./browser.ts";
+import { FileProject } from "./project.js";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -34,7 +35,11 @@ function queryOrCreate(query, extract) {
   };
 }
 
-export function openNewAugmentation(project, example: string, node: SBNode) {
+export async function openNewAugmentation(
+  project: FileProject,
+  example: string,
+  node: SBNode,
+) {
   const name = prompt("Name of the augmentation");
   const template = `import { languageFor } from "../core/languages.js";
 import { metaexec, all, } from "../sandblocks/query-builder/functionQueries.js";
@@ -47,8 +52,13 @@ export const ${name} = {
   view: ({ nodes }) => h("div", {}, "Augmentation"),
   rerender: () => true,
 }`;
-  project.writeFile(name + ".ts", template);
-  openBrowser(project, { path: name + ".ts" });
+  await project.createFile(name + ".ts", template);
+  openBrowser(project, {
+    initialSelection: {
+      topLevel: name,
+      path: project.path + "/" + name + ".ts",
+    },
+  });
 }
 
 (window as any).languageFor = languageFor;
