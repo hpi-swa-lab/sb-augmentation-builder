@@ -30,6 +30,7 @@ import {
   adjacentCursorPosition,
   cursorPositionsForIndex,
 } from "../view/focus.ts";
+import { forwardRef } from "../view/widgets.js";
 
 // TODO
 // marker (and not just replacement) support
@@ -436,6 +437,13 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return this._models
       .get(model ?? this.defaultModel)
       ?.childEncompassingRange(range);
+  }
+
+  selectedString() {
+    const selection = this.getSelection();
+    if (!selection) return null;
+    const { range } = selection;
+    return this.sourceString.slice(range[0], range[1]);
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -1020,19 +1028,25 @@ type VitrailPaneProps = {
   className: string;
   ref;
 };
-export function VitrailPane(props: VitrailPaneProps) {
-  if (props.nodes && props.nodes.length > 0) return h(_VitrailPane, props);
-  else return null;
-}
-
-function _VitrailPane({
-  fetchAugmentations,
-  hostOptions,
-  nodes,
-  style,
-  className,
+export const VitrailPane = forwardRef(function VitrailPane(
+  props: VitrailPaneProps,
   ref,
-}: VitrailPaneProps) {
+) {
+  if (props.nodes && props.nodes.length > 0)
+    return h(_VitrailPane, { ...props, ref });
+  else return null;
+});
+
+const _VitrailPane = forwardRef(function _VitrailPane(
+  {
+    fetchAugmentations,
+    hostOptions,
+    nodes,
+    style,
+    className,
+  }: VitrailPaneProps,
+  ref,
+) {
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   //console.log(nodes);
   const vitrail: Vitrail<any> = nodes[0]?.editor;
@@ -1063,7 +1077,7 @@ function _VitrailPane({
       if (el && !pane.view.isConnected) el.appendChild(pane.view);
     },
   });
-}
+});
 
 export function VitrailPaneWithWhitespace({ nodes, ignoreLeft, ...props }) {
   const list = [

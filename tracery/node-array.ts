@@ -22,10 +22,11 @@ export function NodeArray({
     it?.node ? it.node.orParentThat((p) => p.parent === container) : it;
   items ??= container.childBlocks;
 
+  style = { display: "flex", flexDirection: "column", ...style };
   insertItem ??= () => createPlaceholder("expression");
   view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
-  wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
+  wrap ??= (it) => h("div", { style }, it);
   add ??= (position, ref, onclick, onmouseleave) =>
     h(
       "div",
@@ -72,7 +73,6 @@ export function NodeArray({
         left: position?.[0],
       },
     });
-  style = { display: "flex", flexDirection: "column", ...style };
 
   baseIndex ??=
     items.length > 0

@@ -59,6 +59,14 @@ export const editor = ({
     ...props,
   });
 
+export const forwardRef = (Component) => {
+  function Forwarded(props) {
+    const copy = { ...props };
+    delete copy.ref;
+    return Component(copy, props.ref);
+  }
+  return Forwarded;
+};
 export const useDebouncedEffect = (ms, fn, deps) => {
   useEffect(() => {
     let timer = setTimeout(fn, ms);

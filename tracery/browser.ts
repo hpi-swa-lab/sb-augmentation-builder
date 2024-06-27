@@ -92,29 +92,25 @@ function TraceryBrowser({ project, initialSelection, window }) {
           }),
           h(
             "div",
-            {},
+            {
+              style: { height: "1.5rem" },
+            },
             h(
               "button",
-              {
-                style: { height: "1.5rem" },
-                onClick: () => (enabled.value = !enabled.value),
-              },
+              { onClick: () => (enabled.value = !enabled.value) },
               "Toggle",
             ),
             h(
               "button",
-              {
-                style: { height: "1.5rem" },
-                onClick: () => openNodesInWindow(selectedNodes),
-              },
+              { onClick: () => openNodesInWindow(selectedNodes) },
               "Open",
             ),
           ),
         ),
         selectedFile.value &&
           h(TraceryEditor, {
-            onLoad: (vitrail) => {
-              const node = vitrail.getModels().get(vitrail.defaultModel);
+            onLoad: (v) => {
+              const node = v.getModels().get(v.defaultModel);
               topLevel.value = outline(node);
               selectedTopLevel.value = initialSelection?.topLevel
                 ? topLevel.value.find(
@@ -154,7 +150,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
         );
 }
 
-export function openBrowser(project, props, windowProps) {
+export function openBrowser(project, props, windowProps = {}) {
   openComponentInWindow(
     TraceryBrowser,
     { project, ...props },

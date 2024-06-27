@@ -32,7 +32,10 @@ import {
   useValidateKeepNodes,
   useVitrailProps,
 } from "../vitrail/vitrail.ts";
-import { augmentationBuilder } from "./augmentation-builder.ts";
+import {
+  augmentationBuilder,
+  openNewAugmentation,
+} from "./augmentation-builder.ts";
 import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
@@ -40,9 +43,19 @@ import { uiBuilder } from "./ui-builder.ts";
 import { watch, wrapWithWatch } from "./watch.js";
 import { openComponentInWindow, parentWindow } from "./window.js";
 
+function defineAction(bind, name) {
+  Vim.defineAction(name, (cm) =>
+    cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent(name)),
+  );
+  Vim.mapCommand(bind, "action", name);
+}
+defineAction("gn", "showsenders");
+defineAction("gm", "showimplementors");
+defineAction("<C-q>", "wrapwithwatch");
+defineAction("<C-a>", "createaugmentation");
+
 Vim.map("jk", "<Esc>", "insert");
 Vim.mapCommand("<C-e>", "action", "quit");
-Vim.mapCommand("<C-q>", "action", "wrapwithwatch");
 Vim.defineEx("write", "w", (cm) =>
   cm.cm6.state.facet(PaneFacet).vitrail.dispatchEvent(new CustomEvent("save")),
 );
@@ -55,23 +68,6 @@ Vim.defineAction(
   "quit",
   (cm) => (parentWindow(cm.cm6.state.facet(PaneFacet).view) as any)?.close(),
 );
-Vim.defineAction("wrapwithwatch", (cm) =>
-  cm.cm6.state
-    .facet(PaneFacet)
-    .vitrail.dispatchEvent(new CustomEvent("wrapwithwatch")),
-);
-Vim.defineAction("showsenders", (cm) => {
-  cm.cm6.state
-    .facet(PaneFacet)
-    .vitrail.dispatchEvent(new CustomEvent("showsenders"));
-});
-Vim.mapCommand("gn", "action", "showsenders");
-Vim.defineAction("showimplementors", (cm) => {
-  cm.cm6.state
-    .facet(PaneFacet)
-    .vitrail.dispatchEvent(new CustomEvent("showimplementors"));
-});
-Vim.mapCommand("gm", "action", "showimplementors");
 
 function extensionsForPath(path) {
   const language = languageForPath(path);
@@ -213,6 +209,13 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       onshowsenders: () => findReferences("senders"),
       onshowimplementors: () => findReferences("implementors"),
       onwrapwithwatch: () => _wrapWithWatch(),
+      oncreateaugmentation: () =>
+        vitrail.value &&
+        openNewAugmentation(
+          project,
+          vitrail.value.selectedString() ?? "",
+          vitrail.value.selectedNode(),
+        ),
       augmentations: [...augmentations, singleDeclaration(language)],
       cmExtensions: [
         vim(),

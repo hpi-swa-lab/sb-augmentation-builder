@@ -1,7 +1,6 @@
 import { languageFor } from "../core/languages.js";
 import { SBBlock, SBNode, extractType } from "../core/model.js";
-import { useMemo, useRef } from "../external/preact-hooks.mjs";
-import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+import { useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -11,12 +10,12 @@ import {
   metaexec,
   type,
   all,
-  replace,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
 import { openNodesInWindow } from "./editor.ts";
+import { openBrowser } from "./browser.ts";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
@@ -35,6 +34,23 @@ function queryOrCreate(query, extract) {
   };
 }
 
+export function openNewAugmentation(project, example: string, node: SBNode) {
+  const name = prompt("Name of the augmentation");
+  const template = `import { languageFor } from "../core/languages.js";
+import { metaexec, all, } from "../sandblocks/query-builder/functionQueries.js";
+
+export const ${name} = {
+  matcherDepth: Infinity,
+  model: languageFor("${node.language.name}"),
+  examples: [${JSON.stringify(example)}],
+  match: (it) => metaexec(it, (capture) => []),
+  view: ({ nodes }) => h("div", {}, "Augmentation"),
+  rerender: () => true,
+}`;
+  project.writeFile(name + ".ts", template);
+  openBrowser(project, { path: name + ".ts" });
+}
+
 (window as any).languageFor = languageFor;
 export const augmentationBuilder = (model) => ({
   matcherDepth: 8,
@@ -43,7 +59,6 @@ export const augmentationBuilder = (model) => ({
   match: (node) =>
     metaexec(node, (capture) => [
       type("object"),
-      replace(capture),
       all(
         [objectField("matcherDepth"), capture("depth")],
         [objectField("match"), capture("match")],
@@ -58,7 +73,7 @@ export const augmentationBuilder = (model) => ({
   view: ({ examples, nodes: [node] }) => {
     const augmentation = useMemo(() => {
       try {
-        eval(`const a = ${node.sourceString}; a`);
+        return eval(`const a = ${node.sourceString}; a`);
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
@@ -138,12 +153,8 @@ class MaybeEditor implements ModelEditor {
     this.editor.insertTextFromCommand(position, text);
   }
 
-  replaceTextFromCommand(
-    range: [number, number],
-    text: string,
-    intentDeleteNodes?: SBNode[],
-  ) {
-    this.editor.replaceTextFromCommand(range, text, intentDeleteNodes);
+  replaceTextFromCommand(range: [number, number], text: string, opts: any) {
+    this.editor.replaceTextFromCommand(range, text, opts);
   }
 }
 
