@@ -89,7 +89,7 @@ export const augmentationBuilder = (model) => ({
         aug
           .findQuery("metaexec($_args)")
           ?.args?.insert("'debugID'", "expression", 9e8);
-        return eval(`const a = ${aug.sourceString}; a`);
+        // FIXME return eval(`const a = ${aug.sourceString}; a`);
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
@@ -132,7 +132,7 @@ export const augmentationBuilder = (model) => ({
                   // can we do it incrementally?
                   key: node.sourceString,
                   value: e.text,
-                  augmentations: [augmentation],
+                  augmentations: augmentation ? [augmentation] : [],
                 }),
               ),
             );

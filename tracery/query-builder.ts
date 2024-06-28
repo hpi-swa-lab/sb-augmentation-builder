@@ -1,6 +1,6 @@
 import { h } from "../external/preact.mjs";
 import {
-  captureAll,
+  all,
   first,
   metaexec,
   query,
@@ -17,14 +17,23 @@ import { createPlaceholder } from "../vitrail/placeholder.ts";
 import {
   TextArea,
   bindPlainString,
+  bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
 
 async function insertItem() {
   return (
     await choose([
-      { label: "Type Match", text: `type("")` },
-      { label: "Function", text: `it => ${createPlaceholder("it")}` },
       { label: "Capture", text: `capture("")` },
+      { label: "Mark for Replace", text: `capture("nodes")` },
+      { label: "Run Code", text: `(it) => ${createPlaceholder("it")}` },
+      { label: "Match Code", text: `query("")` },
+      { label: "Extract", text: `(it) => it.field` },
+      { label: "Flow: All", text: `all([], [])` },
+      { label: "Flow: First", text: `first([], [])` },
+      {
+        label: "Flow: Array",
+        text: `spawnArray((node) => metaexec(node, (capture) => []))`,
+      },
     ])
   )?.text;
 }
@@ -45,6 +54,7 @@ export const queryBuilder = (model) => ({
   view: ({ steps, pipeline, nodes }) => {
     useValidateNoError(nodes);
 
+    console.log(steps);
     return h(NodeArray, {
       container: pipeline,
       items: steps,
@@ -77,192 +87,211 @@ const PipelineSteps = {
   CAPTURE: "capture",
   PIPELINE: "pipeline",
   QUERY: "query",
-  REPLACE: "replace",
-  TYPE: "type",
-  OTHER: "other",
+  EXTRACT: "extract",
 };
 
 function getPipelineStep(node) {
   return metaexec(node, (capture) => [
+    capture("node"),
     first(
       [
-        query("($any) => $STEP"),
-        (it) => it.STEP,
-        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
+        query("($any) => $any.$field"),
+        (it) => it.field,
+        bindSourceString,
+        capture("field"),
+        () => PipelineSteps.EXTRACT,
+        capture("stepType"),
       ],
       [
-        query("all($_STEPS)"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: spawnArray(getPipelineStep)(it.childBlocks),
-          stepType: PipelineSteps.ALL,
-        }),
+        query("$type($_steps)"),
+        all(
+          [
+            first(
+              [
+                (it) => it.type === "all",
+                () => PipelineSteps.ALL,
+                capture("stepType"),
+              ],
+              [
+                (it) => it.type === "first",
+                () => PipelineSteps.FIRST,
+                capture("stepType"),
+              ],
+            ),
+          ],
+          [
+            (it) => it.steps,
+            (it) => it.childBlocks,
+            spawnArray(getPipelineStep),
+            capture("steps"),
+          ],
+        ),
       ],
       [
-        query("first($_STEPS)"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: spawnArray(getPipelineStep)(it.childBlocks),
-          stepType: PipelineSteps.FIRST,
-        }),
+        query("capture($name)"),
+        (it) => it.name,
+        bindPlainString,
+        capture("name"),
+        () => PipelineSteps.CAPTURE,
+        capture("stepType"),
       ],
       [
-        query("capture($NAME)"),
-        (it) => it.NAME,
-        (it) => ({ node: it, stepType: PipelineSteps.CAPTURE }),
+        query("query($query)"),
+        (it) => it.query,
+        bindPlainString,
+        capture("query"),
+        () => PipelineSteps.QUERY,
+        capture("stepType"),
       ],
       [
-        query("query($QUERY)"),
-        (it) => it.QUERY,
-        (it) => ({ node: it, stepType: PipelineSteps.QUERY }),
+        query("spawnArray($call)"),
+        (it) => it.call,
+        capture("call"),
+        () => PipelineSteps.SPAWN_ARRAY,
+        capture("stepType"),
       ],
       [
-        query("replace($REPLACE)"),
-        (it) => it.REPLACE,
-        (it) => ({ node: it, stepType: PipelineSteps.REPLACE }),
+        query("[$_steps]"),
+        (it) => it.steps,
+        spawnArray(getPipelineStep),
+        capture("steps"),
+        () => PipelineSteps.PIPELINE,
+        capture("stepType"),
       ],
-      [
-        query("type($TYPE)"),
-        (it) => it.TYPE,
-        (it) => ({ node: it, stepType: PipelineSteps.TYPE }),
-      ],
-      [
-        query("spawnArray($CALL)"),
-        (it) => it.CALL,
-        (it) => ({ node: it, stepType: PipelineSteps.FUNCTION }),
-      ],
-      [
-        query("[$_STEPS]"),
-        (it) => it.STEPS,
-        (it) => ({
-          node: it,
-          steps: spawnArray(getPipelineStep)(it.childBlocks),
-          stepType: PipelineSteps.PIPELINE,
-        }),
-      ],
-      [
-        (it) => ({
-          node: it,
-          stepType: PipelineSteps.OTHER,
-        }),
-      ],
+      [() => PipelineSteps.FUNCTION, capture("stepType")],
     ),
-    captureAll(capture),
   ]);
 }
 
-function PipelineStep({
-  step: { stepType, node, steps },
-  containerRef,
-  onmousemove,
-  onmouseleave,
-}) {
+function StepExtract({ field }) {
+  return [
+    h(Codicon, { name: "export", style: { marginRight: "0.25rem" } }),
+    h(TextArea, field),
+  ];
+}
+
+function StepFunction({ node }) {
+  return h(VitrailPaneWithWhitespace, {
+    nodes: [node],
+    ignoreLeft: true,
+  });
+}
+
+function StepQuery({ query }) {
+  return [
+    h(Codicon, { name: "surround-with", style: { marginRight: "0.25rem" } }),
+    h(TextArea, query),
+  ];
+}
+
+function StepCapture({ name }) {
+  return [
+    h(Codicon, { name: "bookmark", style: { marginRight: "0.25rem" } }),
+    h(TextArea, name),
+  ];
+}
+
+function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   // console.log("StepType");
   // console.log(step.step.stepType);
   // console.log(step);
-  // useValidator(step.step.node.language, step.steps.steps);
+
+  if ([PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.stepType))
+    return h(NodeArray, {
+      container: step.node,
+      items: step.steps,
+      insertItem,
+      wrap: (it) =>
+        h(
+          "div",
+          {
+            style: {
+              display: "flex",
+              flexDirection: "row",
+              marginLeft: "1rem",
+              marginRight: "1rem",
+              borderTop: "2px solid black",
+            },
+          },
+          it,
+        ),
+      view: (step) =>
+        h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
+    });
+
+  if (step.stepType == PipelineSteps.PIPELINE)
+    return h(NodeArray, {
+      container: step.node,
+      items: step.steps,
+      insertItem,
+      wrap: (it) =>
+        h(
+          "div",
+          { style: { display: "flex", flexDirection: "column" } },
+          h(
+            "div",
+            {},
+            h("div", {
+              style: {
+                borderLeft: "2px solid black",
+                marginLeft: "1rem",
+                height: "2rem",
+              },
+            }),
+          ),
+          it,
+        ),
+      view: (step, containerRef, onmousemove, onmouseleave) =>
+        h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
+    });
 
   function viewForLeaf() {
-    switch (stepType) {
-      case PipelineSteps.REPLACE:
-        return [
-          h(Codicon, {
-            name: "replace-all",
-            style: { marginRight: "0.25rem" },
-          }),
-          "Replace",
-        ];
+    switch (step.stepType) {
       case PipelineSteps.CAPTURE:
-        return [
-          h(Codicon, { name: "bookmark", style: { marginRight: "0.25rem" } }),
-          h(TextArea, bindPlainString(node)),
-        ];
+        return h(StepCapture, step);
+      case PipelineSteps.EXTRACT:
+        return h(StepExtract, step);
+      case PipelineSteps.FUNCTION:
+        return h(StepFunction, step);
+      case PipelineSteps.QUERY:
+        return h(StepQuery, step);
       default:
         return h(VitrailPaneWithWhitespace, {
-          nodes: [node],
+          nodes: [step.node],
           ignoreLeft: true,
         });
     }
   }
 
-  return [PipelineSteps.ALL, PipelineSteps.FIRST].includes(stepType)
-    ? h(NodeArray, {
-        container: node,
-        items: steps,
-        insertItem,
-        wrap: (it) =>
-          h(
-            "div",
-            {
-              style: {
-                display: "flex",
-                flexDirection: "row",
-                marginLeft: "1rem",
-                marginRight: "1rem",
-                borderTop: "2px solid black",
-              },
-            },
-            it,
-          ),
-        view: (step) =>
-          h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
-      })
-    : stepType == PipelineSteps.PIPELINE
-      ? h(NodeArray, {
-          container: node,
-          items: steps,
-          insertItem,
-          wrap: (it) =>
-            h(
-              "div",
-              { style: { display: "flex", flexDirection: "column" } },
-              h(
-                "div",
-                {},
-                h("div", {
-                  style: {
-                    borderLeft: "2px solid black",
-                    marginLeft: "1rem",
-                    height: "2rem",
-                  },
-                }),
-              ),
-              it,
-            ),
-          view: (step, containerRef, onmousemove, onmouseleave) =>
-            h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
-        })
-      : h(
-          "div",
-          { style: { border: "1px red dotted", paddingRight: "10px" } },
-          h(
-            "div",
-            {
-              style: { display: "inline-block", padding: "0px" },
-              onmouseleave,
-              onmousemove,
-            },
-            h(
-              "div",
-              {
-                ref: containerRef,
-                style: {
-                  border: "2px solid black",
-                  display: "inline-block",
-                  padding: "0.25rem",
-                },
-              },
-              h("div", {}, viewForLeaf()),
-            ),
-          ),
-          h("div", {
-            style: {
-              borderLeft: "2px solid black",
-              marginLeft: "1rem",
-              height: "2rem",
-            },
-          }),
-        );
+  return h(
+    "div",
+    { style: { border: "1px red dotted", paddingRight: "10px" } },
+    h(
+      "div",
+      {
+        style: { display: "inline-block", padding: "0px" },
+        onmouseleave,
+        onmousemove,
+      },
+      h(
+        "div",
+        {
+          ref: containerRef,
+          style: {
+            border: "2px solid black",
+            display: "inline-block",
+            padding: "0.25rem",
+          },
+        },
+        h("div", {}, viewForLeaf()),
+      ),
+    ),
+    h("div", {
+      style: {
+        borderLeft: "2px solid black",
+        marginLeft: "1rem",
+        height: "2rem",
+      },
+    }),
+  );
 }
