@@ -642,7 +642,10 @@ export class TSQuery {
   constructor(template, language, extract = null) {
     this.text = template.replace(/\$/g, language.parseConfig.matchPrefix);
     const root = language.parseExpression(this.text);
-    this.template = extract?.(root) ?? root;
+    this.template =
+      typeof extract === "string"
+        ? root.firstOfType(extract)
+        : extract?.(root) ?? root;
     this.language = language;
   }
 

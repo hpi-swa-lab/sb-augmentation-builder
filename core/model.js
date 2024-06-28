@@ -35,10 +35,12 @@ export const extractType = (type) => (node) => node.firstOfType(type);
 
 export class OffscreenEditor {
   constructor(root) {
-    console.assert(root._sourceString, "node must have a source string");
-    console.assert(root._language, "node must have a language");
-    this.root = root;
-    this.root._editor = this;
+    if (root) {
+      console.assert(root._sourceString, "node must have a source string");
+      console.assert(root._language, "node must have a language");
+      this.root = root;
+      this.root._editor = this;
+    }
   }
 
   insertTextFromCommand(position, text) {
@@ -108,10 +110,10 @@ export class SBLanguage {
   parseSync(text, editor) {
     return this._assignState(this._parse(text), text, editor);
   }
-  async parseOffscreen(text) {
-    const root = await this.parse(text);
-    // FIXME cyclic import
-    // root._editor = new OffscreenEditor(root);
+  parseOffscreen(text) {
+    const editor = new OffscreenEditor();
+    const root = this.parseSync(text, editor);
+    editor.root = root;
     return root;
   }
 
@@ -126,6 +128,7 @@ export class SBLanguage {
       oldRoot,
       this._parse(text, oldRoot),
     );
+    if (root !== oldRoot) tx.set(oldRoot, "_sourceString", null);
     root._language = this;
     root._editor = oldRoot._editor;
     tx.set(root, "_sourceString", text);
@@ -190,6 +193,12 @@ export class SBNode {
 
   exec(...script) {
     return exec(this, ...script);
+  }
+
+  cloneOffscreen() {
+    const root = this.language.parseOffscreen(this.root.sourceString);
+    const node = root.childForRange(this.range);
+    return node;
   }
 
   internalClone() {

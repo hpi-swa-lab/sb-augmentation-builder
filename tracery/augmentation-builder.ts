@@ -10,11 +10,12 @@ import {
   metaexec,
   type,
   all,
+  query,
+  extract,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
-import { openNodesInWindow } from "./editor.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
 
@@ -41,14 +42,15 @@ export async function openNewAugmentation(
   node: SBNode,
 ) {
   const name = prompt("Name of the augmentation");
-  const template = `import { languageFor } from "../core/languages.js";
-import { metaexec, all, } from "../sandblocks/query-builder/functionQueries.js";
+  const template = `import { languageFor } from "./core/languages.js";
+import { metaexec, all, } from "./sandblocks/query-builder/functionQueries.js";
+import { h } from "./external/preact.mjs";
 
 export const ${name} = {
   matcherDepth: Infinity,
   model: languageFor("${node.language.name}"),
   examples: [${JSON.stringify(example)}],
-  match: (it) => metaexec(it, (capture) => []),
+  match: (it) => metaexec(it, (capture) => [query(${JSON.stringify(example)})]),
   view: ({ nodes }) => h("div", {}, "Augmentation"),
   rerender: () => true,
 }`;
@@ -80,10 +82,14 @@ export const augmentationBuilder = (model) => ({
         ],
       ),
     ]),
-  view: ({ examples, nodes: [node] }) => {
+  view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useMemo(() => {
       try {
-        return eval(`const a = ${node.sourceString}; a`);
+        const aug = node.cloneOffscreen();
+        aug
+          .findQuery("metaexec($_args)")
+          ?.args?.insert("'debugID'", "expression", 9e8);
+        return eval(`const a = ${aug.sourceString}; a`);
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
@@ -94,18 +100,11 @@ export const augmentationBuilder = (model) => ({
       h(
         "div",
         {},
-        "Augmentation",
-        h(
-          "button",
-          {
-            onClick: () =>
-              openNodesInWindow([node], {
-                fetchAugmentations: () => [augmentationBuilder(node.language)],
-              }),
-          },
-          "Open",
-        ),
-        h(VitrailPane, { nodes: [node] }),
+        h("strong", {}, "Match"),
+        h("div", {}, h(VitrailPane, { nodes: [match] })),
+        h("hr"),
+        h("strong", {}, "View"),
+        h("div", {}, h(VitrailPane, { nodes: [view] })),
       ),
       h(
         "table",

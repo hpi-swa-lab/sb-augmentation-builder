@@ -11,40 +11,48 @@ import { languageFor, languageForPath } from "../../core/languages.js";
 
 export function orderFork() {}
 
-export function metaexec(obj, makeScript) {
-  return _metaexec(obj, makeScript)?.captures;
+export function metaexec(obj, makeScript, debug = null) {
+  return _metaexec(obj, makeScript, debug)?.captures;
 }
-export function _metaexec(obj, makeScript) {
-  let captures = {};
-  let selectedInput = {};
-  let selectedOutput = {};
-  const script = makeScript(
-    function (captureName) {
-      return (it) => {
-        captures[captureName] = it;
-        return it;
-      };
-    },
-    function () {
-      return (it) => {
-        //debugger;
-        selectedInput = it;
-      };
-    },
-    function () {
-      return (it) => (selectedOutput = it);
-    },
-  );
-  const success = execScript(obj, ...script);
-  // FIXME(tobe) which version to we want?
-  // return Object.keys(captures).length > 0 ? captures : null;
-  return success
-    ? {
-        captures: captures,
-        selectedInput: selectedInput,
-        selectedOutput: selectedOutput,
-      }
-    : null;
+export function _metaexec(obj, makeScript, debug) {
+  function perform() {
+    let captures = {};
+    let selectedInput = {};
+    let selectedOutput = {};
+    const script = makeScript(
+      function (captureName) {
+        return (it) => {
+          captures[captureName] = it;
+          return it;
+        };
+      },
+      function () {
+        return (it) => {
+          //debugger;
+          selectedInput = it;
+        };
+      },
+      function () {
+        return (it) => (selectedOutput = it);
+      },
+    );
+    return execScript(obj, ...script)
+      ? {
+          captures: captures,
+          selectedInput: selectedInput,
+          selectedOutput: selectedOutput,
+        }
+      : null;
+  }
+
+  if (debug) {
+    try {
+      return perform();
+    } catch (e) {
+      console.error(debug, e);
+      return null;
+    }
+  } else return perform();
 }
 
 function isAbortReason(next) {
@@ -151,6 +159,9 @@ export function captureAll(capture) {
   };
 }
 
+export function extract(key) {
+  return (it) => it[key];
+}
 export function query(query, extract) {
   return (it) => it.query(query, extract);
 }
