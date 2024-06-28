@@ -367,7 +367,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     // may create or delete panes while iterating, so iterate over a copy
     for (const pane of [...this._panes]) {
       // if we are deleted while iterating, don't process diff
-      if (pane.nodes[0]?.connected && pane.view.isConnected) {
+      if (pane.nodes[0]?.connected) {
         pane.applyChanges(changes.filter((c) => c.sourcePane !== pane));
       }
     }

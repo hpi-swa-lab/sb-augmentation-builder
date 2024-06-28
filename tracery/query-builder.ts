@@ -54,7 +54,6 @@ export const queryBuilder = (model) => ({
   view: ({ steps, pipeline, nodes }) => {
     useValidateNoError(nodes);
 
-    console.log(steps);
     return h(NodeArray, {
       container: pipeline,
       items: steps,
