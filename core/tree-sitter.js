@@ -1,6 +1,8 @@
 import { config } from "./config.js";
 import { SBBlock, SBText, SBLanguage, OffscreenEditor } from "./model.js";
 import { TreeSitter } from "../external/tree-sitter.js";
+import { withDo } from "../utils.js";
+import { MaybeEditor } from "./matcher.ts";
 
 export class TreeSitterLanguage extends SBLanguage {
   static _initPromise = null;
@@ -41,7 +43,7 @@ export class TreeSitterLanguage extends SBLanguage {
       unwrapExpression:
         parseConfig?.unwrapExpression ??
         ((n) => {
-          let child = n.childBlock(0);
+          let child = n.childBlock(0) ?? n;
           if (child.type === "expression_statement") return child.childBlock(0);
           return child;
         }),
@@ -150,15 +152,14 @@ export class TreeSitterLanguage extends SBLanguage {
     const markers = [];
     for (const n of node.allNodes()) {
       // TODO don't hardcode markers but read from language
-      if (n.text.startsWith("$$$") || n.text.startsWith("$_")) markers.push(n);
+      if (n.text.startsWith("$")) markers.push(n);
     }
 
     node.root._editor.transaction(() => {
-      for (const marker of markers) {
-        marker.removeSelf();
-      }
+      for (const marker of markers) marker.removeFull();
     });
 
+    editor.root._editor = undefined;
     return editor.root;
   }
 
@@ -398,7 +399,11 @@ export class TreeSitterLanguage extends SBLanguage {
   }
 }
 
-class NoMatch {}
+class NoMatch {
+  constructor() {
+    this.name = "NoMatch";
+  }
+}
 
 class GrammarNode extends Object {
   static buildRegex(node) {
@@ -640,8 +645,26 @@ export class TSQuery {
   }
 
   constructor(template, language, extract = null) {
-    this.text = template.replace(/\$/g, language.parseConfig.matchPrefix);
-    const root = language.parseExpression(this.text);
+    const processed = template.replace(/\$/g, language.parseConfig.matchPrefix);
+    const parse = processed.replace(/\(\?/g, "").replace(/\?\)/g, "");
+    const root = language.parseExpression(parse);
+
+    let adjust = 0;
+    const optionalStack = [];
+    for (let i = 0; i < processed.length; i++) {
+      const char = processed[i];
+      if (char === "(" && processed[i + 1] === "?") {
+        optionalStack.push(i - adjust);
+        adjust += 2;
+      }
+      if (char === "?" && processed[i + 1] === ")") {
+        const start = optionalStack.pop();
+        const node = root.childForRange([start, i - adjust]);
+        node.optional = true;
+        adjust += 2;
+      }
+    }
+
     this.template =
       typeof extract === "string"
         ? root.firstOfType(extract)
@@ -668,6 +691,7 @@ export class TSQuery {
   }
 
   _match(a, b, captures) {
+    if (!a || !b) return false;
     const isTemplate = a.text.startsWith(this.prefix);
     if (isTemplate) {
       captures.push([a.text.slice(1), b]);
@@ -712,11 +736,50 @@ export class TSQuery {
         return true;
       }
 
-      if (a.childNodes.length !== b.childNodes.length) return false;
-      for (let i = 0; i < a.childNodes.length; i++) {
-        if (!this._match(a.childNodes[i], b.childNodes[i], captures))
-          return false;
+      for (let i = 0, j = 0; i < aChildren.length; i++, j++) {
+        const match = this._match(aChildren[i], bChildren[j], captures);
+        if (match) continue;
+        if (aChildren[i].optional) {
+          let optionalRoot = aChildren[i].root.internalClone();
+          optionalRoot._sourceString = aChildren[i].root.sourceString;
+          optionalRoot._language = aChildren[i].root.language;
+
+          const optionalTemplate = optionalRoot.childForRange(
+            aChildren[i].range,
+          );
+          for (const child of optionalTemplate.allNodes()) {
+            if (child.named && child.text.startsWith(this.prefix)) {
+              if (child.text.startsWith(this.parentPrefix)) {
+                captures.push([child.text.slice(2), child.parent]);
+              } else {
+                captures.push([child.text.slice(1), new SBBlock()]);
+                throw new Error("Still need to implement fallback definitions");
+              }
+            }
+          }
+
+          console.assert(optionalTemplate.connected);
+          optionalRoot =
+            optionalRoot.language.removeQueryMarkers(optionalTemplate);
+          console.assert(optionalTemplate.connected);
+          optionalRoot._editor = new MaybeEditor(
+            b.editor,
+            b,
+            optionalTemplate,
+            // FIXME correct?
+            withDo(
+              b.childBlocks.indexOf(
+                bChildren[Math.min(j, bChildren.length - 1)],
+              ),
+              (index) => (index < 0 ? b.childBlocks.length : index),
+            ),
+          );
+          j--;
+          continue;
+        }
+        return false;
       }
+
       return true;
     }
     if (a.isText && b.isText && a.text === b.text) return true;

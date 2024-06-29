@@ -19,6 +19,9 @@ import {
   bindPlainString,
   bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
+import { useSignal } from "../external/preact-signals.mjs";
+import { useMemo } from "../external/preact-hooks.mjs";
+import { languageFor } from "../core/languages.js";
 
 async function insertItem() {
   return (
@@ -135,10 +138,11 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
-        query("query($query)"),
-        (it) => it.query,
-        bindPlainString,
-        capture("query"),
+        query(`query($query, (?"$_extract"?))`),
+        all(
+          [(it) => it.query, bindPlainString, capture("query")],
+          [(it) => it.extract, capture("extract")],
+        ),
         () => PipelineSteps.QUERY,
         capture("stepType"),
       ],
@@ -176,18 +180,60 @@ function StepFunction({ node }) {
   });
 }
 
-function StepQuery({ query }) {
-  return [
-    h(Codicon, { name: "surround-with", style: { marginRight: "0.25rem" } }),
-    h(TextArea, query),
-  ];
+function StepQuery({ query, extract }) {
+  const expanded = useSignal(true);
+
+  return h(
+    "div",
+    {},
+    h(
+      "div",
+      { style: { display: "flex", gap: "0.25rem" } },
+      h(Codicon, { name: "surround-with" }),
+      h(TextArea, query),
+      h(
+        "div",
+        {
+          style: { cursor: "pointer" },
+          onclick: () => (expanded.value = !expanded.value),
+        },
+        h(Codicon, { name: expanded.value ? "chevron-up" : "chevron-down" }),
+      ),
+    ),
+    expanded.value && h(StepQueryInspector, { query, extract }),
+  );
+}
+
+function StepQueryInspector({ query, extract }) {
+  function Node({ node, depth }) {
+    return [
+      "  ".repeat(depth),
+      h(
+        "span",
+        {
+          style: {
+            cursor: "pointer",
+            textDecoration: "underline",
+            fontWeight:
+              extract.childBlock(0)?.text === node.type ? "bold" : "normal",
+          },
+          onClick: () => extract.replaceWith(`"${node.type}"`),
+        },
+        node.type,
+      ),
+      "\n",
+      ...node.childBlocks.map((it) => h(Node, { node: it, depth: depth + 1 })),
+    ];
+  }
+
+  const tree = useMemo(() =>
+    languageFor("typescript").parseExpression(query.text),
+  );
+  return h("pre", {}, h(Node, { node: tree, depth: 0 }));
 }
 
 function StepCapture({ name }) {
-  return [
-    h(Codicon, { name: "bookmark", style: { marginRight: "0.25rem" } }),
-    h(TextArea, name),
-  ];
+  return [h(Codicon, { name: "bookmark" }), h(TextArea, name)];
 }
 
 function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
@@ -282,7 +328,7 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
             padding: "0.25rem",
           },
         },
-        h("div", {}, viewForLeaf()),
+        h("div", { style: { display: "flex", gap: "0.25rem" } }, viewForLeaf()),
       ),
     ),
     h("div", {

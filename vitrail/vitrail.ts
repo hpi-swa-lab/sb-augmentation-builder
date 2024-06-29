@@ -5,6 +5,7 @@ import {
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
+import { ModelEditor } from "../core/matcher.ts";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import {
   useContext,
@@ -70,18 +71,6 @@ function compareReplacementProps(a: any, b: any) {
     return true;
   }
   return false;
-}
-
-export interface ModelEditor {
-  insertTextFromCommand(position: number, text: string): void;
-
-  replaceTextFromCommand(
-    range: [number, number],
-    text: string,
-    editOptions: { intentDeleteNodes?: SBNode[] },
-  ): void;
-
-  transaction(cb: () => void): void;
 }
 
 export interface Replacement<Props extends ReplacementProps> {

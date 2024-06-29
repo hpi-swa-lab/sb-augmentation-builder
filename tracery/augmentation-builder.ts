@@ -1,5 +1,5 @@
 import { languageFor } from "../core/languages.js";
-import { SBBlock, SBNode, extractType } from "../core/model.js";
+import { SBNode, extractType } from "../core/model.js";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
@@ -10,12 +10,10 @@ import {
   metaexec,
   type,
   all,
-  query,
-  extract,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
-import { ModelEditor, Vitrail, VitrailPane } from "../vitrail/vitrail.ts";
+import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
 
@@ -142,54 +140,3 @@ export const augmentationBuilder = (model) => ({
     );
   },
 });
-
-class MaybeEditor implements ModelEditor {
-  editor: Vitrail<any>;
-  parent: SBBlock;
-  template: SBBlock;
-
-  constructor(editor: Vitrail<any>, parent: SBBlock, template: SBBlock) {
-    this.editor = editor;
-    this.parent = parent;
-    this.template = template;
-  }
-
-  // TODO
-  transaction(cb: () => void): void {}
-
-  insertTextFromCommand(position: number, text: string) {
-    this.parent.insert(this.template.sourceString, this.template.type, 0);
-    this.editor.insertTextFromCommand(position, text);
-  }
-
-  replaceTextFromCommand(range: [number, number], text: string, opts: any) {
-    this.editor.replaceTextFromCommand(range, text, opts);
-  }
-}
-
-class SBNullNode extends SBBlock {
-  template: SBBlock;
-  templateRoot: SBBlock;
-
-  get type() {
-    return this.template._type;
-  }
-  get field() {
-    return this.template._field;
-  }
-  get range() {
-    return this.template._range;
-  }
-  get named() {
-    return this.template._named;
-  }
-
-  constructor(template: SBBlock, templateRoot?: SBBlock) {
-    super();
-    this.template = template;
-    this.templateRoot = templateRoot ?? template;
-    this._children = (template._children ?? []).map(
-      (it) => new SBNullNode(it, this.templateRoot),
-    );
-  }
-}
