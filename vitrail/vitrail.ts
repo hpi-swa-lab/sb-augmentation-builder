@@ -56,9 +56,13 @@ type ReplacementProps = { [field: string]: any } & {
   replacement: Replacement<any>;
 };
 
-function compareReplacementProps(a: any, b: any) {
+function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
+  if (a instanceof SBNode) {
+    if (a.id !== b?.id) return false;
+    if (editBuffer.hasChangeIn(a)) return false;
+    return true;
+  }
   if (a === b) return true;
-  if (a instanceof SBNode) return a.id === b?.id;
   if (Array.isArray(a)) {
     if (a.length !== b?.length) return false;
     for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
@@ -66,7 +70,7 @@ function compareReplacementProps(a: any, b: any) {
   }
   if (typeof a === "object") {
     for (const key in a) {
-      if (!compareReplacementProps(a[key], b[key])) return false;
+      if (!compareReplacementProps(a[key], b[key], editBuffer)) return false;
     }
     return true;
   }
@@ -783,7 +787,9 @@ export class Pane<T> {
 
           const match = this.mayReplace(node, augmentation);
           if (match) this.installReplacement(node, augmentation, match);
-          node = node?.parent;
+          node = node.parent;
+          // if we check this node later anyways, no need to ascend from here
+          if (node && changedNodes.has(node)) break;
         }
       }
     }
@@ -804,7 +810,8 @@ export class Pane<T> {
       replacement.matchedNode,
       replacement.augmentation,
     );
-    if (compareReplacementProps(match, replacement.lastMatch)) return null;
+    if (compareReplacementProps(match, replacement.lastMatch, editBuffer))
+      return null;
     return match;
   }
 

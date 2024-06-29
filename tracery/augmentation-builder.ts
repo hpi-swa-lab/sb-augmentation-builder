@@ -10,6 +10,10 @@ import {
   metaexec,
   type,
   all,
+  query,
+  queryDeep,
+  captureAll,
+  debugIt,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
@@ -19,20 +23,6 @@ import { FileProject } from "./project.js";
 
 const objectField = (field) => (it) =>
   it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
-
-function queryOrCreate(query, extract) {
-  return (it) => {
-    const match = it.findQuery(query, extract);
-    if (match) return match;
-
-    const n = extract(
-      it.language.removeQueryMarkers(it.language.parseExpression(query)),
-    );
-    n._editor = new MaybeEditor(it.editor, it, n);
-    n._language = it.language;
-    return n.findQuery(query, extract);
-  };
-}
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -69,16 +59,18 @@ export const augmentationBuilder = (model) => ({
   match: (node) =>
     metaexec(node, (capture) => [
       type("object"),
-      all(
-        [objectField("matcherDepth"), capture("depth")],
-        [objectField("match"), capture("match")],
-        [objectField("view"), capture("view")],
-        [
-          queryOrCreate("({examples: [$_array]})", extractType("pair")),
-          (it) => it.array,
-          capture("examples"),
-        ],
+      query(
+        `({
+        matcherDepth: $depth,
+        model: $model,
+        match: $match,
+        view: $view,
+        rerender: $rerender,
+        (?examples: [$_examples]?)
+      })`,
+        "object",
       ),
+      captureAll(capture),
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useMemo(() => {

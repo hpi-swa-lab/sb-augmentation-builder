@@ -116,7 +116,12 @@ export class MaybeEditor implements ModelEditor {
       this.template.type,
       this.index,
     );
-    this.editor.insertTextFromCommand(position, text);
+    this.editor.insertTextFromCommand(
+      position -
+        this.template.range[0] +
+        (this.parent.childBlock(this.index) as any).range[0],
+      text,
+    );
   }
 
   replaceTextFromCommand(range: [number, number], text: string, opts: any) {

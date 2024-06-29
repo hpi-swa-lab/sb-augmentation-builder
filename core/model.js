@@ -473,6 +473,15 @@ export class SBNode {
     else return this.parent?.orParentThat(predicate);
   }
 
+  orHasParent(node) {
+    let n = this;
+    while (n) {
+      if (n === node) return true;
+      n = n.parent;
+    }
+    return false;
+  }
+
   prependString(string) {
     this.editor.insertTextFromCommand(this.range[0], string);
   }
