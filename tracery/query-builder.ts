@@ -110,12 +110,12 @@ function getPipelineStep(node) {
           [
             first(
               [
-                (it) => it.type === "all",
+                (it) => it.type.text === "all",
                 () => PipelineSteps.ALL,
                 capture("stepType"),
               ],
               [
-                (it) => it.type === "first",
+                (it) => it.type.text === "first",
                 () => PipelineSteps.FIRST,
                 capture("stepType"),
               ],
@@ -154,7 +154,7 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
-        query("[$_steps]"),
+        query("[$$$steps]"),
         (it) => it.steps,
         spawnArray(getPipelineStep),
         capture("steps"),
@@ -181,7 +181,7 @@ function StepFunction({ node }) {
 }
 
 function StepQuery({ query, extract }) {
-  const expanded = useSignal(true);
+  const expanded = useSignal(false);
 
   return h(
     "div",
