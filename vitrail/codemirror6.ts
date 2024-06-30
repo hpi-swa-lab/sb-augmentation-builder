@@ -253,6 +253,9 @@ export async function codeMirror6WithVitrail(
           update.docChanged &&
           !update.transactions.some((t) => t.isUserEvent("sync"))
         ) {
+          const externalChange = update.transactions.some((t) =>
+            t.annotation(External),
+          );
           const intentDeleteNodes =
             update.transactions.flatMap((t) =>
               t.effects.filter((e) => e.is(IntentToDelete)),
@@ -266,6 +269,7 @@ export async function codeMirror6WithVitrail(
               sourcePane: pane,
               // will be set below
               inverse: null as any,
+              noFocus: externalChange,
               intentDeleteNodes: intentDeleteNodes.flatMap((e) => {
                 // a redo is occurring: find the node that we marked for deletion earlier
                 return e.value

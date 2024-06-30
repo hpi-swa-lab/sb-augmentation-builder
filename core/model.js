@@ -486,7 +486,7 @@ export class SBNode {
     this.editor.insertTextFromCommand(this.range[0], string);
   }
 
-  insert(string, type, index) {
+  insert(string, type, index, editOptions) {
     const list = this.childBlocks.filter(
       (child) =>
         child.compatibleWith(type) && this.language.separatorContextFor(child),
@@ -504,8 +504,17 @@ export class SBNode {
     const sep = this.language.separatorContextFor(ref);
 
     if (index < list.length)
-      this.editor.insertTextFromCommand(ref.range[0], string + sep);
-    else this.editor.insertTextFromCommand(ref.range[1], sep + string);
+      this.editor.insertTextFromCommand(
+        ref.range[0],
+        string + sep,
+        editOptions,
+      );
+    else
+      this.editor.insertTextFromCommand(
+        ref.range[1],
+        sep + string,
+        editOptions,
+      );
   }
 
   insertBefore(string, type) {

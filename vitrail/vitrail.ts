@@ -5,7 +5,7 @@ import {
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
-import { ModelEditor } from "../core/matcher.ts";
+import { EditOptions, ModelEditor } from "../core/matcher.ts";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import {
   useContext,
@@ -123,7 +123,7 @@ export interface Model {
   canBeDefault: boolean;
 }
 
-export interface ReversibleChange<T> {
+export type ReversibleChange<T> = {
   from: number;
   to: number;
   insert: string;
@@ -131,12 +131,7 @@ export interface ReversibleChange<T> {
   sourcePane?: Pane<T>;
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
-  // Optional list of nodes that the user explicitly requested to be deleted.
-  // May be used by validations to determine if a change is valid.
-  intentDeleteNodes?: SBNode[];
-  // Indicate that editing should continue, relevant if modal editing is used
-  requireContinueInput?: boolean;
-}
+} & EditOptions;
 export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
@@ -361,7 +356,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     for (const pane of [...this._panes]) {
       // if we are deleted while iterating, don't process diff
       if (pane.nodes[0]?.connected) {
-        pane.applyChanges(changes.filter((c) => c.sourcePane !== pane));
+        pane.applyChanges(allChanges.filter((c) => c.sourcePane !== pane));
       }
     }
 
@@ -375,21 +370,25 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       }
     }
 
-    const target = last(allChanges).selectionRange;
-    let current = this.getSelection();
-    if (!current?.range || !rangeEqual(current?.range, target)) {
-      const candidates = this._cursorRoots().flatMap((r) =>
-        cursorPositionsForIndex(r, target[0]),
-      );
-      const head =
-        candidates.find((p) => (p.element as any).hasFocus()) ?? candidates[0];
-      const anchor = cursorPositionsForIndex(head.element, target[1])[0]?.index;
-      (head.element as any).focusRange(head.index, anchor ?? head.index);
-      current = { element: head.element, range: target };
-    }
+    if (!allChanges.some((c) => c.noFocus)) {
+      const target = last(allChanges).selectionRange;
+      let current = this.getSelection();
+      if (!current?.range || !rangeEqual(current?.range, target)) {
+        const candidates = this._cursorRoots().flatMap((r) =>
+          cursorPositionsForIndex(r, target[0]),
+        );
+        const head =
+          candidates.find((p) => (p.element as any).hasFocus()) ??
+          candidates[0];
+        const anchor = cursorPositionsForIndex(head.element, target[1])[0]
+          ?.index;
+        (head.element as any).focusRange(head.index, anchor ?? head.index);
+        current = { element: head.element, range: target };
+      }
 
-    if (changes.some((c) => c.requireContinueInput)) {
-      this.paneForView(current?.element)?.ensureContinueEditing();
+      if (allChanges.some((c) => c.requireContinueInput)) {
+        this.paneForView(current?.element)?.ensureContinueEditing();
+      }
     }
 
     this.dispatchEvent(
@@ -499,10 +498,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   replaceTextFromCommand(
     range: [number, number],
     text: string,
-    editOptions: {
-      intentDeleteNodes?: SBNode[];
-      requireContinueInput: boolean;
-    },
+    editOptions: EditOptions,
   ) {
     range = this.adjustRange(range, true);
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
@@ -522,7 +518,11 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     ]);
   }
 
-  insertTextFromCommand(position: number, text: string) {
+  insertTextFromCommand(
+    position: number,
+    text: string,
+    editOptions: EditOptions,
+  ) {
     position = this.adjustRange([position, position], true)[0];
     this.applyChanges([
       {
@@ -535,6 +535,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
           to: position + text.length,
           insert: "",
         },
+        ...editOptions,
       },
     ]);
   }

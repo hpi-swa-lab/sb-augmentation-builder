@@ -1,5 +1,5 @@
 import { languageFor } from "../core/languages.js";
-import { h } from "../external/preact.mjs";
+import { h, render } from "../external/preact.mjs";
 import {
   metaexec,
   all,
@@ -8,9 +8,11 @@ import {
   queryDeep,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { VitrailPane, useValidateKeepReplacement } from "./vitrail.ts";
-import { createDefaultCodeMirror } from "./codemirror6.ts";
+import { CodeMirrorWithVitrail } from "./codemirror6.ts";
 import { useSignal } from "../external/preact-signals.mjs";
 import { useLocalStorageSignal } from "../view/widgets.js";
+import { useEffect } from "../external/preact-hooks.mjs";
+import { EditorView } from "../codemirror6/external/codemirror.bundle.js";
 
 const processTask = (it) =>
   metaexec(it, (capture) => [
@@ -109,6 +111,7 @@ export const planner = {
         `complete("${id}", "${person.value}", "${now}")`,
         "expression",
         0,
+        { noFocus: true },
       );
     };
 
@@ -229,15 +232,54 @@ function scheduleUpdate(source: string) {
   }, 1000);
 }
 
-fetch(url).then(async (response) => {
-  const data = await response.json();
-  lastReadTime = data.time;
-  const vitrail = await createDefaultCodeMirror(
-    data.source,
-    document.querySelector("#editor")!,
-    [planner],
-  );
-  vitrail.addEventListener("change", ({ detail: { sourceString } }) => {
-    scheduleUpdate(sourceString);
+function App() {
+  const key = useLocalStorageSignal("planner-key");
+  const typed = useSignal("");
+
+  return key.value
+    ? h(Planner, {
+        auth: key.value,
+        onFailedLogin: (error) => {
+          alert("Failed to login: " + error.message);
+          key.value = "";
+        },
+      })
+    : h(
+        "div",
+        {},
+        h(
+          "input",
+          {
+            value: typed.value,
+            onchange: (e) => (typed.value = e.target.value),
+          },
+          "Enter key",
+        ),
+        h("button", { onclick: () => (key.value = typed.value) }, "Login"),
+      );
+}
+
+function Planner({ auth, onFailedLogin }) {
+  const value = useSignal("");
+
+  useEffect(() => {
+    fetch(url, { headers: { "HTTP-X-Key": auth } })
+      .then(async (response) => {
+        const data = await response.json();
+        lastReadTime = data.time;
+        value.value = data.source;
+      })
+      .catch(onFailedLogin);
+  }, []);
+
+  return h(CodeMirrorWithVitrail, {
+    value,
+    augmentations: [planner],
+    cmExtensions: [EditorView.lineWrapping],
+    onchange: ({ detail: { sourceString } }) => {
+      scheduleUpdate(sourceString);
+    },
   });
-});
+}
+
+render(h(App), document.body);

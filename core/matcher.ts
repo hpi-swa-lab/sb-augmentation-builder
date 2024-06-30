@@ -1,13 +1,27 @@
 import { exec, rangeShift } from "../utils.js";
 import { SBBlock, SBNode } from "./model.js";
 
+export interface EditOptions {
+  // Optional list of nodes that the user explicitly requested to be deleted.
+  // May be used by validations to determine if a change is valid.
+  intentDeleteNodes?: SBNode[];
+  // Indicate that editing should continue, relevant if modal editing is used.
+  requireContinueInput?: boolean;
+  // Indicate that we do not want to move focus after this edit.
+  noFocus?: boolean;
+}
+
 export interface ModelEditor {
-  insertTextFromCommand(position: number, text: string): void;
+  insertTextFromCommand(
+    position: number,
+    text: string,
+    editOptions?: EditOptions,
+  ): void;
 
   replaceTextFromCommand(
     range: [number, number],
     text: string,
-    editOptions: { intentDeleteNodes?: SBNode[] },
+    editOptions?: EditOptions,
   ): void;
 
   transaction(cb: () => void): void;
