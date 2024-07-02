@@ -226,6 +226,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return this._panes.find((p) => p.view === view) ?? null;
   }
 
+  async ensureModel(model: Model) {
+    await this._loadModel(model);
+  }
+
   async registerValidator(model: Model, cb: ValidatorFunc<T>) {
     if (!(model instanceof SBLanguage)) throw new Error("no model given");
     const p: [Model, ValidatorFunc<T>] = [model, cb];

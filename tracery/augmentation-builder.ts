@@ -1,5 +1,5 @@
 import { SBBlock, SBNode } from "../core/model.js";
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -18,6 +18,8 @@ import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
 import { asyncEval } from "../utils.js";
+import { useSignal } from "../external/preact-signals.mjs";
+import { useAsyncEffect } from "../view/widgets.js";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -49,7 +51,9 @@ export const ${name} = {
 function getAbsolutePath(node: SBBlock) {
   const n = node.cloneOffscreen();
   const path = (n.atField("source") as any).childBlock(0);
-  path.replaceWith("../" + path.text);
+  // TODO not sure how to resolve this properly yet
+  // full URL is needed since we are using a dynamic import without path
+  path.replaceWith(path.text.replace(/^\./, "https://localhost:3000"));
   return n.sourceString;
 }
 
@@ -74,7 +78,9 @@ export const augmentationBuilder = (model) => ({
       captureAll(capture),
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
-    const augmentation = useMemo(() => {
+    const augmentation = useSignal(null);
+
+    useAsyncEffect(async () => {
       try {
         const aug = node.cloneOffscreen();
         aug
@@ -95,15 +101,19 @@ export const augmentationBuilder = (model) => ({
             ?.imports?.map((i) => i.source)
             .join("\n") ?? "";
         const src = `${imports}
-const a = ${aug.sourceString}; a`;
-        // return asyncEval(src);
+        export const a = ${aug.sourceString}`;
+        const a = (
+          await import("data:text/javascript;charset=utf-8;base64," + btoa(src))
+        ).a;
+        augmentation.value = a;
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
     }, [node.sourceString]);
+
     return h(
       "div",
-      { style: { display: "flex", border: "1px solid #333" } },
+      { style: { display: "flex", border: "1px solid #333" }, focusable: true },
       h(
         "div",
         {},
@@ -145,9 +155,9 @@ const a = ${aug.sourceString}; a`;
                 h(CodeMirrorWithVitrail, {
                   // FIXME currently destroys and recreates the entire editor.
                   // can we do it incrementally?
-                  key: node.sourceString,
-                  value: e.text,
-                  augmentations: augmentation ? [augmentation] : [],
+                  key: augmentation.value,
+                  value: { value: e.text },
+                  augmentations: augmentation.value ? [augmentation.value] : [],
                 }),
               ),
             );
