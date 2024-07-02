@@ -30,6 +30,8 @@ export function bindSourceString(node: SBBlock) {
 }
 
 export function bindPlainString(node: SBBlock) {
+  if (node.type !== "string") throw new Error("Expected string");
+
   const contentNodes = node.childBlocks as SBBlock[];
   const quote = node.childNode(0) as SBBlock | null;
   if (!quote) return { text: "", onLocalChange: () => {} };

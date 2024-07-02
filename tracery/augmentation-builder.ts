@@ -1,5 +1,4 @@
-import { languageFor } from "../core/languages.js";
-import { SBNode, extractType } from "../core/model.js";
+import { SBBlock, SBNode } from "../core/model.js";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
@@ -9,20 +8,16 @@ import {
 import {
   metaexec,
   type,
-  all,
   query,
-  queryDeep,
   captureAll,
-  debugIt,
+  spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
-
-const objectField = (field) => (it) =>
-  it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
+import { asyncEval } from "../utils.js";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -51,7 +46,13 @@ export const ${name} = {
   });
 }
 
-(window as any).languageFor = languageFor;
+function getAbsolutePath(node: SBBlock) {
+  const n = node.cloneOffscreen();
+  const path = (n.atField("source") as any).childBlock(0);
+  path.replaceWith("../" + path.text);
+  return n.sourceString;
+}
+
 export const augmentationBuilder = (model) => ({
   matcherDepth: 8,
   model,
@@ -79,7 +80,23 @@ export const augmentationBuilder = (model) => ({
         aug
           .findQuery("metaexec($_args)")
           ?.args?.insert("'debugID'", "expression", 9e8);
-        // FIXME return eval(`const a = ${aug.sourceString}; a`);
+        const imports =
+          metaexec(node.root, (capture) => [
+            (it) => it.childBlocks,
+            spawnArray((it) =>
+              metaexec(it, (capture) => [
+                type("import_statement"),
+                getAbsolutePath,
+                capture("source"),
+              ]),
+            ),
+            capture("imports"),
+          ])
+            ?.imports?.map((i) => i.source)
+            .join("\n") ?? "";
+        const src = `${imports}
+const a = ${aug.sourceString}; a`;
+        // return asyncEval(src);
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
@@ -106,6 +123,7 @@ export const augmentationBuilder = (model) => ({
           h("td", {}, "Preview"),
         ),
         h(NodeArray, {
+          insertItem: () => "''",
           container: examples,
           wrap: (it) => it,
           view: (it, ref, onmousemove, onmouseleave) => {
@@ -113,7 +131,14 @@ export const augmentationBuilder = (model) => ({
             return h(
               "tr",
               { ref, onmousemove, onmouseleave },
-              h("td", {}, h(TextArea, { ...e, style: { width: "100%" } })),
+              h(
+                "td",
+                {},
+                h(TextArea, {
+                  ...e,
+                  style: { width: "100%", border: "1px solid #ccc" },
+                }),
+              ),
               h(
                 "td",
                 {},
