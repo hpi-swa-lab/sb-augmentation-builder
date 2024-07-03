@@ -17,7 +17,6 @@ import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
-import { asyncEval } from "../utils.js";
 import { useSignal } from "../external/preact-signals.mjs";
 import { useAsyncEffect } from "../view/widgets.js";
 
@@ -125,7 +124,7 @@ export const augmentationBuilder = (model) => ({
       ),
       h(
         "table",
-        { style: { width: 400 } },
+        { style: { maxWidth: "500px", width: "100%", tableLayout: "fixed" } },
         h(
           "tr",
           { style: { height: "1rem" } },
