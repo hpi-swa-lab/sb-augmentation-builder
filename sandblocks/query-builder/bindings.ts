@@ -68,6 +68,7 @@ export function bindPlainString(node: SBBlock) {
 }
 
 export function TextArea({ text, onLocalChange, range, indexMap, style }) {
+  // text = text[text.length - 1] === "\n" ? text : text + "\n";
   const textStyle = {
     padding: 0,
     lineHeight: "inherit",

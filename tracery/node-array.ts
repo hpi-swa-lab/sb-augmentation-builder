@@ -101,6 +101,7 @@ export function NodeArray({
               }
             },
             node: it,
+            key: it,
             view,
             add,
             remove,
