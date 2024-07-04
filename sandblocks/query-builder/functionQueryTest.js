@@ -190,8 +190,7 @@ async function queryForBrowser(code) {
 }
 
 describe("UI-Tool-Tests", () => {
-  test("selected", async () => {
-    console.log("selected test");
+  test("ids", async () => {
     const typescript = languageFor("typescript");
     await typescript.ready();
     const code = `const x = "test"`;
@@ -200,9 +199,33 @@ describe("UI-Tool-Tests", () => {
     const pipeline = (node) =>
       metaexec(node, (capture, selectedInput, selectedOutput) => [
         (it) => it.query("const $var = $name"),
-        (it) => it.name,
-        selected(selectedInput(), selectedOutput(), capture("name")),
+        all(
+          [(it) => it.name, capture("name")],
+          [(it) => it.var, capture("var")],
+        ),
       ]);
+
+    const res = simSbMatching2(tree, pipeline);
+    debugger;
+  });
+
+  test("selected", async () => {
+    console.log("selected test");
+    const typescript = languageFor("typescript");
+    await typescript.ready();
+    const code = `const x = "test"`;
+    const tree = typescript.parseSync(code);
+
+    const pipeline = (node) =>
+      metaexec(
+        node,
+        (capture, selectedInput, selectedOutput) => [
+          (it) => it.query("const $var = $name"),
+          (it) => it.name,
+          selected(selectedInput(), selectedOutput(), capture("name")),
+        ],
+        123,
+      );
 
     const res = simSbMatching2(tree, pipeline);
     console.log(res[0]);
@@ -228,7 +251,6 @@ describe("New Execution Test", async () => {
       ]);
 
     const res = simSbMatching2(tree, pipeline);
-    debugger;
     assertEq(res.length, 2);
 
     assertEq(res[0].name, "a");

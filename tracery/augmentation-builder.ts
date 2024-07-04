@@ -19,6 +19,7 @@ import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
 import { useSignal } from "../external/preact-signals.mjs";
 import { useAsyncEffect } from "../view/widgets.js";
+import { randomId } from "../utils.js";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -78,13 +79,14 @@ export const augmentationBuilder = (model) => ({
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
+    const debugInfo = useMemo(() => randomId(), []);
 
     useAsyncEffect(async () => {
       try {
         const aug = node.cloneOffscreen();
         aug
           .findQuery("metaexec($_args)")
-          ?.args?.insert("'debugID'", "expression", 9e8);
+          ?.args?.insert(debugInfo, "expression", 9e8);
         const imports =
           metaexec(node.root, (capture) => [
             (it) => it.childBlocks,

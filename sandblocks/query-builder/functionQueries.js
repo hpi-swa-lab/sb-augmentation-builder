@@ -9,13 +9,17 @@ import { useSignal } from "../../external/preact-signals.mjs";
 import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
 
+export let debugHistory = new Map();
+debugHistory.set("pos", []);
+
 export function orderFork() {}
 
-export function metaexec(obj, makeScript, debug = null) {
-  return _metaexec(obj, makeScript, debug)?.captures;
+export function metaexec(obj, makeScript, debugId = null) {
+  return _metaexec(obj, makeScript, debugId)?.captures;
 }
-export function _metaexec(obj, makeScript, debug) {
-  function perform() {
+export function _metaexec(obj, makeScript, debugId) {
+  function perform(debugId) {
+    //console.log("debugId: " + debugId);
     let captures = {};
     let selectedInput = {};
     let selectedOutput = {};
@@ -36,7 +40,11 @@ export function _metaexec(obj, makeScript, debug) {
         return (it) => (selectedOutput = it);
       },
     );
-    return execScript(obj, ...script)
+    const res = execScript(123, obj, ...script);
+    if (debugHistory.has(123) && debugHistory.get(123).length > 0) {
+      console.log(debugHistory.get(123).map((it) => it.id.toString()));
+    }
+    return res
       ? {
           captures: captures,
           selectedInput: selectedInput,
@@ -45,11 +53,11 @@ export function _metaexec(obj, makeScript, debug) {
       : null;
   }
 
-  if (debug) {
+  if (debugId) {
     try {
-      return perform();
+      return perform(debugId);
     } catch (e) {
-      console.error(debug, e);
+      console.error(debugId, e);
       return null;
     }
   } else return perform();
@@ -70,19 +78,59 @@ export function replace(capture) {
   };
 }
 
-function execScript(arg, ...script) {
+function execScript(debugId, arg, ...script) {
+  console.log("EXEC! " + debugId);
+  //console.log(script.map((it) => it.toString()));
   if (!arg) return null;
   let current = arg;
+  let index = 0;
+  if (!debugHistory.has(debugId)) {
+    debugHistory.set(debugId, []);
+  }
+  debugHistory.set("pos", [...debugHistory.get("pos"), 0]);
+  //debugHistory.get(debugId).push({ id: debugHistory.get("pos"), it: arg });
+  // debugHistory.set(debugId, [
+  //   ...debugHistory.get(debugId),
+  //   { id: debugHistory.get("pos"), it: arg },
+  // ]);
   for (const predicate of script) {
     try {
+      if (debugId) {
+        const newIndex = [
+          ...debugHistory
+            .get("pos")
+            .slice(0, debugHistory.get("pos").length - 1),
+          index,
+        ];
+
+        debugHistory.set("pos", newIndex);
+        debugHistory.set(debugId, [
+          ...debugHistory.get(debugId),
+          {
+            id: newIndex,
+            it: current,
+          },
+        ]); //Append
+        index++;
+      }
       let next = predicate(current);
-      if (isAbortReason(next)) return null;
+      if (isAbortReason(next)) {
+        debugHistory.set(debugId, []);
+        debugHistory.set("pos", []);
+        return null;
+      }
       if (next !== true) current = next;
     } catch (e) {
+      debugHistory.set(debugId, []);
+      debugHistory.set("pos", []);
       console.error(e);
       return null;
     }
   }
+  debugHistory.set(
+    "pos",
+    debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+  );
   return current;
 }
 
@@ -102,25 +150,25 @@ export function languageSpecific(language, ...pipeline) {
       (it) => language_list.includes(it.language.name),
       ...pipeline,
     ];
-    return execScript(it, ...mod_pipeline);
+    return execScript(123, it, ...mod_pipeline);
   };
 }
 
 export function selected(selectedInput, selectedOutput, ...pipeline) {
   return (it) => {
     selectedInput(it);
-    const output = execScript(it, ...pipeline);
+    const output = execScript(123, it, ...pipeline);
     selectedOutput(output);
     return output;
   };
 }
 
 //execute abitray code, without effecting the the next step in the pipline
-// helpfull for debugging
+//helpfull for debugging
 export function also(...pipeline) {
   return (it) => {
     const og_it = it;
-    execScript(it, ...pipeline);
+    execScript(123, it, ...pipeline);
     return og_it;
   };
 }
@@ -128,7 +176,7 @@ export function also(...pipeline) {
 export function first(...pipelines) {
   return (it) => {
     for (const pipeline of pipelines) {
-      const res = execScript(it, ...pipeline);
+      const res = execScript(123, it, ...pipeline);
       if (res) return res;
     }
     return null;
@@ -143,9 +191,26 @@ export const debugIt = (it) => {
 };
 
 export function all(...pipelines) {
+  //console.log("all");
   return (it) => {
+    let index = 0;
     for (const pipeline of pipelines) {
-      if (isAbortReason(execScript(it, ...pipeline))) return null;
+      const newIndex = [...debugHistory.get("pos"), index];
+      debugHistory.set("pos", newIndex);
+      debugHistory.set(123, [
+        ...debugHistory.get(123),
+        {
+          id: newIndex,
+          it: {},
+        },
+      ]); //Append
+      index++;
+      const res = execScript(123, it, ...pipeline);
+      if (isAbortReason(res)) return null;
+      debugHistory.set(
+        "pos",
+        debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+      );
     }
     // signal that we completed, but return no sensible value
     return true;
