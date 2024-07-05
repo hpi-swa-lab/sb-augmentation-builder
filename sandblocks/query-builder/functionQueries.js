@@ -40,9 +40,11 @@ export function _metaexec(obj, makeScript, debugId) {
         return (it) => (selectedOutput = it);
       },
     );
-    const res = execScript(123, obj, ...script);
-    if (debugHistory.has(123) && debugHistory.get(123).length > 0) {
-      console.log(debugHistory.get(123).map((it) => it.id.toString()));
+    const res = execScript(debugId, obj, ...script);
+    if (debugHistory.has(debugId) && debugHistory.get(debugId).length > 0) {
+      console.log("Result");
+      console.log(debugHistory.get(debugId).map((it) => it));
+      console.log(debugHistory.get(debugId).map((it) => it.id.toString()));
     }
     return res
       ? {
@@ -78,6 +80,50 @@ export function replace(capture) {
   };
 }
 
+function historyNextLevel(debugId) {
+  debugHistory.set("pos", [...debugHistory.get("pos"), 0]);
+}
+
+function historyPreviousLevel(debugId) {
+  debugHistory.set(
+    "pos",
+    debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+  );
+}
+
+function historyAddStep(debugId, index, current) {
+  const newIndex = [
+    ...debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+    index,
+  ];
+
+  debugHistory.set("pos", newIndex);
+  debugHistory.set(debugId, [
+    ...debugHistory.get(debugId),
+    {
+      id: newIndex,
+      it: current,
+    },
+  ]);
+}
+
+function historyUpdateIt(debugId, index, current) {
+  const newIndex = [
+    ...debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+    index,
+  ];
+  const pos = debugHistory
+    .get(debugId)
+    .map((it) => it.id)
+    .indexOf(newIndex);
+  debugHistory.get(debugId)[pos] = { id: pos, it: current };
+}
+
+function historyReset(debugId) {
+  debugHistory.set(debugId, []);
+  debugHistory.set("pos", []);
+}
+
 function execScript(debugId, arg, ...script) {
   console.log("EXEC! " + debugId);
   //console.log(script.map((it) => it.toString()));
@@ -87,50 +133,36 @@ function execScript(debugId, arg, ...script) {
   if (!debugHistory.has(debugId)) {
     debugHistory.set(debugId, []);
   }
-  debugHistory.set("pos", [...debugHistory.get("pos"), 0]);
-  //debugHistory.get(debugId).push({ id: debugHistory.get("pos"), it: arg });
-  // debugHistory.set(debugId, [
-  //   ...debugHistory.get(debugId),
-  //   { id: debugHistory.get("pos"), it: arg },
-  // ]);
+  historyNextLevel(debugId);
   for (const predicate of script) {
     try {
       if (debugId) {
-        const newIndex = [
-          ...debugHistory
-            .get("pos")
-            .slice(0, debugHistory.get("pos").length - 1),
-          index,
-        ];
-
-        debugHistory.set("pos", newIndex);
-        debugHistory.set(debugId, [
-          ...debugHistory.get(debugId),
-          {
-            id: newIndex,
-            it: current,
-          },
-        ]); //Append
+        historyAddStep(debugId, index, current);
         index++;
       }
-      let next = predicate(current);
+      let next = predicate(current, debugId);
+      if (debugId) {
+        historyUpdateIt(debugId, index - 1, next);
+      }
       if (isAbortReason(next)) {
-        debugHistory.set(debugId, []);
-        debugHistory.set("pos", []);
+        if (debugId) {
+          historyReset(debugId);
+        }
         return null;
       }
       if (next !== true) current = next;
     } catch (e) {
-      debugHistory.set(debugId, []);
-      debugHistory.set("pos", []);
+      if (debugId) {
+        historyReset(debugId);
+      }
       console.error(e);
       return null;
     }
   }
-  debugHistory.set(
-    "pos",
-    debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
-  );
+  if (debugId) {
+    historyPreviousLevel(debugId);
+  }
+
   return current;
 }
 
@@ -192,25 +224,21 @@ export const debugIt = (it) => {
 
 export function all(...pipelines) {
   //console.log("all");
-  return (it) => {
+  return (it, debugId = null) => {
     let index = 0;
     for (const pipeline of pipelines) {
-      const newIndex = [...debugHistory.get("pos"), index];
-      debugHistory.set("pos", newIndex);
-      debugHistory.set(123, [
-        ...debugHistory.get(123),
-        {
-          id: newIndex,
-          it: {},
-        },
-      ]); //Append
+      //historyAddStep(debugId, index, {});
+      if (debugId) {
+        historyNextLevel(debugId);
+        historyAddStep(debugId, index, {});
+      }
       index++;
-      const res = execScript(123, it, ...pipeline);
+      const res = execScript(debugId, it, ...pipeline);
       if (isAbortReason(res)) return null;
-      debugHistory.set(
-        "pos",
-        debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
-      );
+      if (debugId) {
+        historyUpdateIt(debugId, index - 1, res);
+        historyPreviousLevel(debugId);
+      }
     }
     // signal that we completed, but return no sensible value
     return true;

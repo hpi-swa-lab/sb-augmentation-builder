@@ -197,13 +197,19 @@ describe("UI-Tool-Tests", () => {
     const tree = typescript.parseSync(code);
 
     const pipeline = (node) =>
-      metaexec(node, (capture, selectedInput, selectedOutput) => [
-        (it) => it.query("const $var = $name"),
-        all(
-          [(it) => it.name, capture("name")],
-          [(it) => it.var, capture("var")],
-        ),
-      ]);
+      metaexec(
+        node,
+        (capture) => [
+          (it) => it.query("const $var = $name"),
+          (it) => it,
+          all(
+            [(it) => it.name, capture("name")],
+            [(it) => it.var, capture("var")],
+            [(it) => it.var, capture("var2")],
+          ),
+        ],
+        123,
+      );
 
     const res = simSbMatching2(tree, pipeline);
     debugger;
