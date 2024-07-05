@@ -4,6 +4,7 @@ import {
   metaexec,
   query,
   all,
+  first,
   debugIt,
 } from "./sandblocks/query-builder/functionQueries.js";
 
@@ -14,10 +15,11 @@ export const augExample = {
     metaexec(it, (capture) => [
       query("{ key: $value }", "pair"),
       capture("out"),
-      all(
+      first(
         [(it) => it.value, capture("value")],
         [(it) => it.value, capture("value2")],
       ),
+      (it) => it,
     ]),
   view: ({ nodes }) => h("div", {}, "test"),
   rerender: () => true,

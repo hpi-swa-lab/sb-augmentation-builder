@@ -247,10 +247,12 @@ export function first(...pipelines) {
       }
       index++;
       const res = execScript(debugId, it, ...pipeline);
+      if (debugId) {
+        historyPreviousLevel(debugId);
+      }
       if (res) {
         if (debugId) {
           //historyUpdateIt(debugId, index - 1, res);
-          historyPreviousLevel(debugId);
         }
         return res;
       }
