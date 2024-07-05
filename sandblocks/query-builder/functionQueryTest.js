@@ -17,6 +17,7 @@ import { drawSelection } from "../../codemirror6/external/codemirror.bundle.js";
 import { html, render, editor } from "../../view/widgets.js";
 import { useComputed, useSignal } from "../../external/preact-signals.mjs";
 import { offscreenVitrail } from "../../vitrail/offscreen.ts";
+import { randomId } from "../../utils.js";
 
 const tests = [];
 const configStack = [{}];
@@ -208,7 +209,7 @@ describe("UI-Tool-Tests", () => {
             [(it) => it.var, capture("var2")],
           ),
         ],
-        123,
+        randomId(),
       );
 
     const res = simSbMatching2(tree, pipeline);
@@ -230,7 +231,7 @@ describe("UI-Tool-Tests", () => {
           (it) => it.name,
           selected(selectedInput(), selectedOutput(), capture("name")),
         ],
-        123,
+        randomId(),
       );
 
     const res = simSbMatching2(tree, pipeline);

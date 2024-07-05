@@ -10,7 +10,6 @@ import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
 
 export let debugHistory = new Map();
-debugHistory.set("pos", []);
 
 export function orderFork() {}
 
@@ -18,8 +17,7 @@ export function metaexec(obj, makeScript, debugId = null) {
   return _metaexec(obj, makeScript, debugId)?.captures;
 }
 export function _metaexec(obj, makeScript, debugId) {
-  function perform(debugId) {
-    //console.log("debugId: " + debugId);
+  function perform(debugId = null) {
     let captures = {};
     let selectedInput = {};
     let selectedOutput = {};
@@ -32,7 +30,6 @@ export function _metaexec(obj, makeScript, debugId) {
       },
       function () {
         return (it) => {
-          //debugger;
           selectedInput = it;
         };
       },
@@ -41,10 +38,9 @@ export function _metaexec(obj, makeScript, debugId) {
       },
     );
     const res = execScript(debugId, obj, ...script);
+    debugHistory.delete(`pos_${debugId}`);
     if (debugHistory.has(debugId) && debugHistory.get(debugId).length > 0) {
-      console.log("Result");
-      console.log(debugHistory.get(debugId).map((it) => it));
-      console.log(debugHistory.get(debugId).map((it) => it.id.toString()));
+      console.log(debugHistory.get(debugId));
     }
     return res
       ? {
@@ -57,6 +53,7 @@ export function _metaexec(obj, makeScript, debugId) {
 
   if (debugId) {
     try {
+      debugHistory.set(`pos_${debugId}`, []);
       return perform(debugId);
     } catch (e) {
       console.error(debugId, e);
@@ -81,23 +78,30 @@ export function replace(capture) {
 }
 
 function historyNextLevel(debugId) {
-  debugHistory.set("pos", [...debugHistory.get("pos"), 0]);
+  debugHistory.set(`pos_${debugId}`, [
+    ...debugHistory.get(`pos_${debugId}`),
+    0,
+  ]);
 }
 
 function historyPreviousLevel(debugId) {
   debugHistory.set(
-    "pos",
-    debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+    `pos_${debugId}`,
+    debugHistory
+      .get(`pos_${debugId}`)
+      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
   );
 }
 
 function historyAddStep(debugId, index, current) {
   const newIndex = [
-    ...debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+    ...debugHistory
+      .get(`pos_${debugId}`)
+      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
     index,
   ];
 
-  debugHistory.set("pos", newIndex);
+  debugHistory.set(`pos_${debugId}`, newIndex);
   debugHistory.set(debugId, [
     ...debugHistory.get(debugId),
     {
@@ -109,7 +113,9 @@ function historyAddStep(debugId, index, current) {
 
 function historyUpdateIt(debugId, index, current) {
   const newIndex = [
-    ...debugHistory.get("pos").slice(0, debugHistory.get("pos").length - 1),
+    ...debugHistory
+      .get(`pos_${debugId}`)
+      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
     index,
   ];
   const pos = debugHistory
@@ -121,7 +127,7 @@ function historyUpdateIt(debugId, index, current) {
 
 function historyReset(debugId) {
   debugHistory.set(debugId, []);
-  debugHistory.set("pos", []);
+  debugHistory.set(`pos_${debugId}`, []);
 }
 
 function execScript(debugId, arg, ...script) {
@@ -130,10 +136,12 @@ function execScript(debugId, arg, ...script) {
   if (!arg) return null;
   let current = arg;
   let index = 0;
-  if (!debugHistory.has(debugId)) {
-    debugHistory.set(debugId, []);
+  if (debugId) {
+    if (!debugHistory.has(debugId)) {
+      debugHistory.set(debugId, []);
+    }
+    historyNextLevel(debugId);
   }
-  historyNextLevel(debugId);
   for (const predicate of script) {
     try {
       if (debugId) {
@@ -176,20 +184,20 @@ export function spawnArray(pipeline) {
 }
 
 export function languageSpecific(language, ...pipeline) {
-  return (it) => {
+  return (it, debugId = null) => {
     const language_list = Array.isArray(language) ? language : [language];
     const mod_pipeline = [
       (it) => language_list.includes(it.language.name),
       ...pipeline,
     ];
-    return execScript(123, it, ...mod_pipeline);
+    return execScript(debugId, it, ...mod_pipeline);
   };
 }
 
 export function selected(selectedInput, selectedOutput, ...pipeline) {
-  return (it) => {
+  return (it, debugId = null) => {
     selectedInput(it);
-    const output = execScript(123, it, ...pipeline);
+    const output = execScript(debugId, it, ...pipeline);
     selectedOutput(output);
     return output;
   };
@@ -198,24 +206,35 @@ export function selected(selectedInput, selectedOutput, ...pipeline) {
 //execute abitray code, without effecting the the next step in the pipline
 //helpfull for debugging
 export function also(...pipeline) {
-  return (it) => {
+  return (it, debugId = null) => {
     const og_it = it;
-    execScript(123, it, ...pipeline);
+    execScript(debugId, it, ...pipeline);
     return og_it;
   };
 }
 
 export function first(...pipelines) {
-  return (it) => {
+  return (it, debugId = null) => {
+    let index = 0;
     for (const pipeline of pipelines) {
-      const res = execScript(123, it, ...pipeline);
+      if (debugId) {
+        historyNextLevel(debugId);
+        historyAddStep(debugId, index, {});
+      }
+      index++;
+      const res = execScript(debugId, it, ...pipeline);
+      if (debugId) {
+        historyUpdateIt(debugId, index - 1, res);
+        historyPreviousLevel(debugId);
+      }
       if (res) return res;
     }
     return null;
   };
 }
 
-export const optional = (pipeline) => first(pipeline, [() => true]);
+export const optional = (pipeline, debugId = null) =>
+  first(pipeline, [() => true]);
 
 export const debugIt = (it) => {
   console.log(it);
@@ -235,10 +254,6 @@ export function all(...pipelines) {
       index++;
       const res = execScript(debugId, it, ...pipeline);
       if (isAbortReason(res)) return null;
-      if (debugId) {
-        historyUpdateIt(debugId, index - 1, res);
-        historyPreviousLevel(debugId);
-      }
     }
     // signal that we completed, but return no sensible value
     return true;
