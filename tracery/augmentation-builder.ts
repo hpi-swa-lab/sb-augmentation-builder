@@ -11,13 +11,19 @@ import {
   query,
   captureAll,
   spawnArray,
+  getDebugHistory,
+  debugHistory,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
-import { useSignal } from "../external/preact-signals.mjs";
+import {
+  computed,
+  useComputed,
+  useSignal,
+} from "../external/preact-signals.mjs";
 import { useAsyncEffect } from "../view/widgets.js";
 import { randomId } from "../utils.js";
 
@@ -79,14 +85,23 @@ export const augmentationBuilder = (model) => ({
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
-    const debugInfo = useMemo(() => randomId(), []);
+    const debugId = useMemo(() => randomId(), []);
+    //const history = getDebugHistory(debugId);
+
+    const debugHistoryAug = useComputed(() => {
+      //console.log("testInternatl");
+      //console.log(debugHistory.value.get(debugId));
+      return debugHistory.value;
+    });
+
+    console.log(debugHistoryAug.value.get(`fin_${debugId}`));
 
     useAsyncEffect(async () => {
       try {
         const aug = node.cloneOffscreen();
         aug
           .findQuery("metaexec($_args)")
-          ?.args?.insert(debugInfo, "expression", 9e8);
+          ?.args?.insert(debugId, "expression", 9e8);
         const imports =
           metaexec(node.root, (capture) => [
             (it) => it.childBlocks,
@@ -123,6 +138,21 @@ export const augmentationBuilder = (model) => ({
         h("hr"),
         h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
+        h(
+          "div",
+          {},
+          debugHistoryAug.value.has(`fin_${debugId}`)
+            ? debugHistoryAug.value
+                .get(`fin_${debugId}`)
+                .map((it) =>
+                  h(
+                    "div",
+                    {},
+                    `id: ${it.id.toString()}, obj: ${it.it.toString()}`,
+                  ),
+                )
+            : null,
+        ),
       ),
       h(
         "table",

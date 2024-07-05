@@ -5,11 +5,11 @@ import {
   VitrailPaneWithWhitespace,
   useValidateKeepReplacement,
 } from "../../vitrail/vitrail.ts";
-import { useSignal } from "../../external/preact-signals.mjs";
+import { computed, signal } from "../../external/preact-signals.mjs";
 import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
 
-export let debugHistory = new Map();
+export const debugHistory = signal(new Map());
 
 export function orderFork() {}
 
@@ -38,9 +38,18 @@ export function _metaexec(obj, makeScript, debugId) {
       },
     );
     const res = execScript(debugId, obj, ...script);
-    debugHistory.delete(`pos_${debugId}`);
-    if (debugHistory.has(debugId) && debugHistory.get(debugId).length > 0) {
-      console.log(debugHistory.get(debugId));
+    //debugHistory.value = new Map(debugHistory.value.delete(`pos_${debugId}`));
+    if (
+      debugHistory.value.has(debugId) &&
+      debugHistory.value.get(debugId).length > 0
+    ) {
+      debugHistory.value = new Map(
+        debugHistory.value.set(
+          `fin_${debugId}`,
+          debugHistory.value.get(debugId).map((it) => it),
+        ),
+      );
+      //console.log(debugHistory.value.get(debugId));
     }
     return res
       ? {
@@ -53,7 +62,9 @@ export function _metaexec(obj, makeScript, debugId) {
 
   if (debugId) {
     try {
-      debugHistory.set(`pos_${debugId}`, []);
+      debugHistory.value = new Map(
+        debugHistory.value.set(`pos_${debugId}`, []),
+      );
       return perform(debugId);
     } catch (e) {
       console.error(debugId, e);
@@ -77,68 +88,81 @@ export function replace(capture) {
   };
 }
 
+export function getDebugHistory(debugId) {
+  return debugHistory.value.has(debugId) ? debugHistory.value.get(debugId) : [];
+}
+
 function historyNextLevel(debugId) {
-  debugHistory.set(`pos_${debugId}`, [
-    ...debugHistory.get(`pos_${debugId}`),
-    0,
-  ]);
+  debugHistory.value = new Map(
+    debugHistory.value.set(`pos_${debugId}`, [
+      ...debugHistory.value.get(`pos_${debugId}`),
+      0,
+    ]),
+  );
 }
 
 function historyPreviousLevel(debugId) {
-  debugHistory.set(
-    `pos_${debugId}`,
-    debugHistory
-      .get(`pos_${debugId}`)
-      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
+  debugHistory.value = new Map(
+    debugHistory.value.set(
+      `pos_${debugId}`,
+      debugHistory.value
+        .get(`pos_${debugId}`)
+        .slice(0, debugHistory.value.get(`pos_${debugId}`).length - 1),
+    ),
   );
 }
 
 function historyAddStep(debugId, index, current) {
   const newIndex = [
-    ...debugHistory
+    ...debugHistory.value
       .get(`pos_${debugId}`)
-      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
+      .slice(0, debugHistory.value.get(`pos_${debugId}`).length - 1),
     index,
   ];
 
-  debugHistory.set(`pos_${debugId}`, newIndex);
-  debugHistory.set(debugId, [
-    ...debugHistory.get(debugId),
-    {
-      id: newIndex,
-      it: current,
-    },
-  ]);
+  debugHistory.value = new Map(
+    debugHistory.value.set(`pos_${debugId}`, newIndex),
+  );
+  debugHistory.value = new Map(
+    debugHistory.value.set(debugId, [
+      ...debugHistory.value.get(debugId),
+      {
+        id: newIndex,
+        it: current,
+      },
+    ]),
+  );
 }
 
 function historyUpdateIt(debugId, index, current) {
   const newIndex = [
-    ...debugHistory
+    ...debugHistory.value
       .get(`pos_${debugId}`)
-      .slice(0, debugHistory.get(`pos_${debugId}`).length - 1),
+      .slice(0, debugHistory.value.get(`pos_${debugId}`).length - 1),
     index,
   ];
-  const pos = debugHistory
+  const pos = debugHistory.value
     .get(debugId)
     .map((it) => it.id)
     .indexOf(newIndex);
-  debugHistory.get(debugId)[pos] = { id: pos, it: current };
+  //TODO: implement update
+  //debugHistory.value = new Map(debugHistory.value.get(debugId)[pos] = { id: pos, it: current })
 }
 
 function historyReset(debugId) {
-  debugHistory.set(debugId, []);
-  debugHistory.set(`pos_${debugId}`, []);
+  debugHistory.value = new Map(debugHistory.value.set(debugId, []));
+  debugHistory.value = new Map(debugHistory.value.set(`pos_${debugId}`, []));
 }
 
 function execScript(debugId, arg, ...script) {
-  console.log("EXEC! " + debugId);
+  //console.log("EXEC! " + debugId);
   //console.log(script.map((it) => it.toString()));
   if (!arg) return null;
   let current = arg;
   let index = 0;
   if (debugId) {
-    if (!debugHistory.has(debugId)) {
-      debugHistory.set(debugId, []);
+    if (!debugHistory.value.has(debugId)) {
+      debugHistory.value = new Map(debugHistory.value.set(debugId, []));
     }
     historyNextLevel(debugId);
   }
@@ -223,11 +247,13 @@ export function first(...pipelines) {
       }
       index++;
       const res = execScript(debugId, it, ...pipeline);
-      if (debugId) {
-        historyUpdateIt(debugId, index - 1, res);
-        historyPreviousLevel(debugId);
+      if (res) {
+        if (debugId) {
+          //historyUpdateIt(debugId, index - 1, res);
+          historyPreviousLevel(debugId);
+        }
+        return res;
       }
-      if (res) return res;
     }
     return null;
   };
@@ -253,6 +279,9 @@ export function all(...pipelines) {
       }
       index++;
       const res = execScript(debugId, it, ...pipeline);
+      if (debugId) {
+        historyPreviousLevel(debugId);
+      }
       if (isAbortReason(res)) return null;
     }
     // signal that we completed, but return no sensible value
