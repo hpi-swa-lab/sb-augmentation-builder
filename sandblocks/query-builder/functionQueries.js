@@ -149,6 +149,24 @@ function historyUpdateIt(debugId, index, current) {
   //debugHistory.value = new Map(debugHistory.value.get(debugId)[pos] = { id: pos, it: current })
 }
 
+function historyMerge(debugId, newHistoryId) {
+  const currentStepId =
+    debugHistory.value.get(debugId)[debugHistory.value.get(debugId).length - 1]
+      .id;
+  debugHistory.value.get(newHistoryId).forEach((step) => {
+    debugger;
+    debugHistory.value = new Map(
+      debugHistory.value.set(debugId, [
+        ...debugHistory.value.get(debugId),
+        {
+          id: [...currentStepId, ...step.id],
+          it: step.it,
+        },
+      ]),
+    );
+  });
+}
+
 function historyReset(debugId) {
   debugHistory.value = new Map(debugHistory.value.set(debugId, []));
   debugHistory.value = new Map(debugHistory.value.set(`pos_${debugId}`, []));
@@ -240,19 +258,32 @@ export function also(...pipeline) {
 export function first(...pipelines) {
   return (it, debugId = null) => {
     let index = 0;
+    const tmp_id = debugId ? -1 : null;
+    if (debugId) {
+      debugHistory.value = new Map(debugHistory.value.set(`pos_${tmp_id}`, []));
+      debugHistory.value = new Map(debugHistory.value.set(tmp_id, []));
+    }
     for (const pipeline of pipelines) {
       if (debugId) {
-        historyNextLevel(debugId);
-        historyAddStep(debugId, index, {});
+        console.log("index start" + index);
+        //console.log(
+        //  debugHistory.value.get(tmp_id).map((it) => it.id.toString()),
+        //);
+        historyNextLevel(tmp_id);
+        historyAddStep(tmp_id, index, {});
       }
       index++;
-      const res = execScript(debugId, it, ...pipeline);
+      const res = execScript(tmp_id, it, ...pipeline);
       if (debugId) {
-        historyPreviousLevel(debugId);
+        console.log("index end" + index);
+        //console.log(
+        //  debugHistory.value.get(tmp_id).map((it) => it.id.toString()),
+        //);
+        historyPreviousLevel(tmp_id);
       }
       if (res) {
         if (debugId) {
-          //historyUpdateIt(debugId, index - 1, res);
+          historyMerge(debugId, tmp_id);
         }
         return res;
       }

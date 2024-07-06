@@ -16,6 +16,8 @@ export const augExample = {
       query("{ key: $value }", "pair"),
       capture("out"),
       first(
+        [(it) => null],
+        [(it) => null],
         [(it) => it.value, capture("value")],
         [(it) => it.value, capture("value2")],
       ),
