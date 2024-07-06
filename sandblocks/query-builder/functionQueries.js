@@ -154,7 +154,6 @@ function historyMerge(debugId, newHistoryId) {
     debugHistory.value.get(debugId)[debugHistory.value.get(debugId).length - 1]
       .id;
   debugHistory.value.get(newHistoryId).forEach((step) => {
-    debugger;
     debugHistory.value = new Map(
       debugHistory.value.set(debugId, [
         ...debugHistory.value.get(debugId),
@@ -173,8 +172,6 @@ function historyReset(debugId) {
 }
 
 function execScript(debugId, arg, ...script) {
-  //console.log("EXEC! " + debugId);
-  //console.log(script.map((it) => it.toString()));
   if (!arg) return null;
   let current = arg;
   let index = 0;
@@ -265,20 +262,12 @@ export function first(...pipelines) {
     }
     for (const pipeline of pipelines) {
       if (debugId) {
-        console.log("index start" + index);
-        //console.log(
-        //  debugHistory.value.get(tmp_id).map((it) => it.id.toString()),
-        //);
         historyNextLevel(tmp_id);
         historyAddStep(tmp_id, index, {});
       }
       index++;
       const res = execScript(tmp_id, it, ...pipeline);
       if (debugId) {
-        console.log("index end" + index);
-        //console.log(
-        //  debugHistory.value.get(tmp_id).map((it) => it.id.toString()),
-        //);
         historyPreviousLevel(tmp_id);
       }
       if (res) {
