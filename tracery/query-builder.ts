@@ -1,6 +1,7 @@
 import { h } from "../external/preact.mjs";
 import {
   all,
+  debugHistory,
   first,
   metaexec,
   query,
@@ -19,7 +20,7 @@ import {
   bindPlainString,
   bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
-import { useSignal } from "../external/preact-signals.mjs";
+import { useComputed, useSignal } from "../external/preact-signals.mjs";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 
@@ -41,45 +42,53 @@ async function insertItem() {
   )?.text;
 }
 
-export const queryBuilder = (model) => ({
-  matcherDepth: Infinity,
-  model,
-  rerender: () => true,
-  match: (node) =>
-    metaexec(node, (capture) => [
-      query("metaexec($input, ($capture) => $pipeline)"),
-      (it) => it.pipeline,
-      capture("pipeline"),
-      (it) => it.childBlocks,
-      spawnArray(getPipelineStep),
-      capture("steps"),
-    ]),
-  view: ({ steps, pipeline, nodes }) => {
-    useValidateNoError(nodes);
+export const queryBuilder = (model) => {
+  return {
+    matcherDepth: Infinity,
+    model,
+    rerender: () => true,
+    match: (node) => {
+      const res = metaexec(node, (capture) => [
+        query("metaexec($input, ($capture) => $pipeline)"),
+        (it) => it.pipeline,
+        capture("pipeline"),
+        (it) => it.childBlocks,
+        spawnArray(getPipelineStep),
+        capture("steps"),
+      ]);
+      if (res) {
+        return { pipeline: res.pipeline, steps: calcIds(res.steps) };
+      } else {
+        return res;
+      }
+    },
+    view: ({ steps, pipeline, nodes }) => {
+      useValidateNoError(nodes);
 
-    return h(NodeArray, {
-      container: pipeline,
-      items: steps,
-      insertItem,
-      wrap: (it) =>
-        h(
-          "div",
-          {
-            focusable: true,
-            style: { display: "flex", flexDirection: "column" },
-          },
-          it,
-        ),
-      view: (step, ref, onmousemove, onmouseleave) =>
-        h(PipelineStep, {
-          step,
-          containerRef: ref,
-          onmousemove,
-          onmouseleave,
-        }),
-    });
-  },
-});
+      return h(NodeArray, {
+        container: pipeline,
+        items: steps,
+        insertItem,
+        wrap: (it) =>
+          h(
+            "div",
+            {
+              focusable: true,
+              style: { display: "flex", flexDirection: "column" },
+            },
+            it,
+          ),
+        view: (step, ref, onmousemove, onmouseleave) =>
+          h(PipelineStep, {
+            step,
+            containerRef: ref,
+            onmousemove,
+            onmouseleave,
+          }),
+      });
+    },
+  };
+};
 
 const PipelineSteps = {
   ALL: "all",
@@ -308,9 +317,10 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
     }
   }
 
+  const debugId = "fin_1";
   return h(
     "div",
-    { style: { border: "1px red dotted", paddingRight: "10px" } },
+    { style: { border: "0px red dotted", paddingRight: "10px" } },
     h(
       "div",
       {
@@ -320,15 +330,49 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
       },
       h(
         "div",
-        {
-          ref: containerRef,
-          style: {
-            border: "2px solid black",
-            display: "inline-block",
-            padding: "0.25rem",
+        { style: { display: "flex", flexDirection: "column" } },
+        h(
+          "div",
+          {
+            ref: containerRef,
+            style: {
+              border: "2px solid black",
+              display: "inline-block",
+              padding: "0.25rem",
+            },
           },
-        },
-        h("div", { style: { display: "flex", gap: "0.25rem" } }, viewForLeaf()),
+          h("div", {}, `id: ${step.id.toString()}`),
+
+          h(
+            "div",
+            { style: { display: "flex", gap: "0.25rem" } },
+            viewForLeaf(),
+          ),
+        ),
+        debugHistory.value.has(debugId) &&
+          debugHistory.value
+            .get(debugId)
+            .find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))
+          ? h(
+              "div",
+              {
+                style: {
+                  border: "2px solid green",
+                  display: "inline-block",
+                  padding: "0.25rem",
+                },
+              },
+              objectToString(
+                debugHistory.value
+                  .get(debugId)
+                  .find(
+                    (elem) =>
+                      JSON.stringify(elem.id) == JSON.stringify(step.id),
+                  ).it,
+                1,
+              ),
+            )
+          : null,
       ),
     ),
     h("div", {
@@ -339,4 +383,77 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
       },
     }),
   );
+}
+
+//This is very convoluted and bad, I will clean this up tomorrow!
+function objectToString(obj, depth = 1, hidePrivate = true) {
+  if (obj == null) {
+    return "";
+  }
+
+  if (obj.sourceString !== undefined) {
+    return obj.sourceString;
+  }
+
+  if (depth == 2) {
+    console.log("obj:");
+    console.log(obj);
+  }
+  //debugger;
+  //console.log(Object.keys(obj));
+  if (obj.toString() != "[object Object]") {
+    return obj.toString();
+  }
+
+  const keys = hidePrivate
+    ? Object.keys(obj)
+        .filter((key) => key[0] != "_")
+        .filter((key) => key != "id")
+    : Object.keys(obj).filter((key) => key != "id");
+  if (depth > 0) {
+    return keys
+      .filter((key) => obj[key])
+      .map(
+        (key) =>
+          `${key}: ${
+            obj[key].sourceString === undefined
+              ? objectToString(obj[key], depth - 1)
+              : obj[key].sourceString
+          }, `,
+      );
+  } else {
+    return keys
+      .filter((key) => obj[key])
+      .map(
+        (key) =>
+          `${key}: ${
+            obj[key].sourceString === undefined
+              ? obj[key]
+              : obj[key].sourceString
+          }, `,
+      );
+  }
+}
+
+function calcIds(pipeline, start = []) {
+  if (pipeline) {
+    let index = 0;
+    pipeline.forEach((step) => {
+      step["id"] = [...start, index];
+      if (
+        [
+          PipelineSteps.ALL,
+          PipelineSteps.FIRST,
+          PipelineSteps.PIPELINE,
+        ].includes(step.stepType)
+      ) {
+        calcIds(step.steps, step["id"]);
+      }
+      index++;
+    });
+    //console.log(pipeline.map((it) => it.id.toString()));
+    return pipeline;
+  } else {
+    return pipeline;
+  }
 }

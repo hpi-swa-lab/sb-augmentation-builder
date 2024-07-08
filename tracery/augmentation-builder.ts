@@ -85,7 +85,7 @@ export const augmentationBuilder = (model) => ({
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
-    const debugId = useMemo(() => randomId(), []);
+    const debugId = useMemo(() => 1, []);
     //const history = getDebugHistory(debugId);
 
     const debugHistoryAug = useComputed(() => {
@@ -129,12 +129,24 @@ export const augmentationBuilder = (model) => ({
 
     return h(
       "div",
-      { style: { display: "flex", border: "1px solid #333" }, focusable: true },
+      {
+        style: { display: "flex", border: "1px solid #333" },
+        focusable: true,
+      },
       h(
         "div",
         {},
         h("strong", {}, "Match"),
-        h("div", {}, h(VitrailPane, { nodes: [match] })),
+        h(
+          "div",
+          {},
+          debugHistoryAug.value.has(`fin_${debugId}`)
+            ? h(VitrailPane, {
+                nodes: [match],
+                ids: debugHistoryAug.value.get(`fin_${debugId}`),
+              })
+            : h(VitrailPane, { nodes: [match] }),
+        ),
         h("hr"),
         h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),

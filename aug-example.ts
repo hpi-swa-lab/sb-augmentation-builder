@@ -13,7 +13,7 @@ export const augExample = {
   model: languageFor("typescript"),
   match: (it) =>
     metaexec(it, (capture) => [
-      query("{ key: $value }", "pair"),
+      query("{ key: $value }"),
       capture("out"),
       first(
         [(it) => null],

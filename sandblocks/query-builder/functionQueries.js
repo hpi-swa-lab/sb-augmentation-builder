@@ -132,21 +132,27 @@ function historyAddStep(debugId, index, current) {
       },
     ]),
   );
+  return newIndex;
 }
 
 function historyUpdateIt(debugId, index, current) {
-  const newIndex = [
-    ...debugHistory.value
-      .get(`pos_${debugId}`)
-      .slice(0, debugHistory.value.get(`pos_${debugId}`).length - 1),
-    index,
-  ];
+  //const newIndex = [
+  //  ...debugHistory.value
+  //    .get(`pos_${debugId}`)
+  //    .slice(0, debugHistory.value.get(`pos_${debugId}`).length - 1),
+  //  index,
+  //];
   const pos = debugHistory.value
     .get(debugId)
     .map((it) => it.id)
-    .indexOf(newIndex);
+    .indexOf(index);
+  const tmp = debugHistory.value.get(debugId);
+  //const pos = tmp.findIndex(elem => elem.id == index)
+  tmp[pos] = { id: index, it: current };
+  console.log(tmp[pos]);
+  debugHistory.value = new Map(debugHistory.value.set(debugId, tmp));
   //TODO: implement update
-  //debugHistory.value = new Map(debugHistory.value.get(debugId)[pos] = { id: pos, it: current })
+  //debugHistory.value = new Map(debugHistory.value.get(debugId)[pos] = )
 }
 
 function historyMerge(debugId, newHistoryId) {
@@ -181,15 +187,18 @@ function execScript(debugId, arg, ...script) {
     }
     historyNextLevel(debugId);
   }
+
+  let indexBuf = null;
   for (const predicate of script) {
     try {
       if (debugId) {
-        historyAddStep(debugId, index, current);
+        indexBuf = historyAddStep(debugId, index, {});
         index++;
       }
       let next = predicate(current, debugId);
       if (debugId) {
-        historyUpdateIt(debugId, index - 1, next);
+        //historyAddStep(debugId, index - 1, next);
+        historyUpdateIt(debugId, indexBuf, next);
       }
       if (isAbortReason(next)) {
         if (debugId) {
@@ -264,8 +273,8 @@ export function first(...pipelines) {
       if (debugId) {
         historyNextLevel(tmp_id);
         historyAddStep(tmp_id, index, {});
+        index++;
       }
-      index++;
       const res = execScript(tmp_id, it, ...pipeline);
       if (debugId) {
         historyPreviousLevel(tmp_id);
