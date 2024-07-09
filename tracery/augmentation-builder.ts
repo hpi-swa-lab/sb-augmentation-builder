@@ -86,8 +86,16 @@ export const augmentationBuilder = (model) => ({
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
     const debugId = useMemo(() => 1, []);
+    const debugHistoryAug = useComputed(() =>
+      debugHistory.value ? debugHistory.value : new Map(),
+    );
 
     useAsyncEffect(async () => {
+      console.log("debugHistory");
+      console.log(debugHistoryAug.value);
+      debugHistory.value = new Map(
+        debugHistory.value.set(`suc_${debugId}`, false),
+      );
       try {
         const aug = node.cloneOffscreen();
         aug
@@ -113,6 +121,9 @@ export const augmentationBuilder = (model) => ({
           await import("data:text/javascript;charset=utf-8;base64," + btoa(src))
         ).a;
         augmentation.value = a;
+        console.log("Aug");
+        console.log(augmentation.value);
+        console.log(debugHistory.value.get(`suc_${debugId}`));
       } catch (e) {
         console.log("Failed to eval augmentation", e);
       }
@@ -130,23 +141,30 @@ export const augmentationBuilder = (model) => ({
         h("strong", {}, "Match"),
         h("div", {}, h(VitrailPane, { nodes: [match] })),
         h("hr"),
-        //h("strong", {}, "View"),
+        h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
-        //h(
-        //  "div",
-        //  {},
-        //  debugHistoryAug.value.has(`fin_${debugId}`)
-        //    ? debugHistoryAug.value
-        //        .get(`fin_${debugId}`)
-        //        .map((it) =>
-        //          h(
-        //            "div",
-        //            {},
-        //            `id: ${it.id.toString()}, obj: ${it.it.toString()}`,
-        //          ),
-        //        )
-        //    : null,
-        //),
+        // h("strong", {}, "History"),
+        // debugHistory.value.get(`suc_${debugId}`)
+        //   ? h(
+        //       "div",
+        //       {},
+        //       debugHistoryAug.value.has(`fin_${debugId}`)
+        //         ? debugHistoryAug.value
+        //             .get(`fin_${debugId}`)
+        //             .map((it) =>
+        //               h(
+        //                 "div",
+        //                 {},
+        //                 `id: ${it.id.toString()}, obj: ${it.it.toString()}`,
+        //               ),
+        //             )
+        //         : null,
+        //     )
+        //   : h(
+        //       "div",
+        //       { style: { color: "red" } },
+        //       "Query did not match example",
+        //     ),
       ),
       h(
         "table",

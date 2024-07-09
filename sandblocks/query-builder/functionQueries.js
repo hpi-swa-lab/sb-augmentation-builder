@@ -39,7 +39,11 @@ export function _metaexec(obj, makeScript, debugId) {
     );
     const res = execScript(debugId, obj, ...script);
     //debugHistory.value = new Map(debugHistory.value.delete(`pos_${debugId}`));
-    if (
+    if (!debugHistory.value.get(`suc_${debugId}`)) {
+      debugHistory.value = new Map(
+        debugHistory.value.set(`fin_${debugId}`, []),
+      );
+    } else if (
       debugHistory.value.has(debugId) &&
       debugHistory.value.get(debugId).length > 0
     ) {
@@ -215,6 +219,10 @@ function execScript(debugId, arg, ...script) {
     }
   }
   if (debugId) {
+    console.log("suc_1 -> true");
+    debugHistory.value = new Map(
+      debugHistory.value.set(`suc_${debugId}`, true),
+    );
     historyPreviousLevel(debugId);
   }
 
