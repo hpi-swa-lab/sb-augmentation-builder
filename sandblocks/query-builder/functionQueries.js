@@ -149,7 +149,6 @@ function historyUpdateIt(debugId, index, current) {
   const tmp = debugHistory.value.get(debugId);
   //const pos = tmp.findIndex(elem => elem.id == index)
   tmp[pos] = { id: index, it: current };
-  console.log(tmp[pos]);
   debugHistory.value = new Map(debugHistory.value.set(debugId, tmp));
   //TODO: implement update
   //debugHistory.value = new Map(debugHistory.value.get(debugId)[pos] = )

@@ -20,9 +20,17 @@ import {
   bindPlainString,
   bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
-import { useComputed, useSignal } from "../external/preact-signals.mjs";
+import {
+  computed,
+  useComputed,
+  useSignal,
+} from "../external/preact-signals.mjs";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
+
+const history = computed(() => {
+  return debugHistory.value ? debugHistory.value : new Map();
+});
 
 async function insertItem() {
   return (
@@ -341,7 +349,7 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
               padding: "0.25rem",
             },
           },
-          h("div", {}, `id: ${step.id.toString()}`),
+          //h("div", {}, `id: ${step.id.toString()}`),
 
           h(
             "div",
@@ -349,8 +357,8 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
             viewForLeaf(),
           ),
         ),
-        debugHistory.value.has(debugId) &&
-          debugHistory.value
+        history.value.has(debugId) &&
+          history.value
             .get(debugId)
             .find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))
           ? h(
@@ -363,13 +371,14 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
                 },
               },
               objectToString(
-                debugHistory.value
+                history.value
                   .get(debugId)
                   .find(
                     (elem) =>
                       JSON.stringify(elem.id) == JSON.stringify(step.id),
                   ).it,
-                1,
+                2,
+                true,
               ),
             )
           : null,
@@ -385,8 +394,7 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   );
 }
 
-//This is very convoluted and bad, I will clean this up tomorrow!
-function objectToString(obj, depth = 1, hidePrivate = true) {
+function objectToString(obj, depth = 1, first = false, hidePrivate = true) {
   if (obj == null) {
     return "";
   }
@@ -395,44 +403,32 @@ function objectToString(obj, depth = 1, hidePrivate = true) {
     return obj.sourceString;
   }
 
-  if (depth == 2) {
-    console.log("obj:");
-    console.log(obj);
-  }
-  //debugger;
-  //console.log(Object.keys(obj));
   if (obj.toString() != "[object Object]") {
     return obj.toString();
   }
 
-  const keys = hidePrivate
-    ? Object.keys(obj)
-        .filter((key) => key[0] != "_")
-        .filter((key) => key != "id")
-    : Object.keys(obj).filter((key) => key != "id");
-  if (depth > 0) {
-    return keys
-      .filter((key) => obj[key])
-      .map(
-        (key) =>
-          `${key}: ${
-            obj[key].sourceString === undefined
-              ? objectToString(obj[key], depth - 1)
-              : obj[key].sourceString
-          }, `,
-      );
-  } else {
-    return keys
-      .filter((key) => obj[key])
-      .map(
-        (key) =>
-          `${key}: ${
-            obj[key].sourceString === undefined
-              ? obj[key]
-              : obj[key].sourceString
-          }, `,
-      );
-  }
+  const keys = Object.keys(obj)
+    .filter((key) => (hidePrivate ? key[0] != "_" : true))
+    .filter((key) => key != "id")
+    .filter((key) => obj[key]);
+
+  return (
+    (keys.length > 1 && !first ? "(" : "") +
+    keys
+      .map((key) =>
+        depth > 0
+          ? `${key}: ${objectToString(obj[key], depth - 1)}`
+          : `${key}: ${
+              obj[key].sourceString === undefined
+                ? obj[key]
+                : obj[key].sourceString
+            }`,
+      )
+      .map((string) => string + ", ")
+      .toString()
+      .slice(0, -2) +
+    (keys.length > 1 && !first ? ")" : "")
+  );
 }
 
 function calcIds(pipeline, start = []) {
@@ -451,7 +447,6 @@ function calcIds(pipeline, start = []) {
       }
       index++;
     });
-    //console.log(pipeline.map((it) => it.id.toString()));
     return pipeline;
   } else {
     return pipeline;

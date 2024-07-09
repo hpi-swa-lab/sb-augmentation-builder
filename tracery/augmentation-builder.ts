@@ -86,15 +86,6 @@ export const augmentationBuilder = (model) => ({
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
     const debugId = useMemo(() => 1, []);
-    //const history = getDebugHistory(debugId);
-
-    const debugHistoryAug = useComputed(() => {
-      //console.log("testInternatl");
-      //console.log(debugHistory.value.get(debugId));
-      return debugHistory.value;
-    });
-
-    console.log(debugHistoryAug.value.get(`fin_${debugId}`));
 
     useAsyncEffect(async () => {
       try {
@@ -137,34 +128,25 @@ export const augmentationBuilder = (model) => ({
         "div",
         {},
         h("strong", {}, "Match"),
-        h(
-          "div",
-          {},
-          debugHistoryAug.value.has(`fin_${debugId}`)
-            ? h(VitrailPane, {
-                nodes: [match],
-                ids: debugHistoryAug.value.get(`fin_${debugId}`),
-              })
-            : h(VitrailPane, { nodes: [match] }),
-        ),
+        h("div", {}, h(VitrailPane, { nodes: [match] })),
         h("hr"),
-        h("strong", {}, "View"),
+        //h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
-        h(
-          "div",
-          {},
-          debugHistoryAug.value.has(`fin_${debugId}`)
-            ? debugHistoryAug.value
-                .get(`fin_${debugId}`)
-                .map((it) =>
-                  h(
-                    "div",
-                    {},
-                    `id: ${it.id.toString()}, obj: ${it.it.toString()}`,
-                  ),
-                )
-            : null,
-        ),
+        //h(
+        //  "div",
+        //  {},
+        //  debugHistoryAug.value.has(`fin_${debugId}`)
+        //    ? debugHistoryAug.value
+        //        .get(`fin_${debugId}`)
+        //        .map((it) =>
+        //          h(
+        //            "div",
+        //            {},
+        //            `id: ${it.id.toString()}, obj: ${it.it.toString()}`,
+        //          ),
+        //        )
+        //    : null,
+        //),
       ),
       h(
         "table",
