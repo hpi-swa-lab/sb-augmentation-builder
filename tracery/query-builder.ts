@@ -29,6 +29,7 @@ import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 
 const history = computed(() => {
+  console.log(debugHistory.value.get(1));
   return debugHistory.value ? debugHistory.value : new Map();
 });
 
@@ -394,9 +395,20 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   );
 }
 
-function objectToString(obj, depth = 1, first = false, hidePrivate = true) {
+export function objectToString(
+  obj,
+  depth = 1,
+  first = false,
+  hidePrivate = true,
+) {
   if (obj == null) {
     return "";
+  }
+
+  if (Array.isArray(obj)) {
+    return (
+      "[" + obj.map((it) => objectToString(it, depth, first, hidePrivate)) + "]"
+    );
   }
 
   if (obj.sourceString !== undefined) {

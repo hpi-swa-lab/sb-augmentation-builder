@@ -67,7 +67,15 @@ export function bindPlainString(node: SBBlock) {
   };
 }
 
-export function TextArea({ text, onLocalChange, range, indexMap, style }) {
+//add onSlectionChange
+export function TextArea({
+  text,
+  onLocalChange,
+  onLocalSelectionChange = (textarea) => {},
+  range,
+  indexMap,
+  style,
+}) {
   // text = text[text.length - 1] === "\n" ? text : text + "\n";
   const textStyle = {
     padding: 0,
@@ -105,6 +113,10 @@ export function TextArea({ text, onLocalChange, range, indexMap, style }) {
             change.sideAffinity = change.from === 0 ? Side.Right : Side.Left;
             onLocalChange(change);
           }
+        },
+        onSelectionChange: (e) => {
+          const textarea = e.target;
+          onLocalSelectionChange(textarea);
         },
       },
       text,

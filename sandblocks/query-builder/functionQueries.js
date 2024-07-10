@@ -10,11 +10,35 @@ import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
 
 export const debugHistory = signal(new Map());
+export const evalRange = signal([]);
 
 export function orderFork() {}
 
 export function metaexec(obj, makeScript, debugId = null) {
-  return _metaexec(obj, makeScript, debugId)?.captures;
+  //console.log(`evalRange: ${evalRange.value}`);
+  //console.log(`debugId: ${debugId}`);
+  let _debugId = debugId;
+  if (debugId && evalRange.value != []) {
+    //console.log(`${obj.range} == ${evalRange.value}`);
+    if (
+      obj.range[0] != evalRange.value[0] ||
+      obj.range[1] != evalRange.value[1]
+    ) {
+      //console.log("_debugId: null");
+      _debugId = null;
+    } else {
+      debugHistory.value = new Map(debugHistory.value.set(debugId, []));
+      debugHistory.value = new Map(
+        debugHistory.value.set(`fin_${debugId}`, []),
+        debugHistory.value.set(`fin_${-1}`, []),
+      );
+    }
+    console.log("debugId: " + _debugId);
+    if (_debugId) {
+      console.log(obj.sourceString);
+    }
+  }
+  return _metaexec(obj, makeScript, _debugId)?.captures;
 }
 export function _metaexec(obj, makeScript, debugId) {
   function perform(debugId = null) {
@@ -39,11 +63,12 @@ export function _metaexec(obj, makeScript, debugId) {
     );
     const res = execScript(debugId, obj, ...script);
     //debugHistory.value = new Map(debugHistory.value.delete(`pos_${debugId}`));
-    if (!debugHistory.value.get(`suc_${debugId}`)) {
-      debugHistory.value = new Map(
-        debugHistory.value.set(`fin_${debugId}`, []),
-      );
-    } else if (
+    // if (!debugHistory.value.get(`suc_${debugId}`)) {
+    //   debugHistory.value = new Map(
+    //     debugHistory.value.set(`fin_${debugId}`, []),
+    //   );
+    // } else
+    if (
       debugHistory.value.has(debugId) &&
       debugHistory.value.get(debugId).length > 0
     ) {
@@ -53,8 +78,9 @@ export function _metaexec(obj, makeScript, debugId) {
           debugHistory.value.get(debugId).map((it) => it),
         ),
       );
-      //console.log(debugHistory.value.get(debugId));
     }
+    //   //console.log(debugHistory.value.get(debugId));
+    // }
     return res
       ? {
           captures: captures,
@@ -176,8 +202,8 @@ function historyMerge(debugId, newHistoryId) {
 }
 
 function historyReset(debugId) {
-  debugHistory.value = new Map(debugHistory.value.set(debugId, []));
-  debugHistory.value = new Map(debugHistory.value.set(`pos_${debugId}`, []));
+  //debugHistory.value = new Map(debugHistory.value.set(debugId, []));
+  //debugHistory.value = new Map(debugHistory.value.set(`pos_${debugId}`, []));
 }
 
 function execScript(debugId, arg, ...script) {
@@ -236,6 +262,10 @@ function _isEmptyObject(obj) {
 export function spawnArray(pipeline) {
   return (it) =>
     it.map((node) => pipeline(node)).filter((node) => node != null);
+}
+
+export function allMatch(pipeline) {
+  return (it) => it.every((node) => pipeline(node));
 }
 
 export function languageSpecific(language, ...pipeline) {
