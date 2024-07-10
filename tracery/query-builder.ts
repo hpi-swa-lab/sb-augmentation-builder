@@ -29,7 +29,7 @@ import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 
 const history = computed(() => {
-  console.log(debugHistory.value.get(1));
+  //console.log(debugHistory.value.get(1));
   return debugHistory.value ? debugHistory.value : new Map();
 });
 
@@ -366,7 +366,15 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
               "div",
               {
                 style: {
-                  border: "2px solid green",
+                  border:
+                    history.value
+                      .get(debugId)
+                      .find(
+                        (elem) =>
+                          JSON.stringify(elem.id) == JSON.stringify(step.id),
+                      ).it == false
+                      ? "2px solid red"
+                      : "2px solid green",
                   display: "inline-block",
                   padding: "0.25rem",
                 },

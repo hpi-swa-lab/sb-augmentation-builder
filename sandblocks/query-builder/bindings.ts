@@ -115,8 +115,7 @@ export function TextArea({
           }
         },
         onSelectionChange: (e) => {
-          const textarea = e.target;
-          onLocalSelectionChange(textarea);
+          onLocalSelectionChange(e.target);
         },
       },
       text,
