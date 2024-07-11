@@ -1,3 +1,4 @@
+import { SBBlock, SBText } from "../core/model.js";
 import { useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
@@ -13,6 +14,9 @@ function printString(obj, maxLength = 50) {
     if (obj === null) return "null";
     if (obj === undefined) return "undefined";
     if (typeof obj === "string") return `"${obj}"`;
+    if (obj instanceof SBBlock) return `SBBlock(${obj.type})`;
+    if (obj instanceof SBText) return `SBText(${printString(obj.text)})`;
+
     if (Array.isArray(obj))
       return `[${obj.map((o) => printString(o)).join(", ")}]`;
     if (typeof obj === "object") {
