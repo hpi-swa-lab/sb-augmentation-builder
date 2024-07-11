@@ -29,6 +29,7 @@ import {
 } from "../external/preact-signals.mjs";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
+import { Explorer } from "./explorer.ts";
 
 const history = computed(() => {
   //console.log(debugHistory.value.get(1));
@@ -352,6 +353,9 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   }
 
   const debugId = "fin_1";
+  const debugObject = history.value
+    .get(debugId)
+    ?.find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))?.it;
   return h(
     "div",
     { style: { border: "0px red dotted", paddingRight: "10px" } },
@@ -383,37 +387,19 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
             viewForLeaf(),
           ),
         ),
-        history.value.has(debugId) &&
-          history.value
-            .get(debugId)
-            .find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))
+        debugObject
           ? h(
               "div",
               {
                 style: {
                   border:
-                    history.value
-                      .get(debugId)
-                      .find(
-                        (elem) =>
-                          JSON.stringify(elem.id) == JSON.stringify(step.id),
-                      ).it == false
-                      ? "2px solid red"
-                      : "2px solid green",
+                    debugObject == false ? "2px solid red" : "2px solid green",
                   display: "inline-block",
                   padding: "0.25rem",
                 },
               },
-              objectToString(
-                history.value
-                  .get(debugId)
-                  .find(
-                    (elem) =>
-                      JSON.stringify(elem.id) == JSON.stringify(step.id),
-                  ).it,
-                2,
-                true,
-              ),
+              // objectToString(debugObject, 2, true),
+              h(Explorer, { obj: debugObject, allCollapsed: true }),
             )
           : null,
       ),

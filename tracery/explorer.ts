@@ -34,9 +34,9 @@ function* iterateProps(obj) {
   }
 }
 
-function Explorer({ obj }) {
+export function Explorer({ obj, allCollapsed }) {
   const selected = useSignal("/root");
-  const expanded = useSignal(["/root"]);
+  const expanded = useSignal(allCollapsed ? [] : ["/root"]);
 
   function* expandedSequence(expanded, obj, path = "/root") {
     yield path;
@@ -94,7 +94,7 @@ function Explorer({ obj }) {
       "table",
       {
         style: {
-          width: "100%",
+          // width: "100%",
           tableLayout: "fixed",
           borderCollapse: "collapse",
         },
@@ -103,7 +103,7 @@ function Explorer({ obj }) {
         obj,
         selected,
         parentPath: "",
-        name: "root",
+        name: "",
         expanded,
         depth: 0,
       }),
