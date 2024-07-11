@@ -133,6 +133,9 @@ export const augmentationBuilder = (model) => ({
     const exampleSelection = useSignal("");
     const exampleSelectionRange = useSignal([]);
 
+    if (debugHistoryAug.value.has(`fin_${debugId}`))
+      console.log(debugHistory.value.get(`fin_${debugId}`));
+
     return h(
       "div",
       {
@@ -149,21 +152,21 @@ export const augmentationBuilder = (model) => ({
         h("div", {}, h(VitrailPane, { nodes: [view] })),
         h("strong", {}, "History"),
         //debugHistory.value.get(`suc_${debugId}`)
-        h(
-          "div",
-          {},
-          debugHistoryAug.value.has(`fin_${debugId}`)
-            ? debugHistoryAug.value
-                .get(`fin_${debugId}`)
-                .map((it) =>
-                  h(
-                    "div",
-                    {},
-                    `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
-                  ),
-                )
-            : null,
-        ),
+        //h(
+        //  "div",
+        //  {},
+        //  debugHistoryAug.value.has(`fin_${debugId}`)
+        //    ? debugHistoryAug.value
+        //        .get(`fin_${debugId}`)
+        //        .map((it) =>
+        //          h(
+        //            "div",
+        //            {},
+        //            `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
+        //          ),
+        //        )
+        //    : null,
+        //),
         //: h(
         //    "div",
         //    { style: { color: "red" } },

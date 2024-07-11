@@ -34,7 +34,6 @@ export function metaexec(obj, makeScript, debugId = null) {
         debugHistory.value.set(`fin_${-1}`, []),
       );
     }
-    console.log("debugId: " + _debugId);
     if (_debugId) {
       console.log(obj.sourceString);
     }
@@ -167,6 +166,7 @@ function historyAddStep(debugId, index, current) {
 }
 
 function historyUpdateIt(debugId, index, current) {
+  console.log("update it");
   //const newIndex = [
   //  ...debugHistory.value
   //    .get(`pos_${debugId}`)
@@ -227,7 +227,7 @@ function execScript(debugId, arg, ...script) {
   for (const predicate of script) {
     try {
       if (debugId) {
-        indexBuf = historyAddStep(debugId, index, {});
+        indexBuf = historyAddStep(debugId, index, "empty");
         index++;
       }
       let next = predicate(current, debugId);
@@ -236,6 +236,7 @@ function execScript(debugId, arg, ...script) {
       }
       if (isAbortReason(next)) {
         if (debugId) {
+          historyUpdateIt(debugId, indexBuf, null);
           historyPreviousLevel(debugId);
         }
         return null;
@@ -244,6 +245,7 @@ function execScript(debugId, arg, ...script) {
     } catch (e) {
       console.error(e);
       if (debugId) {
+        historyUpdateIt(debugId, indexBuf, e);
         historyPreviousLevel(debugId);
       }
       return null;

@@ -353,6 +353,12 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   }
 
   const debugId = "fin_1";
+  const debugObjectExists =
+    history.value.has(debugId) &&
+    history.value
+      .get(debugId)
+      .map((it) => JSON.stringify(it.id))
+      .includes(JSON.stringify(step.id));
   const debugObject = history.value
     .get(debugId)
     ?.find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))?.it;
@@ -379,7 +385,7 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
               padding: "0.25rem",
             },
           },
-          h("div", {}, `id: ${step.id.toString()}`),
+          //h("div", {}, `id: ${step.id.toString()}`),
 
           h(
             "div",
@@ -387,33 +393,20 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
             viewForLeaf(),
           ),
         ),
-        debugObject
+        debugObjectExists
           ? h(
               "div",
               {
                 style: {
-                  border: !history.value
-                    .get(debugId)
-                    .find(
-                      (elem) =>
-                        JSON.stringify(elem.id) == JSON.stringify(step.id),
-                    ).it
-                    ? "2px solid red"
-                    : "2px solid green",
+                  border: !debugObject ? "2px solid red" : "2px solid green",
                   display: "inline-block",
-                  textAlign: !history.value
-                    .get(debugId)
-                    .find(
-                      (elem) =>
-                        JSON.stringify(elem.id) == JSON.stringify(step.id),
-                    ).it
-                    ? "center"
-                    : "left",
+                  textAlign: !debugObject ? "center" : "left",
                   padding: "0.25rem",
                 },
               },
-              // objectToString(debugObject, 2, true),
-              h(Explorer, { obj: debugObject, allCollapsed: true }),
+              debugObject
+                ? h(Explorer, { obj: debugObject, allCollapsed: true })
+                : objectToString(debugObject, 2, true),
             )
           : null,
       ),
@@ -458,8 +451,7 @@ export function objectToString(
 
   const keys = Object.keys(obj)
     .filter((key) => (hidePrivate ? key[0] != "_" : true))
-    .filter((key) => key != "id")
-    .filter((key) => obj[key]);
+    .filter((key) => key != "id");
 
   return (
     (keys.length > 1 && !first ? "(" : "") +
