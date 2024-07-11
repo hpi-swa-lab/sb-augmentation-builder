@@ -1,4 +1,5 @@
 import { SBBlock } from "../../core/model.js";
+import { useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { Side, findChange, rangeShift } from "../../utils.js";
 import {
@@ -77,6 +78,7 @@ export function TextArea({
   style,
 }) {
   // text = text[text.length - 1] === "\n" ? text : text + "\n";
+  const textAreaRef = useRef(null);
   const textStyle = {
     padding: 0,
     lineHeight: "inherit",
@@ -84,13 +86,26 @@ export function TextArea({
     fontSize: "inherit",
     border: "none",
   };
+
+  useEffect(() => {
+    const handler = () => {
+      if (document.activeElement === textAreaRef.current)
+        onLocalSelectionChange(textAreaRef.current);
+    };
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
+  }, []);
+
   return h(
     "span",
     { style: { ...style, display: "inline-grid" } },
     h(
       "textarea",
       {
-        ref: markInputEditableForNode(range, indexMap),
+        ref: (e) => {
+          textAreaRef.current = e;
+          markInputEditableForNode(range, indexMap)(e);
+        },
         rows: 1,
         cols: 1,
         style: {
@@ -113,9 +128,6 @@ export function TextArea({
             change.sideAffinity = change.from === 0 ? Side.Right : Side.Left;
             onLocalChange(change);
           }
-        },
-        onSelectionChange: (e) => {
-          onLocalSelectionChange(e.target);
         },
       },
       text,
