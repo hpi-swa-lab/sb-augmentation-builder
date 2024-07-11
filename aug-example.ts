@@ -6,6 +6,7 @@ import {
   all,
   first,
   debugIt,
+  spawnArray,
 } from "./sandblocks/query-builder/functionQueries.js";
 
 export const augExample = {
@@ -13,17 +14,16 @@ export const augExample = {
   model: languageFor("typescript"),
   match: (it) =>
     metaexec(it, (capture) => [
-      query("{ key: $value }"),
-      capture("out"),
-      first(
-        [(it) => null],
-        [(it) => null],
-        [(it) => it.value, capture("value")],
-        [(it) => it.value, capture("value2")],
+      query("({ $$$colorChannels })", "object"),
+      (it) => it.colorChannels,
+      spawnArray((it) =>
+        metaexec(it, (capture) => [
+          (it) => it.atField("value"),
+          (it) => it.type === "number",
+        ]),
       ),
-      (it) => it,
     ]),
   view: ({ nodes }) => h("div", {}, "test"),
   rerender: () => true,
-  examples: ["const a = { key: 123 }"],
+  examples: ["const a = { r: 0.3 }"],
 };

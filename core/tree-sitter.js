@@ -647,20 +647,35 @@ export class TSQuery {
 
   constructor(template, language, extract = null) {
     const processed = template.replace(/\$/g, language.parseConfig.matchPrefix);
-    const parse = processed.replace(/\(\?/g, "").replace(/\?\)/g, "");
+    const parse = processed
+      .replace(/\(\?/g, "")
+      .replace(/(?::[A-Za-z0-9]+?)?\?\)/g, "");
     const root = language.parseExpression(parse);
 
     let adjust = 0;
     const optionalStack = [];
+    // parse expressions of the form (?[a]?) and (?$abc:false?)
     for (let i = 0; i < processed.length; i++) {
       const char = processed[i];
       if (char === "(" && processed[i + 1] === "?") {
+        if (processed[i + 2] === "$") {
+          const start = i;
+          adjust += 2;
+          while (processed[i] !== ":") i++;
+          const end = i;
+          const node = root.childForRange([start, end - adjust]);
+          while (processed[i] !== "?" || processed[i + 1] !== ")") i++;
+          node.optional = processed.slice(end + 1, i);
+          adjust += 3 + node.optional.length;
+          continue;
+        }
         optionalStack.push(i - adjust);
         adjust += 2;
       }
       if (char === "?" && processed[i + 1] === ")") {
         const start = optionalStack.pop();
         const node = root.childForRange([start, i - adjust]);
+        if (!node) debugger;
         node.optional = true;
         adjust += 2;
       }
@@ -694,6 +709,10 @@ export class TSQuery {
   _match(a, b, captures) {
     if (!a || !b) return false;
     const isTemplate = a.text.startsWith(this.prefix);
+
+    // prevent optional templates from matching delimiters
+    if (isTemplate && !b.named) return false;
+
     if (isTemplate) {
       captures.push([a.text.slice(1), b]);
       return true;
@@ -741,27 +760,51 @@ export class TSQuery {
         const match = this._match(aChildren[i], bChildren[j], captures);
         if (match) continue;
         if (aChildren[i].optional) {
+          const optional = aChildren[i].optional;
           let optionalRoot = aChildren[i].root.internalClone();
           optionalRoot._sourceString = aChildren[i].root.sourceString;
           optionalRoot._language = aChildren[i].root.language;
 
-          const optionalTemplate = optionalRoot.childForRange(
-            aChildren[i].range,
-          );
+          let optionalTemplate = optionalRoot.childForRange(aChildren[i].range);
+          const toRemove = [];
           for (const child of optionalTemplate.allNodes()) {
             if (child.named && child.text.startsWith(this.prefix)) {
               if (child.text.startsWith(this.parentPrefix)) {
                 captures.push([child.text.slice(2), child.parent]);
+                toRemove.push(child);
               } else {
-                captures.push([child.text.slice(1), new SBBlock()]);
-                throw new Error("Still need to implement fallback definitions");
+                captures.push([child.text.slice(1), child]);
+                toRemove.push(child);
               }
             }
           }
 
           console.assert(optionalTemplate.connected);
-          optionalRoot =
-            optionalRoot.language.removeQueryMarkers(optionalTemplate);
+          const editor = new OffscreenEditor(optionalTemplate.root);
+          optionalTemplate.root._editor.transaction(() => {
+            for (const marker of toRemove) {
+              if (marker.text.startsWith("$_")) marker.removeFull();
+              // FIXME assumes a single optional child
+              else marker.replaceWith(optional);
+            }
+          });
+
+          editor.root._editor = undefined;
+          optionalRoot = editor.root;
+
+          if (optional !== true) {
+            const replaced = optionalRoot.childForRange([
+              optionalTemplate.range[0],
+              optionalTemplate.range[0] + optional.length,
+            ]);
+
+            for (const capture of captures) {
+              if (capture[1] === optionalTemplate) {
+                capture[1] = replaced;
+              }
+            }
+            optionalTemplate = replaced;
+          }
           console.assert(optionalTemplate.connected);
           optionalRoot._editor = new MaybeEditor(
             b.editor,

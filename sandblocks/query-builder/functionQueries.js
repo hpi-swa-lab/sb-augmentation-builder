@@ -259,9 +259,15 @@ function _isEmptyObject(obj) {
   return Object.keys(obj).length === 0 && obj.constructor === Object;
 }
 
-export function spawnArray(pipeline) {
-  return (it) =>
-    it.map((node) => pipeline(node)).filter((node) => node != null);
+export function spawnArray(pipeline, filter = true) {
+  return (it) => {
+    const matches = it.map((node) => pipeline(node));
+    if (filter) {
+      return matches.filter((node) => node != null);
+    } else {
+      return matches.every((it) => !isAbortReason(it)) ? matches : null;
+    }
+  };
 }
 
 export function allMatch(pipeline) {

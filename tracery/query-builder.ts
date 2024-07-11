@@ -1,6 +1,7 @@
 import { h } from "../external/preact.mjs";
 import {
   all,
+  captureAll,
   debugHistory,
   first,
   metaexec,
@@ -10,6 +11,7 @@ import {
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
 import {
+  VitrailPane,
   VitrailPaneWithWhitespace,
   useValidateNoError,
 } from "../vitrail/vitrail.ts";
@@ -165,9 +167,8 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
-        query("spawnArray($call)"),
-        (it) => it.call,
-        capture("call"),
+        query("spawnArray($call, (?$matchAll:false?))"),
+        captureAll(capture),
         () => PipelineSteps.SPAWN_ARRAY,
         capture("stepType"),
       ],
@@ -254,6 +255,28 @@ function StepCapture({ name }) {
   return [h(Codicon, { name: "bookmark" }), h(TextArea, name)];
 }
 
+function StepSpawnArray({ call, matchAll }) {
+  return [
+    h(
+      "div",
+      {},
+      h(
+        "div",
+        {
+          style: { display: "flex" },
+          onClick: () =>
+            matchAll.replaceWith(matchAll.text === "true" ? "false" : "true"),
+        },
+        h(Codicon, {
+          name: matchAll.text === "true" ? "checklist" : "list-unordered",
+        }),
+        matchAll.text === "true" ? " Match all" : " Process and filter all",
+      ),
+      h(VitrailPane, { nodes: [call] }),
+    ),
+  ];
+}
+
 function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
   // console.log("StepType");
   // console.log(step.step.stepType);
@@ -312,6 +335,8 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
     switch (step.stepType) {
       case PipelineSteps.CAPTURE:
         return h(StepCapture, step);
+      case PipelineSteps.SPAWN_ARRAY:
+        return h(StepSpawnArray, step);
       case PipelineSteps.EXTRACT:
         return h(StepExtract, step);
       case PipelineSteps.FUNCTION:
