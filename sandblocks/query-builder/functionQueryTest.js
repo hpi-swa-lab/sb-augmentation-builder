@@ -6,6 +6,7 @@ import {
   ExportBinding,
   all,
   also,
+  debugHistory,
   first,
   languageSpecific,
   log,
@@ -196,7 +197,7 @@ describe("UI-Tool-Tests", () => {
     await typescript.ready();
     const code = `const x = "test"`;
     const tree = typescript.parseSync(code);
-
+    const id = 123;
     const pipeline = (node) =>
       metaexec(
         node,
@@ -204,15 +205,16 @@ describe("UI-Tool-Tests", () => {
           (it) => it.query("const $var = $name"),
           (it) => it,
           all(
-            [(it) => it.name, capture("name")],
+            [((it) => it.name, capture("name"))],
             [(it) => it.var, capture("var")],
             [(it) => it.var, capture("var2")],
           ),
         ],
-        randomId(),
+        id,
       );
 
     const res = simSbMatching2(tree, pipeline);
+    const history = debugHistory.value.get(`fin_${id}`);
     debugger;
   });
 

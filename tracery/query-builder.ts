@@ -379,7 +379,7 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
               padding: "0.25rem",
             },
           },
-          //h("div", {}, `id: ${step.id.toString()}`),
+          h("div", {}, `id: ${step.id.toString()}`),
 
           h(
             "div",
@@ -392,9 +392,23 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
               "div",
               {
                 style: {
-                  border:
-                    debugObject == false ? "2px solid red" : "2px solid green",
+                  border: !history.value
+                    .get(debugId)
+                    .find(
+                      (elem) =>
+                        JSON.stringify(elem.id) == JSON.stringify(step.id),
+                    ).it
+                    ? "2px solid red"
+                    : "2px solid green",
                   display: "inline-block",
+                  textAlign: !history.value
+                    .get(debugId)
+                    .find(
+                      (elem) =>
+                        JSON.stringify(elem.id) == JSON.stringify(step.id),
+                    ).it
+                    ? "center"
+                    : "left",
                   padding: "0.25rem",
                 },
               },
@@ -421,7 +435,11 @@ export function objectToString(
   hidePrivate = true,
 ) {
   if (obj == null) {
-    return "";
+    return "❌";
+  }
+
+  if (obj == true) {
+    return "✅";
   }
 
   if (Array.isArray(obj)) {

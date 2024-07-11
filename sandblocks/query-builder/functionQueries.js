@@ -8,6 +8,7 @@ import {
 import { computed, signal } from "../../external/preact-signals.mjs";
 import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
+import { randomId } from "../../utils.js";
 
 export const debugHistory = signal(new Map());
 export const evalRange = signal([]);
@@ -188,6 +189,11 @@ function historyMerge(debugId, newHistoryId) {
   const currentStepId =
     debugHistory.value.get(debugId)[debugHistory.value.get(debugId).length - 1]
       .id;
+  console.log(
+    `Merging ${currentStepId}, ${debugHistory.value
+      .get(newHistoryId)
+      .map((it) => it.id)} `,
+  );
   debugHistory.value.get(newHistoryId).forEach((step) => {
     debugHistory.value = new Map(
       debugHistory.value.set(debugId, [
@@ -226,26 +232,24 @@ function execScript(debugId, arg, ...script) {
       }
       let next = predicate(current, debugId);
       if (debugId) {
-        //historyAddStep(debugId, index - 1, next);
         historyUpdateIt(debugId, indexBuf, next);
       }
       if (isAbortReason(next)) {
         if (debugId) {
-          historyReset(debugId);
+          historyPreviousLevel(debugId);
         }
         return null;
       }
       if (next !== true) current = next;
     } catch (e) {
-      if (debugId) {
-        historyReset(debugId);
-      }
       console.error(e);
+      if (debugId) {
+        historyPreviousLevel(debugId);
+      }
       return null;
     }
   }
   if (debugId) {
-    console.log("suc_1 -> true");
     debugHistory.value = new Map(
       debugHistory.value.set(`suc_${debugId}`, true),
     );
@@ -306,26 +310,20 @@ export function also(...pipeline) {
 
 export function first(...pipelines) {
   return (it, debugId = null) => {
+    //if (debugId) debugger;
     let index = 0;
-    const tmp_id = debugId ? -1 : null;
-    if (debugId) {
-      debugHistory.value = new Map(debugHistory.value.set(`pos_${tmp_id}`, []));
-      debugHistory.value = new Map(debugHistory.value.set(tmp_id, []));
-    }
     for (const pipeline of pipelines) {
       if (debugId) {
-        historyNextLevel(tmp_id);
-        historyAddStep(tmp_id, index, {});
-        index++;
+        historyNextLevel(debugId);
+        historyAddStep(debugId, index, {});
       }
-      const res = execScript(tmp_id, it, ...pipeline);
+      index++;
+      const res = execScript(debugId, it, ...pipeline);
       if (debugId) {
-        historyPreviousLevel(tmp_id);
+        historyPreviousLevel(debugId);
+        //historyMerge(debugId, tmp_id);
       }
       if (res) {
-        if (debugId) {
-          historyMerge(debugId, tmp_id);
-        }
         return res;
       }
     }
