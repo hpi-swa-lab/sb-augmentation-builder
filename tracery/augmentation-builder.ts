@@ -217,6 +217,7 @@ export const augmentationBuilder = (model) => ({
                           ];
                           exampleSelectionRange.value = [];
                           console.log(evalRange.value);
+                          augmentation.value = null;
                         },
                       },
                       "Mark for Feedback",
