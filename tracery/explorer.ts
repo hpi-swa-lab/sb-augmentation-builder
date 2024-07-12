@@ -9,6 +9,11 @@ export function openExplorer(obj, windowProps?) {
   openComponentInWindow(Explorer, { obj }, windowProps);
 }
 
+function truncateString(s, maxLength = 50) {
+  if (s.length > maxLength) return s.slice(0, maxLength - 3) + "...";
+  return s;
+}
+
 function printString(obj, maxLength = 50) {
   const print = (obj) => {
     if (obj === null) return "null";
@@ -20,19 +25,23 @@ function printString(obj, maxLength = 50) {
     if (Array.isArray(obj))
       return `[${obj.map((o) => printString(o)).join(", ")}]`;
     if (typeof obj === "object") {
-      if (!obj.constructor) return "{}";
+      if (!obj.constructor || obj.constructor.name === "Object")
+        return `{${truncateString(
+          Object.keys(obj).join(", "),
+          maxLength - 5,
+        )}}`;
       return `[object ${obj.constructor.name}]`;
     }
     return obj.toString();
   };
 
-  const s = print(obj);
-  if (s.length > maxLength) return s.slice(0, maxLength - 3) + "...";
-  return s;
+  return truncateString(print(obj), maxLength);
 }
 
 function* iterateProps(obj) {
   if (typeof obj === "string") return;
+  if (obj instanceof SBBlock)
+    return yield* ["children", "id", "field", "named", "type"];
   for (const key in obj) {
     yield key;
   }

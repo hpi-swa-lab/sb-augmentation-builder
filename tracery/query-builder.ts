@@ -11,7 +11,6 @@ import {
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
 import {
-  VitrailContext,
   VitrailPane,
   VitrailPaneWithWhitespace,
   usePaneProps,
@@ -391,6 +390,13 @@ function PipelineStep({
           ),
       });
 
+    if (path === "//type")
+      a.push({
+        label: "Assert This Type",
+        action: () =>
+          step.node.insertAfter(`(it) => it.type === "${obj}"`, "expression"),
+      });
+
     if (path.match(/\/\/[A-Za-z]+/))
       a.push({
         label: "Extract",
@@ -453,14 +459,16 @@ function PipelineStep({
                 },
               },
               debugObject
-                ? h(Explorer, {
-                    obj: debugObject,
-                    allCollapsed: true,
-                    actionsForItem: async (obj, path) => {
-                      const list = actions(obj, path);
-                      if (list.length > 0) (await choose(list))?.action();
-                    },
-                  })
+                ? debugObject === true
+                  ? "✅"
+                  : h(Explorer, {
+                      obj: debugObject,
+                      allCollapsed: true,
+                      actionsForItem: async (obj, path) => {
+                        const list = actions(obj, path);
+                        if (list.length > 0) (await choose(list))?.action();
+                      },
+                    })
                 : objectToString(debugObject, 2, true),
             )
           : null,
