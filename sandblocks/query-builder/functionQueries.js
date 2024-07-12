@@ -266,8 +266,26 @@ function _isEmptyObject(obj) {
 }
 
 export function spawnArray(pipeline, filter = true) {
-  return (it) => {
-    const matches = it.map((node) => pipeline(node));
+  return (it, debugId = null) => {
+    let matches = null;
+    if (Array.isArray(pipeline)) {
+      let index = 0;
+      matches = it.map((node) => {
+        if (debugId) {
+          historyNextLevel(debugId);
+          historyAddStep(debugId, index, {});
+        }
+        index++;
+        const res = execScript(debugId, node, ...pipeline);
+        if (debugId) {
+          historyPreviousLevel(debugId);
+        }
+        return res;
+      });
+    } else {
+      matches = it.map((node) => pipeline(node));
+    }
+
     if (filter) {
       return matches.filter((node) => node != null);
     } else {

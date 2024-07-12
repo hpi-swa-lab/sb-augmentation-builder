@@ -19,6 +19,7 @@ export const augExample = {
       (it) => it.type == "array",
       all(
         [(it) => it.childBlocks, allMatch([(it) => it.type == "array"])],
+        [(it) => it.childBlocks, spawnArray([(it) => it.toString()])],
         [
           (it) =>
             it.childBlocks.every(
