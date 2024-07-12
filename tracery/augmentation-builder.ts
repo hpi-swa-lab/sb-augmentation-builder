@@ -20,14 +20,9 @@ import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
-import {
-  computed,
-  useComputed,
-  useSignal,
-} from "../external/preact-signals.mjs";
+import { useComputed, useSignal } from "../external/preact-signals.mjs";
+import { randomId, rangeSize } from "../utils.js";
 import { useAsyncEffect } from "../view/widgets.js";
-import { randomId } from "../utils.js";
-import { objectToString } from "./query-builder.ts";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -87,13 +82,12 @@ export const augmentationBuilder = (model) => ({
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
-    const debugId = useMemo(() => 1, []);
+    const debugId = useMemo(() => randomId().toString(), []);
     const debugHistoryAug = useComputed(() =>
       debugHistory.value ? debugHistory.value : new Map(),
     );
 
     useAsyncEffect(async () => {
-      console.log("reevaluating");
       debugHistory.value = new Map(
         debugHistory.value.set(`suc_${debugId}`, false),
       );
@@ -101,7 +95,7 @@ export const augmentationBuilder = (model) => ({
         const aug = node.cloneOffscreen();
         aug
           .findQuery("metaexec($_args)")
-          ?.args?.insert(debugId, "expression", 9e8);
+          ?.args?.insert(`"${debugId}"`, "expression", 9e8);
         const imports =
           metaexec(node.root, (capture) => [
             (it) => it.childBlocks,
@@ -130,8 +124,7 @@ export const augmentationBuilder = (model) => ({
       }
     }, [node.sourceString, evalRange.value]);
 
-    const exampleSelection = useSignal("");
-    const exampleSelectionRange = useSignal([]);
+    const exampleSelectionRange = useSignal([0, 0]);
 
     if (debugHistoryAug.value.has(`fin_${debugId}`))
       console.log(debugHistory.value.get(`fin_${debugId}`));
@@ -146,7 +139,7 @@ export const augmentationBuilder = (model) => ({
         "div",
         {},
         h("strong", {}, "Match"),
-        h("div", {}, h(VitrailPane, { nodes: [match] })),
+        h("div", {}, h(VitrailPane, { nodes: [match], props: { debugId } })),
         h("hr"),
         h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
@@ -183,11 +176,11 @@ export const augmentationBuilder = (model) => ({
           h("td", {}, "Preview"),
         ),
         h(NodeArray, {
-          insertItem: () => "''",
+          insertItem: () => "['', [0, 0]]",
           container: examples,
           wrap: (it) => it,
           view: (it, ref, onmousemove, onmouseleave) => {
-            const e = bindPlainString(it);
+            const e = bindPlainString(it.childBlock(0));
             return h(
               "tr",
               { ref, onmousemove, onmouseleave },
@@ -197,10 +190,6 @@ export const augmentationBuilder = (model) => ({
                 h(TextArea, {
                   ...e,
                   onLocalSelectionChange: (textarea) => {
-                    exampleSelection.value = textarea.value.substring(
-                      textarea.selectionStart,
-                      textarea.selectionEnd,
-                    );
                     exampleSelectionRange.value = [
                       textarea.selectionStart,
                       textarea.selectionEnd,
@@ -208,24 +197,26 @@ export const augmentationBuilder = (model) => ({
                   },
                   style: { width: "100%", border: "1px solid #ccc" },
                 }),
-                exampleSelection.value != ""
-                  ? h(
-                      "button",
-                      {
-                        onclick: () => {
-                          exampleSelection.value = "";
-                          evalRange.value = [
-                            exampleSelectionRange.value[0],
-                            exampleSelectionRange.value[1],
-                          ];
-                          exampleSelectionRange.value = [];
-                          console.log(evalRange.value);
-                          augmentation.value = null;
-                        },
-                      },
-                      "Mark for Feedback",
-                    )
-                  : null,
+                h(
+                  "button",
+                  {
+                    style: {
+                      visibility:
+                        rangeSize(exampleSelectionRange.value) > 0
+                          ? "visible"
+                          : "hidden",
+                    },
+                    onclick: () => {
+                      evalRange.value = [
+                        exampleSelectionRange.value[0],
+                        exampleSelectionRange.value[1],
+                      ];
+                      exampleSelectionRange.value = [0, 0];
+                      augmentation.value = null;
+                    },
+                  },
+                  "Mark for Feedback",
+                ),
               ),
               h(
                 "td",

@@ -393,6 +393,10 @@ export function rangeDistance(a, b) {
   else return 0;
 }
 
+export function rangeSize(a) {
+  return a[1] - a[0];
+}
+
 export function rangeShift(range, delta) {
   return [range[0] + delta, range[1] + delta];
 }

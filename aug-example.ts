@@ -27,5 +27,5 @@ export const augExample = {
     ]),
   view: ({ nodes }) => h("div", {}, "test"),
   rerender: () => true,
-  examples: ["const a = { r: 0.3 }"],
+  examples: [["const a = { r: 0.3 }", [0, 0]]],
 };

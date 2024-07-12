@@ -50,6 +50,8 @@ import { forwardRef } from "../view/widgets.js";
 export const VitrailContext = createContext(null);
 export const useVitrailProps = () =>
   useContext(VitrailContext).vitrail.props.value;
+export const usePaneProps = () =>
+  useContext(VitrailContext).pane.props.value ?? {};
 
 type ReplacementProps = { [field: string]: any } & {
   nodes: SBNode[];
@@ -554,6 +556,7 @@ export class Pane<T> {
   markers: { nodes: SBNode[] }[] = [];
   startIndex: number = -1;
   startLineNumber: number = -1;
+  props = signal(null);
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
@@ -1028,6 +1031,7 @@ type VitrailPaneProps = {
   style: any;
   className: string;
   ref;
+  props: { [field: string]: any };
 };
 export const VitrailPane = forwardRef(function VitrailPane(
   props: VitrailPaneProps,
@@ -1045,6 +1049,7 @@ const _VitrailPane = forwardRef(function _VitrailPane(
     nodes,
     style,
     className,
+    props,
   }: VitrailPaneProps,
   ref,
 ) {
@@ -1068,6 +1073,8 @@ const _VitrailPane = forwardRef(function _VitrailPane(
     pane.connectNodes(vitrail, nodes);
     return () => vitrail.unregisterPane(pane);
   }, [vitrail, ...nodes]);
+
+  pane.props.value = props;
 
   return h("span", {
     key: "stable",

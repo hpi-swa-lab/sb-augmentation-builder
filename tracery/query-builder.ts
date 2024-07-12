@@ -11,8 +11,10 @@ import {
 import { NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
 import {
+  VitrailContext,
   VitrailPane,
   VitrailPaneWithWhitespace,
+  usePaneProps,
   useValidateNoError,
 } from "../vitrail/vitrail.ts";
 import { choose } from "./window.js";
@@ -27,7 +29,7 @@ import {
   useComputed,
   useSignal,
 } from "../external/preact-signals.mjs";
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useContext, useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 import { Explorer } from "./explorer.ts";
 
@@ -77,6 +79,8 @@ export const queryBuilder = (model) => {
     view: ({ steps, pipeline, nodes }) => {
       useValidateNoError(nodes);
 
+      const { debugId } = usePaneProps();
+
       return h(NodeArray, {
         container: pipeline,
         items: steps,
@@ -92,6 +96,7 @@ export const queryBuilder = (model) => {
           ),
         view: (step, ref, onmousemove, onmouseleave) =>
           h(PipelineStep, {
+            debugId,
             step,
             containerRef: ref,
             onmousemove,
@@ -278,7 +283,13 @@ function StepSpawnArray({ call, matchAll }) {
   ];
 }
 
-function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
+function PipelineStep({
+  step,
+  debugId,
+  containerRef,
+  onmousemove,
+  onmouseleave,
+}) {
   // console.log("StepType");
   // console.log(step.step.stepType);
   // console.log(step);
@@ -303,7 +314,13 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
           it,
         ),
       view: (step) =>
-        h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
+        h(PipelineStep, {
+          debugId,
+          step,
+          containerRef,
+          onmousemove,
+          onmouseleave,
+        }),
     });
 
   if (step.stepType == PipelineSteps.PIPELINE)
@@ -329,7 +346,13 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
           it,
         ),
       view: (step, containerRef, onmousemove, onmouseleave) =>
-        h(PipelineStep, { step, containerRef, onmousemove, onmouseleave }),
+        h(PipelineStep, {
+          debugId,
+          step,
+          containerRef,
+          onmousemove,
+          onmouseleave,
+        }),
     });
 
   function viewForLeaf() {
@@ -352,7 +375,6 @@ function PipelineStep({ step, containerRef, onmousemove, onmouseleave }) {
     }
   }
 
-  const debugId = "fin_1";
   const debugObjectExists =
     history.value.has(debugId) &&
     history.value
