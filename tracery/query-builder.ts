@@ -511,7 +511,7 @@ function PipelineStep({
               padding: "0.25rem",
             },
           },
-          //h("div", {}, `id: ${step.id.toString()}`),
+          //h("div", {}, step.id ? `id: ${step.id.toString()}` : "NO ID"),
 
           h(
             "div",
@@ -620,6 +620,12 @@ function calcIds(pipeline, start = []) {
         ].includes(step.stepType)
       ) {
         calcIds(step.steps, step["id"]);
+      }
+      //FIX ME: This is a workarround, because the matching of SPWAN_ARRAY is done differently.
+      //It does not contain a list of steps, but a pipeline object.
+      if (step.stepType == PipelineSteps.SPAWN_ARRAY) {
+        step.steps["id"] = [...start, index, 0];
+        calcIds(step.steps.steps, step.steps["id"]);
       }
       index++;
     });

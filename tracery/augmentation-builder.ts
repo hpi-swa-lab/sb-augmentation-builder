@@ -144,22 +144,22 @@ export const augmentationBuilder = (model) => ({
         h("hr"),
         h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
-        h("strong", {}, "History"),
-        h(
-          "div",
-          {},
-          debugHistoryAug.value.has(`fin_${debugId}`)
-            ? debugHistoryAug.value
-                .get(`fin_${debugId}`)
-                .map((it) =>
-                  h(
-                    "div",
-                    {},
-                    `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
-                  ),
-                )
-            : null,
-        ),
+        //h("strong", {}, "History"),
+        //h(
+        //  "div",
+        //  {},
+        //  debugHistoryAug.value.has(`fin_${debugId}`)
+        //    ? debugHistoryAug.value
+        //        .get(`fin_${debugId}`)
+        //        .map((it) =>
+        //          h(
+        //            "div",
+        //            {},
+        //            `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
+        //          ),
+        //        )
+        //    : null,
+        //),
       ),
       h(
         "table",
