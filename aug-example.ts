@@ -17,11 +17,7 @@ export const augExample = {
       query("({$$$colorChannels})", "object"),
       (it) => it.colorChannels,
       spawnArray(
-        (it) =>
-          metaexec(it, (capture) => [
-            (it) => it.atField("value"),
-            (it) => it.type === "number",
-          ]),
+        [(it) => it.atField("value"), (it) => it.type === "number"],
         true,
       ),
     ]),

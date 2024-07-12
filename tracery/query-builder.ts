@@ -163,6 +163,15 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
+        query("spawnArray([$_steps], (?$matchAll:false?))"),
+        all(
+          [(it) => it.matchAll, capture("matchAll")],
+          [(it) => it.steps, getPipelineStep, capture("steps")],
+          [() => PipelineSteps.SPAWN_ARRAY, capture("stepType")],
+        ),
+        (_) => true,
+      ],
+      [
         query(`query($query, (?"$_extract"?))`),
         all(
           [(it) => it.query, bindPlainString, capture("query")],
@@ -263,7 +272,7 @@ function StepCapture({ name }) {
   return [h(Codicon, { name: "bookmark" }), h(TextArea, name)];
 }
 
-function StepSpawnArray({ call, matchAll }) {
+function StepSpawnArray({ call, steps, matchAll, debugId }) {
   return [
     h(
       "div",
@@ -280,7 +289,9 @@ function StepSpawnArray({ call, matchAll }) {
         }),
         matchAll.text === "true" ? " Match all" : " Process and filter all",
       ),
-      h(VitrailPane, { nodes: [call] }),
+      call
+        ? h(VitrailPane, { nodes: [call] })
+        : h(PipelineStep, { step: steps, debugId }),
     ),
   ];
 }
@@ -362,7 +373,7 @@ function PipelineStep({
       case PipelineSteps.CAPTURE:
         return h(StepCapture, step);
       case PipelineSteps.SPAWN_ARRAY:
-        return h(StepSpawnArray, step);
+        return h(StepSpawnArray, { ...step, debugId });
       case PipelineSteps.EXTRACT:
         return h(StepExtract, step);
       case PipelineSteps.FUNCTION:
