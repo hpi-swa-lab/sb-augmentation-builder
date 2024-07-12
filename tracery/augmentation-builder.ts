@@ -23,6 +23,7 @@ import { FileProject } from "./project.js";
 import { useComputed, useSignal } from "../external/preact-signals.mjs";
 import { randomId, rangeSize } from "../utils.js";
 import { useAsyncEffect } from "../view/widgets.js";
+import { objectToString } from "./query-builder.ts";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -144,27 +145,21 @@ export const augmentationBuilder = (model) => ({
         h("strong", {}, "View"),
         h("div", {}, h(VitrailPane, { nodes: [view] })),
         h("strong", {}, "History"),
-        //debugHistory.value.get(`suc_${debugId}`)
-        //h(
-        //  "div",
-        //  {},
-        //  debugHistoryAug.value.has(`fin_${debugId}`)
-        //    ? debugHistoryAug.value
-        //        .get(`fin_${debugId}`)
-        //        .map((it) =>
-        //          h(
-        //            "div",
-        //            {},
-        //            `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
-        //          ),
-        //        )
-        //    : null,
-        //),
-        //: h(
-        //    "div",
-        //    { style: { color: "red" } },
-        //    "Query did not match example",
-        //  ),
+        h(
+          "div",
+          {},
+          debugHistoryAug.value.has(`fin_${debugId}`)
+            ? debugHistoryAug.value
+                .get(`fin_${debugId}`)
+                .map((it) =>
+                  h(
+                    "div",
+                    {},
+                    `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
+                  ),
+                )
+            : null,
+        ),
       ),
       h(
         "table",
