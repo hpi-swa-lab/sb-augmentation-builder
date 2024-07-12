@@ -307,7 +307,68 @@ function PipelineStep({
   // console.log(step.step.stepType);
   // console.log(step);
 
-  if ([PipelineSteps.ALL, PipelineSteps.FIRST].includes(step.stepType))
+  if (step.stepType == PipelineSteps.FIRST)
+    return h(NodeArray, {
+      container: step.node,
+      items: step.steps,
+      insertItem,
+      wrap: (it) =>
+        h(
+          "div",
+          {
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              marginLeft: "0rem",
+              marginRight: "1rem",
+            },
+          },
+          h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                flexDirection: "row",
+                marginLeft: "1rem",
+                //marginRight: "1rem",
+                borderTop: "2px solid black",
+              },
+            },
+            it,
+          ),
+          h("div", {
+            style: {
+              marginLeft: "1rem",
+              //marginRight: "1rem",
+              height: "2rem",
+              borderLeft: "2px solid black",
+              borderTop: "2px solid black",
+            },
+          }),
+        ),
+      view: (step) =>
+        h(
+          "div",
+          { style: { display: "flex", flexDirection: "column" } },
+
+          h(PipelineStep, {
+            debugId,
+            step,
+            containerRef,
+            onmousemove,
+            onmouseleave,
+          }),
+          h("div", {
+            style: {
+              flexGrow: 1,
+              borderLeft: "2px solid black",
+              marginLeft: "1rem",
+            },
+          }),
+        ),
+    });
+
+  if (step.stepType == PipelineSteps.ALL)
     return h(NodeArray, {
       container: step.node,
       items: step.steps,

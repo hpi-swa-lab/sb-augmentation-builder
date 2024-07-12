@@ -17,6 +17,12 @@ export const augExample = {
   match: (it) =>
     metaexec(it, (capture) => [
       (it) => it.type == "array",
+
+      first(
+        [(it) => it.type == "array", (it) => null],
+        [(it) => null],
+        [(it) => it],
+      ),
       all(
         [(it) => it.childBlocks, allMatch([(it) => it.type == "array"])],
         [(it) => it.childBlocks, spawnArray([(it) => it.toString()])],
