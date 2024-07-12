@@ -266,8 +266,26 @@ function _isEmptyObject(obj) {
 }
 
 export function spawnArray(pipeline, filter = true) {
-  return (it) => {
-    const matches = it.map((node) => pipeline(node));
+  return (it, debugId = null) => {
+    let matches = null;
+    if (Array.isArray(pipeline)) {
+      let index = 0;
+      matches = it.map((node) => {
+        if (debugId) {
+          historyNextLevel(debugId);
+          historyAddStep(debugId, index, {});
+        }
+        index++;
+        const res = execScript(debugId, node, ...pipeline);
+        if (debugId) {
+          historyPreviousLevel(debugId);
+        }
+        return res;
+      });
+    } else {
+      matches = it.map((node) => pipeline(node));
+    }
+
     if (filter) {
       return matches.filter((node) => node != null);
     } else {
@@ -277,7 +295,24 @@ export function spawnArray(pipeline, filter = true) {
 }
 
 export function allMatch(pipeline) {
-  return (it) => it.every((node) => pipeline(node));
+  return (it, debugId = null) => {
+    let index = 0;
+    return Array.isArray(pipeline)
+      ? it.every((node) => {
+          if (debugId) {
+            historyNextLevel(debugId);
+            historyAddStep(debugId, index, {});
+          }
+          index++;
+          const res = execScript(debugId, node, ...pipeline);
+          if (debugId) {
+            historyPreviousLevel(debugId);
+            //historyMerge(debugId, tmp_id);
+          }
+          return res;
+        })
+      : it.every((node) => pipeline(node));
+  };
 }
 
 export function languageSpecific(language, ...pipeline) {
