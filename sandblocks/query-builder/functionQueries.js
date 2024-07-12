@@ -11,7 +11,7 @@ import { languageFor, languageForPath } from "../../core/languages.js";
 import { randomId } from "../../utils.js";
 
 export const debugHistory = signal(new Map());
-export const evalRange = signal([]);
+export const evalRange = signal([10, 20]);
 
 export function orderFork() {}
 

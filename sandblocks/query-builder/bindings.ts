@@ -110,6 +110,7 @@ export function TextArea({
         cols: 1,
         style: {
           ...textStyle,
+          ...style,
           overflow: "hidden",
           resize: "none",
           gridArea: "1 / 1 / 2 / 2",

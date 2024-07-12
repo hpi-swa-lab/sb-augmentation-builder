@@ -215,7 +215,10 @@ function StepQuery({ query, extract }) {
       "div",
       { style: { display: "flex", gap: "0.25rem" } },
       h(Codicon, { name: "surround-with" }),
-      h(TextArea, query),
+      h(TextArea, {
+        ...query,
+        style: { color: "#990000", fontStyle: "italic" },
+      }),
       h(
         "div",
         {
@@ -375,6 +378,29 @@ function PipelineStep({
     }
   }
 
+  const actions = (obj, path) => {
+    const a: { label: string; action: () => void }[] = [];
+
+    if (path === "/" && Array.isArray(obj))
+      a.push({
+        label: "Iterate",
+        action: () =>
+          step.node.insertAfter(
+            "spawnArray((node) => metaexec(node, (capture) => []))",
+            "expression",
+          ),
+      });
+
+    if (path.match(/\/\/[A-Za-z]+/))
+      a.push({
+        label: "Extract",
+        action: () =>
+          step.node.insertAfter(`(it) => it.${path.slice(2)}`, "expression"),
+      });
+
+    return a;
+  };
+
   const debugObjectExists =
     history.value.has(debugId) &&
     history.value
@@ -427,7 +453,14 @@ function PipelineStep({
                 },
               },
               debugObject
-                ? h(Explorer, { obj: debugObject, allCollapsed: true })
+                ? h(Explorer, {
+                    obj: debugObject,
+                    allCollapsed: true,
+                    actionsForItem: async (obj, path) => {
+                      const list = actions(obj, path);
+                      if (list.length > 0) (await choose(list))?.action();
+                    },
+                  })
                 : objectToString(debugObject, 2, true),
             )
           : null,

@@ -92,12 +92,12 @@ export function NodeArray({
             onRemove: () => {
               let nodeToDelete = nodeFromItem(items[index]);
               if (container.childBlocks.length == 1) {
-                container.removeSelf();
+                container.removeFull();
               } else {
                 while (nodeToDelete.parent.id != container.id) {
                   nodeToDelete = nodeToDelete.parent;
                 }
-                nodeToDelete.removeSelf();
+                nodeToDelete.removeFull();
               }
             },
             node: it,

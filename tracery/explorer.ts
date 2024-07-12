@@ -38,7 +38,7 @@ function* iterateProps(obj) {
   }
 }
 
-export function Explorer({ obj, allCollapsed }) {
+export function Explorer({ obj, allCollapsed, actionsForItem }) {
   const selected = useSignal("/root");
   const expanded = useSignal(allCollapsed ? [] : ["/root"]);
 
@@ -110,6 +110,7 @@ export function Explorer({ obj, allCollapsed }) {
         name: "",
         expanded,
         depth: 0,
+        actionsForItem,
       }),
     ),
   );
@@ -120,7 +121,15 @@ appendCss(`
   background: #eee;
 }`);
 
-function ExplorerObject({ obj, selected, name, parentPath, expanded, depth }) {
+function ExplorerObject({
+  obj,
+  selected,
+  name,
+  parentPath,
+  expanded,
+  depth,
+  actionsForItem,
+}) {
   const path = parentPath + "/" + name;
   const isExpanded = expanded.value.includes(path);
   const ref = useRef();
@@ -143,6 +152,7 @@ function ExplorerObject({ obj, selected, name, parentPath, expanded, depth }) {
           parentPath: path,
           expanded,
           depth: depth + 1,
+          actionsForItem,
         }),
       );
     }
@@ -160,6 +170,10 @@ function ExplorerObject({ obj, selected, name, parentPath, expanded, depth }) {
         ref,
         style: selected.value === path ? { background: "#ccc" } : {},
         onclick: () => (selected.value = path),
+        oncontextmenu: (e) => {
+          e.preventDefault();
+          actionsForItem?.(obj, path);
+        },
       },
       h(
         "td",
