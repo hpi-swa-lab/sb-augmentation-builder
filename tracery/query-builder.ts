@@ -330,7 +330,6 @@ function PipelineStep({
                 display: "flex",
                 flexDirection: "row",
                 marginLeft: "1rem",
-                //marginRight: "1rem",
                 borderTop: "2px solid black",
               },
             },
@@ -339,7 +338,13 @@ function PipelineStep({
           h("div", {
             style: {
               marginLeft: "1rem",
-              //marginRight: "1rem",
+              height: "2rem",
+              borderLeft: "2px solid black",
+            },
+          }),
+          h("div", {
+            style: {
+              marginLeft: "1rem",
               height: "2rem",
               borderLeft: "2px solid black",
               borderTop: "2px solid black",
@@ -479,6 +484,11 @@ function PipelineStep({
     return a;
   };
 
+  const first = step.node.parent.childBlocks[0]?.id == step.node.id;
+  const last =
+    step.node.parent.childBlocks[step.node.parent.childBlocks.length - 1]?.id ==
+    step.node.id;
+
   const debugObjectExists =
     history.value.has(debugId) &&
     history.value
@@ -546,13 +556,15 @@ function PipelineStep({
           : null,
       ),
     ),
-    h("div", {
-      style: {
-        borderLeft: "2px solid black",
-        marginLeft: "1rem",
-        height: "2rem",
-      },
-    }),
+    !last
+      ? h("div", {
+          style: {
+            borderLeft: "2px solid black",
+            marginLeft: "1rem",
+            height: "2rem",
+          },
+        })
+      : null,
   );
 }
 
