@@ -241,7 +241,7 @@ function StepType({ type }) {
   return [h(Codicon, { name: "grabber" }), h(TextArea, type)];
 }
 
-function StepQuery({ query, extract }, deep = false) {
+function StepQuery({ query, extract, deep = false }) {
   console.log("QueryStep " + deep);
   const expanded = useSignal(false);
 
@@ -256,7 +256,7 @@ function StepQuery({ query, extract }, deep = false) {
         : h(Codicon, { name: "search" }),
       h(TextArea, {
         ...query,
-        style: { color: "#990000", fontStyle: "italic" },
+        textStyle: { color: "#990000", fontStyle: "italic" },
       }),
       h(
         "div",
@@ -300,7 +300,10 @@ function StepQueryInspector({ query, extract }) {
 }
 
 function StepCapture({ name }) {
-  return [h(Codicon, { name: "bookmark" }), h(TextArea, name)];
+  return [
+    h(Codicon, { name: "bookmark" }),
+    h(TextArea, { ...name, textStyle: { color: "#990000" } }),
+  ];
 }
 
 function StepSpawnArray({ call, steps, matchAll, debugId }) {
@@ -511,7 +514,7 @@ function PipelineStep({
       case PipelineSteps.QUERY:
         return h(StepQuery, step);
       case PipelineSteps.QUERY_DEEP:
-        return h(StepQuery, step, true);
+        return h(StepQuery, { ...step, deep: true });
       case PipelineSteps.TYPE:
         return h(StepType, step);
       default:
