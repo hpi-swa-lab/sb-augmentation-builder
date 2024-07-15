@@ -375,6 +375,7 @@ function PipelineStep({
           h("div", {
             style: {
               flexGrow: 1,
+              height: "2rem",
               borderLeft: "2px solid black",
               marginLeft: "1rem",
             },
@@ -382,7 +383,10 @@ function PipelineStep({
           !lastStep
             ? h("div", { style: { borderBottom: "2px solid black" } })
             : h("div", {
-                style: { borderBottom: "2px solid black", width: "1rem" },
+                style: {
+                  borderBottom: "2px solid black",
+                  width: "calc(1rem + 1px)",
+                },
               }),
         );
       },
@@ -437,25 +441,16 @@ function PipelineStep({
             : h("div", {
                 style: { borderTop: "2px solid black", height: "0px" },
               }),
-          h("div", {
-            style: {
-              borderLeft: "2px solid black",
-              marginLeft: "1rem",
-              height: "2rem",
-            },
-          }),
-
-          it,
-          !last
-            ? h("div", {
+          first && last
+            ? null
+            : h("div", {
                 style: {
                   borderLeft: "2px solid black",
                   marginLeft: "1rem",
                   height: "2rem",
-                  flexGrow: 1,
                 },
-              })
-            : null,
+              }),
+          it,
         ),
       view: (step, containerRef, onmousemove, onmouseleave) =>
         h(PipelineStep, {
