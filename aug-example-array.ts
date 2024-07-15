@@ -16,39 +16,26 @@ export const augExample = {
   model: languageFor("typescript"),
   match: (it) =>
     metaexec(it, (capture) => [
-      (it) => it.type == "array",
-
-      first(
-        [(it) => it.type == "array", (it) => null],
-        [(it) => null],
-        [(it) => it],
-      ),
+      query("[$$$items]"),
+      (it) => it.items,
       all(
-        [(it) => it.childBlocks, spawnArray([(it) => "Hallo"])],
+        [(it) => it.length, capture("rows")],
         [
-          (it) =>
-            it.childBlocks.every(
-              (child) =>
-                child.childBlocks.length ==
-                it.childBlocks[0].childBlocks.length,
-            ),
-          (it) =>
-            it.childBlocks.every((child) =>
-              child.childBlocks.every(
-                (child) => child.type == it.childBlocks[0].childBlocks[0].type,
-              ),
-            ),
-          capture("array"),
-          all(
-            [(it) => it.childBlocks.length, capture("rows")],
-            [(it) => it.childBlocks[0].childBlocks.length, capture("columns")],
-            [(it) => it.childBlocks[0].childBlocks[0].type, capture("type")],
+          spawnArray(
+            [
+              query("[$$$items]"),
+              (it) => it.items,
+              (it) => it.length === capture.get("rows"),
+              (it) => it.length,
+              capture("columns"),
+            ],
+            false,
           ),
         ],
       ),
     ]),
-  view: ({ nodes, array, rows, columns, type }) => {
-    const a = eval(array.sourceString);
+  view: ({ nodes, rows, columns }) => {
+    const a = eval(nodes[0].sourceString);
     return h(
       "div",
       {},
@@ -65,7 +52,6 @@ export const augExample = {
           ),
         ),
       ),
-      h("div", { style: { color: "gray" } }, type),
     );
   },
   rerender: () => true,

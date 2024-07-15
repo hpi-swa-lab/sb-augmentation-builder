@@ -45,13 +45,15 @@ export function _metaexec(obj, makeScript, debugId) {
     let captures = {};
     let selectedInput = {};
     let selectedOutput = {};
+    const capture = function (captureName) {
+      return (it) => {
+        captures[captureName] = it;
+        return it;
+      };
+    };
+    capture.get = (name) => captures[name];
     const script = makeScript(
-      function (captureName) {
-        return (it) => {
-          captures[captureName] = it;
-          return it;
-        };
-      },
+      capture,
       function () {
         return (it) => {
           selectedInput = it;
