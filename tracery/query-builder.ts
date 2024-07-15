@@ -208,7 +208,7 @@ function StepExtract({ field }) {
 
 function StepFunction({ node }) {
   return h(VitrailPaneWithWhitespace, {
-    nodes: [node],
+    nodes: [node.atField("body")],
     ignoreLeft: true,
   });
 }
