@@ -307,6 +307,11 @@ function PipelineStep({
   // console.log(step.step.stepType);
   // console.log(step);
 
+  const first = step.node.parent.childBlocks[0]?.id == step.node.id;
+  const last =
+    step.node.parent.childBlocks[step.node.parent.childBlocks.length - 1]?.id ==
+    step.node.id;
+
   if (step.stepType == PipelineSteps.FIRST)
     return h(NodeArray, {
       container: step.node,
@@ -330,32 +335,36 @@ function PipelineStep({
                 display: "flex",
                 flexDirection: "row",
                 marginLeft: "1rem",
-                borderTop: "2px solid black",
+                borderTop: "0px solid black",
               },
             },
+
             it,
           ),
           h("div", {
             style: {
-              marginLeft: "1rem",
-              height: "2rem",
               borderLeft: "2px solid black",
-            },
-          }),
-          h("div", {
-            style: {
-              marginLeft: "1rem",
               height: "2rem",
-              borderLeft: "2px solid black",
-              borderTop: "2px solid black",
+              marginLeft: "1rem",
             },
           }),
         ),
-      view: (step) =>
-        h(
+      //h("div", {
+      //  style: {
+      //    marginLeft: "1rem",
+      //    height: "2rem",
+      //    borderLeft: "2px solid black",
+      //  },
+      //}),
+
+      view: (step) => {
+        const lastStep =
+          step.node.parent?.childBlocks?.map((it) => it.id)[
+            step.node.parent?.childBlocks?.length - 1
+          ] == step.node.id;
+        return h(
           "div",
           { style: { display: "flex", flexDirection: "column" } },
-
           h(PipelineStep, {
             debugId,
             step,
@@ -370,7 +379,13 @@ function PipelineStep({
               marginLeft: "1rem",
             },
           }),
-        ),
+          !lastStep
+            ? h("div", { style: { borderBottom: "2px solid black" } })
+            : h("div", {
+                style: { borderBottom: "2px solid black", width: "1rem" },
+              }),
+        );
+      },
     });
 
   if (step.stepType == PipelineSteps.ALL)
@@ -387,7 +402,7 @@ function PipelineStep({
               flexDirection: "row",
               marginLeft: "1rem",
               marginRight: "1rem",
-              borderTop: "2px solid black",
+              //borderTop: "2px solid black",
             },
           },
           it,
@@ -411,18 +426,36 @@ function PipelineStep({
         h(
           "div",
           { style: { display: "flex", flexDirection: "column" } },
-          h(
-            "div",
-            {},
-            h("div", {
-              style: {
-                borderLeft: "2px solid black",
-                marginLeft: "1rem",
-                height: "2rem",
-              },
-            }),
-          ),
+          last
+            ? h("div", {
+                style: {
+                  borderTop: "2px solid black",
+                  height: "0px",
+                  width: first ? "0rem" : "1rem",
+                },
+              })
+            : h("div", {
+                style: { borderTop: "2px solid black", height: "0px" },
+              }),
+          h("div", {
+            style: {
+              borderLeft: "2px solid black",
+              marginLeft: "1rem",
+              height: "2rem",
+            },
+          }),
+
           it,
+          !last
+            ? h("div", {
+                style: {
+                  borderLeft: "2px solid black",
+                  marginLeft: "1rem",
+                  height: "2rem",
+                  flexGrow: 1,
+                },
+              })
+            : null,
         ),
       view: (step, containerRef, onmousemove, onmouseleave) =>
         h(PipelineStep, {
@@ -483,11 +516,6 @@ function PipelineStep({
 
     return a;
   };
-
-  const first = step.node.parent.childBlocks[0]?.id == step.node.id;
-  const last =
-    step.node.parent.childBlocks[step.node.parent.childBlocks.length - 1]?.id ==
-    step.node.id;
 
   const debugObjectExists =
     history.value.has(debugId) &&
