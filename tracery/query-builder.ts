@@ -120,6 +120,7 @@ const PipelineSteps = {
   QUERY_DEEP: "queryDeep",
   EXTRACT: "extract",
   TYPE: "type",
+  OPTIONAL: "optional",
 };
 
 function getPipelineStep(node) {
@@ -174,6 +175,14 @@ function getPipelineStep(node) {
         capture("type"),
         () => PipelineSteps.TYPE,
         capture("stepType"),
+      ],
+      [
+        query("optional([$_steps])"),
+        all(
+          [(it) => it.steps, getPipelineStep, capture("steps")],
+          [() => PipelineSteps.OPTIONAL, capture("stepType")],
+        ),
+        (_) => true,
       ],
       [
         query("spawnArray([$_steps], (?$matchAll:false?))"),
@@ -326,6 +335,26 @@ function StepSpawnArray({ call, steps, matchAll, debugId }) {
       call
         ? h(VitrailPane, { nodes: [call] })
         : h(PipelineStep, { step: steps, debugId }),
+    ),
+  ];
+}
+
+function Optional({ steps, debugId }) {
+  return [
+    h(
+      "div",
+      {},
+      h(
+        "div",
+        {
+          style: { display: "flex" },
+        },
+        h(Codicon, {
+          name: "question",
+        }),
+        "Optional",
+      ),
+      h(PipelineStep, { step: steps, debugId }),
     ),
   ];
 }
@@ -501,7 +530,6 @@ function PipelineStep({
     });
 
   function viewForLeaf() {
-    console.log(step.stepType);
     switch (step.stepType) {
       case PipelineSteps.CAPTURE:
         return h(StepCapture, step);
@@ -517,6 +545,8 @@ function PipelineStep({
         return h(StepQuery, { ...step, deep: true });
       case PipelineSteps.TYPE:
         return h(StepType, step);
+      case PipelineSteps.OPTIONAL:
+        return h(Optional, { ...step, debugId });
       default:
         return h(VitrailPaneWithWhitespace, {
           nodes: [step.node],
