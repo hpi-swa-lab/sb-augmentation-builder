@@ -4,6 +4,7 @@ import {
   captureAll,
   debugHistory,
   first,
+  log,
   metaexec,
   query,
   spawnArray,
@@ -116,7 +117,9 @@ const PipelineSteps = {
   CAPTURE: "capture",
   PIPELINE: "pipeline",
   QUERY: "query",
+  QUERY_DEEP: "queryDeep",
   EXTRACT: "extract",
+  TYPE: "type",
 };
 
 function getPipelineStep(node) {
@@ -165,6 +168,14 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
+        query("type($type)"),
+        (it) => it.type,
+        bindPlainString,
+        capture("type"),
+        () => PipelineSteps.TYPE,
+        capture("stepType"),
+      ],
+      [
         query("spawnArray([$_steps], (?$matchAll:false?))"),
         all(
           [(it) => it.matchAll, capture("matchAll")],
@@ -172,6 +183,16 @@ function getPipelineStep(node) {
           [() => PipelineSteps.SPAWN_ARRAY, capture("stepType")],
         ),
         (_) => true,
+      ],
+      [
+        query(`queryDeep($query, (?"$_extract"?))`),
+        log("queryDeep"),
+        all(
+          [(it) => it.query, bindPlainString, capture("query")],
+          [(it) => it.extract, capture("extract")],
+        ),
+        () => PipelineSteps.QUERY_DEEP,
+        capture("stepType"),
       ],
       [
         query(`query($query, (?"$_extract"?))`),
@@ -182,6 +203,7 @@ function getPipelineStep(node) {
         () => PipelineSteps.QUERY,
         capture("stepType"),
       ],
+
       [
         query("spawnArray($call, (?$matchAll:false?))"),
         captureAll(capture),
@@ -215,7 +237,12 @@ function StepFunction({ node }) {
   });
 }
 
-function StepQuery({ query, extract }) {
+function StepType({ type }) {
+  return [h(Codicon, { name: "grabber" }), h(TextArea, type)];
+}
+
+function StepQuery({ query, extract }, deep = false) {
+  console.log("QueryStep " + deep);
   const expanded = useSignal(false);
 
   return h(
@@ -224,7 +251,9 @@ function StepQuery({ query, extract }) {
     h(
       "div",
       { style: { display: "flex", gap: "0.25rem" } },
-      h(Codicon, { name: "surround-with" }),
+      deep
+        ? h(Codicon, { name: "go-to-search" })
+        : h(Codicon, { name: "search" }),
       h(TextArea, {
         ...query,
         style: { color: "#990000", fontStyle: "italic" },
@@ -469,6 +498,7 @@ function PipelineStep({
     });
 
   function viewForLeaf() {
+    console.log(step.stepType);
     switch (step.stepType) {
       case PipelineSteps.CAPTURE:
         return h(StepCapture, step);
@@ -480,6 +510,10 @@ function PipelineStep({
         return h(StepFunction, step);
       case PipelineSteps.QUERY:
         return h(StepQuery, step);
+      case PipelineSteps.QUERY_DEEP:
+        return h(StepQuery, step, true);
+      case PipelineSteps.TYPE:
+        return h(StepType, step);
       default:
         return h(VitrailPaneWithWhitespace, {
           nodes: [step.node],
