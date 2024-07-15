@@ -69,7 +69,7 @@ export const queryBuilder = (model) => {
         (it) => it.pipeline,
         capture("pipeline"),
         (it) => it.childBlocks,
-        spawnArray(getPipelineStep),
+        spawnArray([(it) => getPipelineStep(it)]),
         capture("steps"),
       ]);
       if (res) {
@@ -113,6 +113,7 @@ const PipelineSteps = {
   ALL: "all",
   FIRST: "first",
   FUNCTION: "function",
+  PLAIN: "plain",
   SPAWN_ARRAY: "spawnArray",
   CAPTURE: "capture",
   PIPELINE: "pipeline",
@@ -155,7 +156,7 @@ function getPipelineStep(node) {
           [
             (it) => it.steps,
             (it) => it.childBlocks,
-            spawnArray(getPipelineStep),
+            spawnArray([(it) => getPipelineStep(it)]),
             capture("steps"),
           ],
         ),
@@ -222,12 +223,17 @@ function getPipelineStep(node) {
       [
         query("[$$$steps]"),
         (it) => it.steps,
-        spawnArray(getPipelineStep),
+        spawnArray([(it) => getPipelineStep(it)]),
         capture("steps"),
         () => PipelineSteps.PIPELINE,
         capture("stepType"),
       ],
-      [() => PipelineSteps.FUNCTION, capture("stepType")],
+      [
+        query("($arg) => $body"),
+        () => PipelineSteps.FUNCTION,
+        capture("stepType"),
+      ],
+      [() => PipelineSteps.PLAIN, capture("stepType")],
     ),
   ]);
 }
@@ -240,8 +246,16 @@ function StepExtract({ field }) {
 }
 
 function StepFunction({ node }) {
+  console.assert(node.atField("body"));
   return h(VitrailPaneWithWhitespace, {
     nodes: [node.atField("body")],
+    ignoreLeft: true,
+  });
+}
+
+function StepPlain({ node }) {
+  return h(VitrailPaneWithWhitespace, {
+    nodes: [node],
     ignoreLeft: true,
   });
 }
@@ -539,6 +553,8 @@ function PipelineStep({
         return h(StepExtract, step);
       case PipelineSteps.FUNCTION:
         return h(StepFunction, step);
+      case PipelineSteps.PLAIN:
+        return h(StepPlain, step);
       case PipelineSteps.QUERY:
         return h(StepQuery, step);
       case PipelineSteps.QUERY_DEEP:
