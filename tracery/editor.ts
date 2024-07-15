@@ -78,7 +78,7 @@ function extensionsForPath(path) {
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
-        uiBuilder(language),
+        // uiBuilder(language),
         placeholder(language),
       ],
     };
@@ -89,7 +89,7 @@ function extensionsForPath(path) {
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
-        uiBuilder(language),
+        // uiBuilder(language),
         placeholder(language),
       ],
     };

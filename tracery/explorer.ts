@@ -14,7 +14,7 @@ function truncateString(s, maxLength = 50) {
   return s;
 }
 
-function printString(obj, maxLength = 50) {
+function printString(obj, maxLength = 20) {
   const print = (obj) => {
     if (obj === null) return "null";
     if (obj === undefined) return "undefined";

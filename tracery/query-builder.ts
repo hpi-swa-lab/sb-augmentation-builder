@@ -37,6 +37,8 @@ const history = computed(() => {
   return debugHistory.value ? debugHistory.value : new Map();
 });
 
+const connectionHeight = "0.75rem";
+
 async function insertItem() {
   return (
     await choose([
@@ -344,7 +346,7 @@ function PipelineStep({
           h("div", {
             style: {
               borderLeft: "2px solid black",
-              height: "2rem",
+              height: connectionHeight,
               marginLeft: "1rem",
             },
           }),
@@ -352,7 +354,7 @@ function PipelineStep({
       //h("div", {
       //  style: {
       //    marginLeft: "1rem",
-      //    height: "2rem",
+      //    height:connectionHeight,
       //    borderLeft: "2px solid black",
       //  },
       //}),
@@ -375,7 +377,7 @@ function PipelineStep({
           h("div", {
             style: {
               flexGrow: 1,
-              height: "2rem",
+              height: connectionHeight,
               borderLeft: "2px solid black",
               marginLeft: "1rem",
             },
@@ -439,7 +441,10 @@ function PipelineStep({
                 },
               })
             : h("div", {
-                style: { borderTop: "2px solid black", height: "0px" },
+                style: {
+                  borderTop: "2px solid black",
+                  height: "0px",
+                },
               }),
           first && last
             ? null
@@ -447,7 +452,8 @@ function PipelineStep({
                 style: {
                   borderLeft: "2px solid black",
                   marginLeft: "1rem",
-                  height: "2rem",
+                  marginTop: "-2px",
+                  height: connectionHeight,
                 },
               }),
           it,
@@ -584,7 +590,7 @@ function PipelineStep({
           style: {
             borderLeft: "2px solid black",
             marginLeft: "1rem",
-            height: "2rem",
+            height: connectionHeight,
           },
         })
       : null,

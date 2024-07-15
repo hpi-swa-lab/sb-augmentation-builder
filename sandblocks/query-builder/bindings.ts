@@ -31,9 +31,13 @@ export function bindSourceString(node: SBBlock) {
 }
 
 export function bindPlainString(node: SBBlock) {
-  if (node.type !== "string") throw new Error("Expected string");
+  if (node.type !== "string" && node.type !== "template_string")
+    throw new Error("Expected string");
 
-  const contentNodes = node.childBlocks as SBBlock[];
+  const contentNodes =
+    node.type === "template_string"
+      ? node.children.slice(1, node.children.length - 1)
+      : (node.childBlocks as SBBlock[]);
   const quote = node.childNode(0) as SBBlock | null;
   if (!quote) return { text: "", onLocalChange: () => {} };
 
@@ -76,6 +80,7 @@ export function TextArea({
   range,
   indexMap,
   style,
+  textStyle: _textStyle = {},
 }) {
   // text = text[text.length - 1] === "\n" ? text : text + "\n";
   const textAreaRef = useRef(null);
@@ -85,6 +90,7 @@ export function TextArea({
     fontWeight: "inherit",
     fontSize: "inherit",
     border: "none",
+    ..._textStyle,
   };
 
   useEffect(() => {
@@ -110,7 +116,6 @@ export function TextArea({
         cols: 1,
         style: {
           ...textStyle,
-          ...style,
           overflow: "hidden",
           resize: "none",
           gridArea: "1 / 1 / 2 / 2",
@@ -137,10 +142,10 @@ export function TextArea({
       "span",
       {
         style: {
-          ...textStyle,
           whiteSpace: "pre-wrap",
           visibility: "hidden",
           gridArea: "1 / 1 / 2 / 2",
+          ...textStyle,
         },
       },
       text,

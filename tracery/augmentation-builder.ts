@@ -163,7 +163,7 @@ export const augmentationBuilder = (model) => ({
       ),
       h(
         "table",
-        { style: { maxWidth: "500px", width: "100%", tableLayout: "fixed" } },
+        { style: { maxWidth: "550px", width: "100%", tableLayout: "fixed" } },
         h(
           "tr",
           { style: { height: "1rem" } },
@@ -190,7 +190,11 @@ export const augmentationBuilder = (model) => ({
                       textarea.selectionEnd,
                     ];
                   },
-                  style: { width: "100%", border: "1px solid #ccc" },
+                  style: {
+                    width: "100%",
+                    minWidth: "250px",
+                    border: "1px solid #ccc",
+                  },
                 }),
                 h(
                   "button",
