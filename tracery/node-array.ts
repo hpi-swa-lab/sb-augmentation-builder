@@ -24,8 +24,13 @@ export function NodeArray({
 
   style = { display: "flex", flexDirection: "column", ...style };
   insertItem ??= () => createPlaceholder("expression");
-  view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
-    h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
+  view ??= (it: any, ref, onmouseleave, onmousemove) =>
+    h(VitrailPane, {
+      nodes: [nodeFromItem(it)],
+      ref,
+      onmouseleave,
+      onmousemove,
+    });
   wrap ??= (it) => h("div", { style }, it);
   add ??= (position, ref, onclick, onmouseleave) =>
     h(
@@ -86,8 +91,9 @@ export function NodeArray({
   return wrap(
     items.length === 0
       ? add(null, null, () => insert(0))
-      : items.map((it, index) =>
-          h(_NodeArrayItem, {
+      : items.map((it, index) => {
+          const node = nodeFromItem(it);
+          return h(_NodeArrayItem, {
             onInsert: (atEnd) => insert(index + (atEnd ? 1 : 0)),
             onRemove: () => {
               let nodeToDelete = nodeFromItem(items[index]);
@@ -100,17 +106,17 @@ export function NodeArray({
                 nodeToDelete.removeFull();
               }
             },
-            node: it,
-            key: it,
+            item: it,
+            key: node,
             view,
             add,
             remove,
-          }),
-        ),
+          });
+        }),
   );
 }
 
-function _NodeArrayItem({ onInsert, onRemove, node, view, add, remove }) {
+function _NodeArrayItem({ onInsert, onRemove, item, view, add, remove }) {
   const hoverStart = useSignal(false);
   const hoverEnd = useSignal(false);
   const hoverNode = useSignal(false);
@@ -159,7 +165,7 @@ function _NodeArrayItem({ onInsert, onRemove, node, view, add, remove }) {
     showRemovePoint.value &&
       remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
     view(
-      node,
+      item,
       ref,
       (e) => {
         const box = ref.current.getBoundingClientRect();

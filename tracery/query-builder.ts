@@ -24,12 +24,8 @@ import {
   bindPlainString,
   bindSourceString,
 } from "../sandblocks/query-builder/bindings.ts";
-import {
-  computed,
-  useComputed,
-  useSignal,
-} from "../external/preact-signals.mjs";
-import { useContext, useMemo } from "../external/preact-hooks.mjs";
+import { computed, useSignal } from "../external/preact-signals.mjs";
+import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 import { Explorer } from "./explorer.ts";
 
