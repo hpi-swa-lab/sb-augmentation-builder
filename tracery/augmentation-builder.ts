@@ -141,9 +141,6 @@ export const augmentationBuilder = (model) => ({
         {},
         h("strong", {}, "Match"),
         h("div", {}, h(VitrailPane, { nodes: [match], props: { debugId } })),
-        h("hr"),
-        h("strong", {}, "View"),
-        h("div", {}, h(VitrailPane, { nodes: [view] })),
         //h("strong", {}, "History"),
         //h(
         //  "div",
@@ -162,75 +159,86 @@ export const augmentationBuilder = (model) => ({
         //),
       ),
       h(
-        "table",
-        { style: { maxWidth: "550px", width: "100%", tableLayout: "fixed" } },
+        "div",
+        {},
+
+        h("strong", {}, "View"),
+        h("div", {}, h(VitrailPane, { nodes: [view] })),
+        h("hr"),
+
         h(
-          "tr",
-          { style: { height: "1rem" } },
-          h("td", {}, "Examples"),
-          h("td", {}, "Preview"),
-        ),
-        h(NodeArray, {
-          insertItem: () => "['', [0, 0]]",
-          container: examples,
-          wrap: (it) => it,
-          view: (it, ref, onmousemove, onmouseleave) => {
-            const e = bindPlainString(it.childBlock(0));
-            return h(
-              "tr",
-              { ref, onmousemove, onmouseleave },
-              h(
-                "td",
-                {},
-                h(TextArea, {
-                  ...e,
-                  onLocalSelectionChange: (textarea) => {
-                    exampleSelectionRange.value = [
-                      textarea.selectionStart,
-                      textarea.selectionEnd,
-                    ];
-                  },
-                  style: {
-                    width: "100%",
-                    minWidth: "250px",
-                    border: "1px solid #ccc",
-                  },
-                }),
+          "table",
+          { style: { maxWidth: "550px", width: "100%", tableLayout: "fixed" } },
+          h(
+            "tr",
+            { style: { height: "1rem" } },
+            h("td", {}, "Examples"),
+            h("td", {}, "Preview"),
+          ),
+          h(NodeArray, {
+            insertItem: () => "['', [0, 0]]",
+            container: examples,
+            wrap: (it) => it,
+            view: (it, ref, onmousemove, onmouseleave) => {
+              const e = bindPlainString(it.childBlock(0));
+              return h(
+                "tr",
+                { ref, onmousemove, onmouseleave },
                 h(
-                  "button",
-                  {
-                    style: {
-                      visibility:
-                        rangeSize(exampleSelectionRange.value) > 0
-                          ? "visible"
-                          : "hidden",
-                    },
-                    onclick: () => {
-                      evalRange.value = [
-                        exampleSelectionRange.value[0],
-                        exampleSelectionRange.value[1],
+                  "td",
+                  {},
+                  h(TextArea, {
+                    ...e,
+                    onLocalSelectionChange: (textarea) => {
+                      exampleSelectionRange.value = [
+                        textarea.selectionStart,
+                        textarea.selectionEnd,
                       ];
-                      exampleSelectionRange.value = [0, 0];
-                      augmentation.value = null;
                     },
-                  },
-                  "Mark for Feedback",
+                    style: {
+                      width: "100%",
+                      minWidth: "250px",
+                      border: "1px solid #ccc",
+                    },
+                  }),
+                  h(
+                    "button",
+                    {
+                      style: {
+                        visibility:
+                          rangeSize(exampleSelectionRange.value) > 0
+                            ? "visible"
+                            : "hidden",
+                      },
+                      onclick: () => {
+                        evalRange.value = [
+                          exampleSelectionRange.value[0],
+                          exampleSelectionRange.value[1],
+                        ];
+                        exampleSelectionRange.value = [0, 0];
+                        augmentation.value = null;
+                      },
+                    },
+                    "Mark for Feedback",
+                  ),
                 ),
-              ),
-              h(
-                "td",
-                {},
-                h(CodeMirrorWithVitrail, {
-                  // FIXME currently destroys and recreates the entire editor.
-                  // can we do it incrementally?
-                  key: augmentation.value,
-                  value: { value: e.text },
-                  augmentations: augmentation.value ? [augmentation.value] : [],
-                }),
-              ),
-            );
-          },
-        }),
+                h(
+                  "td",
+                  {},
+                  h(CodeMirrorWithVitrail, {
+                    // FIXME currently destroys and recreates the entire editor.
+                    // can we do it incrementally?
+                    key: augmentation.value,
+                    value: { value: e.text },
+                    augmentations: augmentation.value
+                      ? [augmentation.value]
+                      : [],
+                  }),
+                ),
+              );
+            },
+          }),
+        ),
       ),
     );
   },
