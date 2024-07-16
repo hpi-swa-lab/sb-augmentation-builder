@@ -170,7 +170,7 @@ function getPipelineStep(node) {
         capture("stepType"),
       ],
       [
-        query("type($type)"),
+        first([query("type($type)")], [query("(it) => it.type === $type")]),
         (it) => it.type,
         bindPlainString,
         capture("type"),
@@ -578,10 +578,7 @@ function PipelineStep({
       a.push({
         label: "Iterate",
         action: () =>
-          step.node.insertAfter(
-            "spawnArray((node) => metaexec(node, (capture) => []))",
-            "expression",
-          ),
+          step.node.insertAfter("spawnArray((node) => [])", "expression"),
       });
 
     if (path === "//type")
@@ -591,7 +588,28 @@ function PipelineStep({
           step.node.insertAfter(`(it) => it.type === "${obj}"`, "expression"),
       });
 
-    if (path.match(/\/\/[A-Za-z]+/))
+    let childIndex = path.match(/\/\/children\/(\d+)/);
+    if (childIndex) {
+      a.push({
+        label: `Child at index ${childIndex[1]}`,
+        action: () =>
+          step.node.insertAfter(
+            `(it) => it.children[${childIndex[1]}]`,
+            "expression",
+          ),
+      });
+      if (obj.field)
+        a.push({
+          label: `Child at field "${obj.field}"`,
+          action: () =>
+            step.node.insertAfter(
+              `(it) => it.atField("${obj.field}")`,
+              "expression",
+            ),
+        });
+    }
+
+    if (path.match(/\/\/[^\/]+/))
       a.push({
         label: "Extract",
         action: () =>
