@@ -23,24 +23,19 @@ export const augExample = {
       first(
         [
           (it) => /rgb\([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5]{3}\)/i.test(it),
-          (it) =>
-            /rgb\(([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5]),([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5]),([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\)/i.exec(
-              it,
-            ),
-          (it) => ({
-            r: parseInt(it[1], 10),
-            g: parseInt(it[2], 10),
-            b: parseInt(it[3], 10),
-          }),
+          (it) =>/rgb\(([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5]),([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5]),([01]?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\)/i.exec(it),
+          (it) => 
+({r: parseInt(it[1], 10),
+g: parseInt(it[2], 10),
+b: parseInt(it[3], 10)}),
         ],
         [
           (it) => /^#[0-9A-F]{6}$/i.test(it),
           (it) => /#([a-z0-9]{2})([a-z0-9]{2})([a-z0-9]{2})/i.exec(it),
-          (it) => ({
-            r: parseInt(it[1], 16),
-            g: parseInt(it[2], 16),
-            b: parseInt(it[3], 16),
-          }),
+          (it) => 
+({r: parseInt(it[1], 16),
+g: parseInt(it[2], 16),
+b: parseInt(it[3], 16)}),
         ],
       ),
       all(
@@ -60,7 +55,7 @@ export const augExample = {
       }),
     ),
   rerender: () => true,
-  examples: [['const a = "rgb(12,34,56)"', [0, 0]]],
+  examples: [['const color = "rgb(12,34,56)"', [0, 0]],['const color = "#123456"', [0, 0]] ],
 };
 
 //const a = "#123456"
