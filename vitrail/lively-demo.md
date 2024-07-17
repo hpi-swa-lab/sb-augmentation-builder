@@ -193,27 +193,24 @@ const dataurlimage =  {
             src: nodes[0].text,
             style: ``,
             onclick: async (evt) => {
-              var imageEditor = await lively.create("lively-image-editor");
+              var imageEditor = await lively.openComponentInWindow("lively-image-editor")
+
               var img = evt.target;
               var parent = img.parentElement;
               
               
-              
-              document.body.appendChild(imageEditor);
+              // document.body.appendChild(imageEditor);
               
               lively.sleep(0).then(() =>{
-                let offset = lively.getClientPosition(imageEditor.get("canvas")).subPt(lively.getClientPosition(imageEditor))
-                lively.setClientPosition(imageEditor, lively.getClientPosition(img).subPt(offset))
+                let offset = lively.getClientPosition(imageEditor.get("canvas")).subPt(lively.getClientPosition(imageEditor.parentElement))
+                lively.setClientPosition(imageEditor.parentElement, lively.getClientPosition(img).subPt(offset))
                 
               })
-              imageEditor.style.zIndex = 10000
+              imageEditor.style.zIndex = 1000
               imageEditor.style.minWidth = "200px";
-              lively.setPosition(imageEditor, lively.pt(0, -40));
+              // lively.setPosition(imageEditor.parentElement, lively.pt(0, -40));
               imageEditor.addEventListener("saved-to-target", () => {
-                parent.appendChild(img);
-                imageEditor.remove();
-                debugger;
-                // #TODO bug here... throws errror
+                imageEditor.parentElement.remove();
                 nodes[0].replaceWith("" + img.src);
               });
               imageEditor.setTarget(img);

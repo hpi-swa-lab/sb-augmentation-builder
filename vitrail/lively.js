@@ -1,15 +1,24 @@
 import { Vitrail, Pane, replacementRange } from "./vitrail.ts";
 
-export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
-  function paneFromLively(livelyEditor, vitrail, fetchAugmentations) {
-    if (!livelyEditor.editor) livelyEditor.editView("xxx");
-    const cm = livelyEditor.editor;
+export async function addVitrailToLivelyEditor(livelyCodeMirror, augmentations) {
+  function paneFromLively(livelyCodeMirror, vitrail, fetchAugmentations) {
+    if (!livelyCodeMirror.editor) livelyCodeMirror.editView("");
+    
+    // lively.sleep(0).then(() => livelyCodeMirror.editor.refresh())
+    
+    // lively.sleep(0).then(() => {
+    //   // lively.warn("paneFromLively " + livelyCodeMirror.parentElement)
+    //   // livelyCodeMirror.editor.refresh()
+    // })
+    
+    
+    const cm = livelyCodeMirror.editor;
     const markers = new Map();
 
     const pane = new Pane({
       vitrail,
-      view: livelyEditor,
-      host: livelyEditor,
+      view: livelyCodeMirror,
+      host: livelyCodeMirror,
       fetchAugmentations,
       getLocalSelectionIndices: () => [
         cm.indexFromPos(cm.getCursor("from")),
@@ -139,7 +148,7 @@ export async function addVitrailToLivelyEditor(livelyEditor, augmentations) {
     },
   });
 
-  await v.connectHost(paneFromLively(livelyEditor, v, () => augmentations));
+  await v.connectHost(paneFromLively(livelyCodeMirror, v, () => augmentations));
   return v;
 }
 
