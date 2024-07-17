@@ -300,6 +300,13 @@ export function allViewsDo(parent, cb) {
   }
 }
 
+export function* allChildren(root) {
+  yield root;
+  for (const child of root.childNodes) {
+    yield* allChildren(child);
+  }
+}
+
 export function mapSeparated(list, item, separator) {
   const result = [];
   for (let i = 0; i < list.length; i++) {
@@ -349,6 +356,14 @@ function _isEmptyObject(obj) {
   return Object.keys(obj).length === 0 && obj.constructor === Object;
 }
 
+export function arrayEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export function rangeEqual(a, b) {
   console.assert(Array.isArray(a));
   console.assert(Array.isArray(b));
@@ -376,6 +391,10 @@ export function rangeDistance(a, b) {
   if (a[0] > b[1]) return a[0] - b[1];
   else if (b[0] > a[1]) return b[0] - a[1];
   else return 0;
+}
+
+export function rangeSize(a) {
+  return a[1] - a[0];
 }
 
 export function rangeShift(range, delta) {
@@ -472,13 +491,17 @@ export function clampRange(range, [min, max]) {
   return [clamp(range[0], min, max), clamp(range[1], min, max)];
 }
 
+export function isNullRange(range) {
+  return range[0] >= range[1];
+}
+
 export const caseOf = (x, cases, otherwise) => {
   const func = cases[x];
   return func ? func() : otherwise();
 };
 
 // Focus an element without scrolling any of its parents.
-// You may provide a custom function for scrolling if you
+// You may provide a custom function for focusing if you
 // have overridden the default focus function.
 export function focusWithoutScroll(element, focusFn = (e) => e.focus()) {
   const parents = [];
@@ -533,10 +556,17 @@ export function makeUUID() {
   });
 }
 
-export function appendCss(text) {
+export function appendCss(text, parent) {
   const style = document.createElement("style");
   style.textContent = text;
-  document.head.appendChild(style);
+  (parent ?? document.head).appendChild(style);
+}
+
+export function linkCss(url, parent) {
+  const style = document.createElement("link");
+  style.rel = "stylesheet";
+  style.href = url;
+  (parent ?? document.head).appendChild(style);
 }
 
 export function clsx(...args) {

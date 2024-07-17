@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
-import { rangeEqual, takeWhile } from "../utils.js";
+import { rangeDistance, rangeEqual, takeWhile } from "../utils.js";
 import { SBList } from "./model.js";
 
 export function useStickyReplacementValidator(replacement) {

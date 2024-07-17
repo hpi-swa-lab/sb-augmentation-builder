@@ -4,8 +4,8 @@ import {
   useState,
   useMemo,
 } from "../external/preact-hooks.mjs";
-import { appendCss, last, sequenceMatch } from "../utils.js";
-import { h } from "../view/widgets.js";
+import { appendCss, last, sequenceMatch, withDo } from "../utils.js";
+import { codicon, h } from "../view/widgets.js";
 
 function highlightSubstring(string, search) {
   if (!search) return string;
@@ -32,6 +32,7 @@ appendCss(`
 .sb-list {
   max-height: 100px;
   overflow-y: auto;
+  line-height: 1.5rem;
 }
 .sb-list-item {
   white-space: nowrap;
@@ -39,7 +40,8 @@ appendCss(`
   padding: 0 0.25rem;
 }
 .sb-list .selected {
-  background: #ccc;
+  background: rgb(40, 131, 241);
+  color: #fff;
 }
 .search-result {
   background-color: #ffe17d;
@@ -49,6 +51,7 @@ appendCss(`
 export function List({
   items,
   labelFunc,
+  iconFunc,
   setSelected,
   selected,
   height,
@@ -56,8 +59,10 @@ export function List({
   onConfirm,
   autofocus,
   fuzzy,
+  selectionContext,
 }) {
   labelFunc ??= (x) => x;
+  iconFunc ??= (x) => x?.icon;
 
   const selectedRef = useRef(null);
 
@@ -94,6 +99,9 @@ export function List({
       class: "sb-list",
       tabIndex: -1,
       focusable: true,
+      ref: (e) => {
+        if (e) e.selectionContext = selectionContext;
+      },
       autofocus,
       style: { maxHeight: height, ...(style ?? {}) },
       onClick: (e) => setSelected(last(visibleItems)),
@@ -129,6 +137,12 @@ export function List({
             onConfirm?.(item);
           },
         },
+        withDo(iconFunc(item), (i) =>
+          codicon(i, {
+            marginRight: "0.25rem",
+            color: selected === item ? "#fff" : "rgb(40, 131, 241)",
+          }),
+        ),
         fuzzy
           ? labelFunc(item)
           : highlightSubstring(labelFunc(item), filterString),

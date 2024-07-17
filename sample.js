@@ -4,6 +4,13 @@ class MyCls {
   }
 }
 
+function test() {
+  metaexec(null, (capture) => [
+    (it) => false,
+    all([(it) => __VI_PLACEHOLDER_abc], [(it) => true]),
+  ]);
+}
+
 ("enable sandblocks");
 
 let a = 12;

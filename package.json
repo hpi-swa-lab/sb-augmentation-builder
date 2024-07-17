@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "build": "swc . --ignore=sandblocks/server --ignore=vitrail/planner.js --ignore=build --ignore=**/node_modules -D -C jsc.target=es2022 -d build"
+    "build": "swc . --ignore=sandblocks/server --ignore=vitrail/planner.js --ignore=build --ignore=**/node_modules -D -C jsc.target=es2022 -d build",
+    "update-planner": "npm run build; rsync -avP build/ tmbe.me:www/vitrail/"
   },
   "devDependencies": {
     "@swc/cli": "^0.3.12",

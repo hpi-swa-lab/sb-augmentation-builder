@@ -12,7 +12,7 @@ addEventListener("message", async (event) => {
           event.data.fileHashes,
           mapScript,
           reduceScript,
-          event.data.reduceArgs
+          event.data.reduceArgs,
         ),
       });
       break;
@@ -71,7 +71,7 @@ async function prepareLanguagesFor(files) {
     if (language) languages.add(language);
   }
   await Promise.all(
-    [...languages].map((language) => language.ready({ parserOnly: true }))
+    [...languages].map((language) => language.ready({ parserOnly: true })),
   );
 }
 
@@ -96,7 +96,7 @@ async function runScript(fileHashes, mapScript, reduceScript, reduceArgs) {
   const { deleted, updated, upToDate } = getWork(
     fileHashes,
     (scriptId && (await db.getAllFromIndex("files", "scriptId", scriptId))) ??
-      []
+      [],
   );
 
   await prepareLanguagesFor(updated);
@@ -104,8 +104,8 @@ async function runScript(fileHashes, mapScript, reduceScript, reduceArgs) {
   const updatedData = Object.fromEntries(
     (await requestFiles(updated.map((f) => f.path))).map((file) => [
       file.path,
-      mapScript(file, languageForPath(file.path)?.parse(file.data)),
-    ])
+      mapScript(file, languageForPath(file.path)?.parseSync(file.data)),
+    ]),
   );
 
   const tx = db.transaction("files", "readwrite");
@@ -116,7 +116,7 @@ async function runScript(fileHashes, mapScript, reduceScript, reduceArgs) {
         hash: file.hash,
         path: file.path,
         data: updatedData[file.path],
-      })
+      }),
     ),
     ...deleted.map((file) => tx.store.delete([file.scriptId, file.path])),
     tx.done,
@@ -127,6 +127,6 @@ async function runScript(fileHashes, mapScript, reduceScript, reduceArgs) {
       ...updatedData,
       ...Object.fromEntries(upToDate.map((f) => [f.path, f.data])),
     },
-    ...reduceArgs
+    ...reduceArgs,
   );
 }

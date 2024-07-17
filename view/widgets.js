@@ -1,11 +1,6 @@
 import "../external/preact-debug.js";
 import { h, render } from "../external/preact.mjs";
-import {
-  appendCss,
-  orParentThat,
-  parentWithTag,
-  rangeDistance,
-} from "../utils.js";
+import { orParentThat, parentWithTag } from "../utils.js";
 import {
   useEffect,
   useMemo,
@@ -13,7 +8,6 @@ import {
   useState,
 } from "../external/preact-hooks.mjs";
 import htm from "../external/htm.mjs";
-import { BaseEditor } from "../core/editor.js";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 export { markInputEditable } from "./focus.ts";
 
@@ -38,6 +32,14 @@ export const icon = (name) =>
     },
     name,
   );
+export const codicon = (name, style) =>
+  h("span", {
+    class: "codicon codicon-" + name,
+    style: { verticalAlign: "text-bottom", ...style },
+  });
+export function Codicon({ name, style }) {
+  return codicon(name, style);
+}
 
 function _Editor({ editorRef, ...props }) {
   return h("sb-editor", { ...props, ref: editorRef });
@@ -57,6 +59,14 @@ export const editor = ({
     ...props,
   });
 
+export const forwardRef = (Component) => {
+  function Forwarded(props) {
+    const copy = { ...props };
+    delete copy.ref;
+    return Component(copy, props.ref);
+  }
+  return Forwarded;
+};
 export const useDebouncedEffect = (ms, fn, deps) => {
   useEffect(() => {
     let timer = setTimeout(fn, ms);
@@ -114,10 +124,6 @@ export function useJSONComparedState(initialState) {
     initialState,
     (a, b) => JSON.stringify(a) === JSON.stringify(b),
   );
-}
-
-function nextEditor(element) {
-  return orParentThat(element, (p) => p instanceof BaseEditor);
 }
 
 Element.prototype.cursorPositions = function* () {

@@ -37,7 +37,7 @@ function References({ project, symbol, sourcePath, type }) {
           node.exec(
             (x) => x.type === "member_expression",
             (x) => x.atField("property"),
-            (x) => senders.push(x.text)
+            (x) => senders.push(x.text),
           );
           node.exec(
             (x) =>
@@ -47,7 +47,7 @@ function References({ project, symbol, sourcePath, type }) {
                 "function_declaration",
               ].includes(x.type),
             (x) => x.atField("name"),
-            (x) => implementors.push(x.text)
+            (x) => implementors.push(x.text),
           );
         });
         return { senders, implementors };
@@ -57,7 +57,7 @@ function References({ project, symbol, sourcePath, type }) {
           .filter(([_, types]) => types[type].includes(symbol))
           .map(([path, _]) => path);
       },
-      [symbol, type]
+      [symbol, type],
     );
 
     setReferences(references);

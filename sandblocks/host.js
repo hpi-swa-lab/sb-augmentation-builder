@@ -3,6 +3,9 @@ export function hostAvailable() {
 }
 
 export const socket = hostAvailable() ? io() : null;
+export const withSocket = (cb) => {
+  if (socket) cb(socket);
+};
 export function request(name, data) {
   return new Promise((resolve, reject) => {
     socket.emit(name, data, (ret) => {

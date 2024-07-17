@@ -27,6 +27,7 @@ registerLanguage(
     repo: "tree-sitter/tree-sitter-javascript",
     branch: "0c0b18de798a90cd22819cec4802a27b914e395c",
     extensions: ["js"],
+    nodesWithUnorderedChildren: ["object"],
     defaultExtensions: [
       "javascript:base",
       "base:base",
@@ -50,6 +51,7 @@ const typescript = {
   branch: "d847898fec3fe596798c9fda55cb8c05a799001a",
   path: "/typescript/",
   extensions: ["ts"],
+  nodesWithUnorderedChildren: ["object"],
   defaultExtensions: [
     "typescript:base",
     "typescript:lsp",

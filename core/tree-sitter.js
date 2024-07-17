@@ -1,6 +1,8 @@
 import { config } from "./config.js";
-import { SBBlock, SBText, SBLanguage } from "./model.js";
+import { SBBlock, SBText, SBLanguage, OffscreenEditor } from "./model.js";
 import { TreeSitter } from "../external/tree-sitter.js";
+import { withDo } from "../utils.js";
+import { MaybeEditor } from "./matcher.ts";
 
 export class TreeSitterLanguage extends SBLanguage {
   static _initPromise = null;
@@ -37,11 +39,12 @@ export class TreeSitterLanguage extends SBLanguage {
     this.branch = branch ?? "master";
     this.path = path ?? "/";
     this.parseConfig = Object.assign(parseConfig ?? {}, {
+      nodesWithUnorderedChildren: parseConfig?.nodesWithUnorderedChildren ?? [],
       matchPrefix: parseConfig?.matchPrefix ?? "$",
       unwrapExpression:
         parseConfig?.unwrapExpression ??
         ((n) => {
-          let child = n.childBlock(0);
+          let child = n.childBlock(0) ?? n;
           if (child.type === "expression_statement") return child.childBlock(0);
           return child;
         }),
@@ -53,6 +56,7 @@ export class TreeSitterLanguage extends SBLanguage {
   // init API
   async ready(options) {
     await (this._readyPromise ??= this._load(options));
+    this.initialized = true;
   }
 
   async _load(options) {
@@ -117,6 +121,7 @@ export class TreeSitterLanguage extends SBLanguage {
   }
 
   _parse(text, oldRoot = null) {
+    console.assert(this.initialized, "language not initialized");
     const parser = new TreeSitter();
     parser.setLanguage(this.tsLanguage);
 
@@ -137,9 +142,26 @@ export class TreeSitterLanguage extends SBLanguage {
 
   parseExpression(string) {
     const source = `${this.parseConfig.parseExpressionPrefix}${string}${this.parseConfig.parseExpressionSuffix}`;
-    const root = this._parse(source);
+    const root = this.parseSync(source);
     this.destroyRoot(root);
     return this.parseConfig.unwrapExpression(root);
+  }
+
+  removeQueryMarkers(node) {
+    const editor = new OffscreenEditor(node.root);
+
+    const markers = [];
+    for (const n of node.allNodes()) {
+      // TODO don't hardcode markers but read from language
+      if (n.text.startsWith("$")) markers.push(n);
+    }
+
+    node.root._editor.transaction(() => {
+      for (const marker of markers) marker.removeFull();
+    });
+
+    editor.root._editor = undefined;
+    return editor.root;
   }
 
   // node construction
@@ -256,6 +278,12 @@ export class TreeSitterLanguage extends SBLanguage {
     return this._matchesType(rule, myType);
   }
 
+  isExpression(node) {
+    // TODO parametrize the name of the expression type
+    const rule = this._grammarNodeFor(node);
+    return rule.name === "expression";
+  }
+
   // FIXME cb should only be called once we know that we have a full match
   _matchRule(rule, pending, cb) {
     switch (rule.type) {
@@ -275,9 +303,14 @@ export class TreeSitterLanguage extends SBLanguage {
         if (this.compatibleType(pending[0]?.type, rule.name)) {
           cb(pending.shift(), rule);
         } else {
-          // advertise the slot
-          cb(null, rule);
-          throw new NoMatch();
+          // inline?
+          if (rule.name[0] === "_" || this.grammar.inline.includes(rule.name)) {
+            this._matchRule(this.grammar.rules[rule.name], pending, cb);
+          } else {
+            // advertise the slot
+            cb(null, rule);
+            throw new NoMatch();
+          }
         }
         break;
       case "ALIAS":
@@ -288,6 +321,7 @@ export class TreeSitterLanguage extends SBLanguage {
         }
         break;
       case "CHOICE":
+        let didMatch = false;
         for (const member of rule.members) {
           // FIXME assumes that is can commit early to a choice,
           // instead we should be exploring all possible results
@@ -296,11 +330,13 @@ export class TreeSitterLanguage extends SBLanguage {
             this._matchRule(member, copy, cb);
             // shrink to same size and continue
             while (pending.length > copy.length) pending.shift();
+            didMatch = true;
             break;
           } catch (e) {
             if (!(e instanceof NoMatch)) throw e;
           }
         }
+        if (!didMatch) throw new NoMatch();
         break;
       case "REPEAT1":
         this._matchRule(rule.content, pending, cb);
@@ -364,7 +400,11 @@ export class TreeSitterLanguage extends SBLanguage {
   }
 }
 
-class NoMatch {}
+class NoMatch {
+  constructor() {
+    this.name = "NoMatch";
+  }
+}
 
 class GrammarNode extends Object {
   static buildRegex(node) {
@@ -606,9 +646,45 @@ export class TSQuery {
   }
 
   constructor(template, language, extract = null) {
-    this.text = template.replace(/\$/g, language.parseConfig.matchPrefix);
-    const root = language.parseExpression(this.text);
-    this.template = extract?.(root) ?? root;
+    const processed = template.replace(/\$/g, language.parseConfig.matchPrefix);
+    const parse = processed
+      .replace(/\(\?/g, "")
+      .replace(/(?::[A-Za-z0-9]+?)?\?\)/g, "");
+    const root = language.parseExpression(parse);
+
+    let adjust = 0;
+    const optionalStack = [];
+    // parse expressions of the form (?[a]?) and (?$abc:false?)
+    for (let i = 0; i < processed.length; i++) {
+      const char = processed[i];
+      if (char === "(" && processed[i + 1] === "?") {
+        if (processed[i + 2] === "$") {
+          const start = i;
+          adjust += 2;
+          while (processed[i] !== ":") i++;
+          const end = i;
+          const node = root.childForRange([start, end - adjust]);
+          while (processed[i] !== "?" || processed[i + 1] !== ")") i++;
+          node.optional = processed.slice(end + 1, i);
+          adjust += 3 + node.optional.length;
+          continue;
+        }
+        optionalStack.push(i - adjust);
+        adjust += 2;
+      }
+      if (char === "?" && processed[i + 1] === ")") {
+        const start = optionalStack.pop();
+        const node = root.childForRange([start, i - adjust]);
+        if (!node) debugger;
+        node.optional = true;
+        adjust += 2;
+      }
+    }
+
+    this.template =
+      typeof extract === "string"
+        ? root.firstOfType(extract)
+        : extract?.(root) ?? root;
     this.language = language;
   }
 
@@ -622,50 +698,132 @@ export class TSQuery {
     return this.prefix.repeat(3);
   }
 
+  get parentPrefix() {
+    return this.prefix + "_";
+  }
+
   get prefix() {
     return this.language.parseConfig.matchPrefix;
   }
 
   _match(a, b, captures) {
+    if (!a || !b) return false;
     const isTemplate = a.text.startsWith(this.prefix);
+
+    // prevent optional templates from matching delimiters
+    if (isTemplate && !b.named) return false;
+
     if (isTemplate) {
       captures.push([a.text.slice(1), b]);
       return true;
     }
     if (!a.isText && !b.isText && a.type === b.type) {
-      const leading = a.childNodes.findIndex((c) =>
+      const aChildren = a.childNodes.filter((n) => n.text !== ",");
+      const bChildren = b.childNodes.filter((n) => n.text !== ",");
+      const leading = aChildren.findIndex((c) =>
         c.text.startsWith(this.multiPrefix),
       );
       // if we have a multi match for children, match the prefix and suffix
       // of the template (if any), then collect the remaining children
       if (leading >= 0) {
+        if (leading > bChildren.length) return false;
         for (let i = 0; i < leading; i++) {
-          if (!this._match(a.childNodes[i], b.childNodes[i], captures))
-            return false;
+          if (!this._match(aChildren[i], bChildren[i], captures)) return false;
         }
-        let trailing = a.childNodes.length - leading - 1;
+        let trailing = aChildren.length - leading - 1;
         for (let i = 0; i < trailing; i++) {
           if (
             !this._match(
-              a.childNodes[a.childNodes.length - i - 1],
-              b.childNodes[b.childNodes.length - i - 1],
+              aChildren[aChildren.length - i - 1],
+              bChildren[bChildren.length - i - 1],
               captures,
             )
           )
             return false;
         }
         captures.push([
-          a.childNodes[leading].text.slice(this.multiPrefix.length),
-          b.childNodes.slice(leading, -trailing).filter((n) => n.named),
+          aChildren[leading].text.slice(this.multiPrefix.length),
+          bChildren.slice(leading, -trailing).filter((n) => n.named),
         ]);
         return true;
       }
 
-      if (a.childNodes.length !== b.childNodes.length) return false;
-      for (let i = 0; i < a.childNodes.length; i++) {
-        if (!this._match(a.childNodes[i], b.childNodes[i], captures))
-          return false;
+      const parentMatch = a.childNodes.find((n) =>
+        n.text.startsWith(this.parentPrefix),
+      );
+      if (parentMatch) {
+        captures.push([parentMatch.text.slice(this.parentPrefix.length), b]);
+        return true;
       }
+
+      for (let i = 0, j = 0; i < aChildren.length; i++, j++) {
+        const match = this._match(aChildren[i], bChildren[j], captures);
+        if (match) continue;
+        if (aChildren[i].optional) {
+          const optional = aChildren[i].optional;
+          let optionalRoot = aChildren[i].root.internalClone();
+          optionalRoot._sourceString = aChildren[i].root.sourceString;
+          optionalRoot._language = aChildren[i].root.language;
+
+          let optionalTemplate = optionalRoot.childForRange(aChildren[i].range);
+          const toRemove = [];
+          for (const child of optionalTemplate.allNodes()) {
+            if (child.named && child.text.startsWith(this.prefix)) {
+              if (child.text.startsWith(this.parentPrefix)) {
+                captures.push([child.text.slice(2), child.parent]);
+                toRemove.push(child);
+              } else {
+                captures.push([child.text.slice(1), child]);
+                toRemove.push(child);
+              }
+            }
+          }
+
+          console.assert(optionalTemplate.connected);
+          const editor = new OffscreenEditor(optionalTemplate.root);
+          optionalTemplate.root._editor.transaction(() => {
+            for (const marker of toRemove) {
+              if (marker.text.startsWith("$_")) marker.removeFull();
+              // FIXME assumes a single optional child
+              else marker.replaceWith(optional);
+            }
+          });
+
+          editor.root._editor = undefined;
+          optionalRoot = editor.root;
+
+          if (optional !== true) {
+            const replaced = optionalRoot.childForRange([
+              optionalTemplate.range[0],
+              optionalTemplate.range[0] + optional.length,
+            ]);
+
+            for (const capture of captures) {
+              if (capture[1] === optionalTemplate) {
+                capture[1] = replaced;
+              }
+            }
+            optionalTemplate = replaced;
+          }
+          console.assert(optionalTemplate.connected);
+          optionalRoot._editor = new MaybeEditor(
+            b.editor,
+            b,
+            optionalTemplate,
+            // FIXME correct?
+            withDo(
+              b.childBlocks.indexOf(
+                bChildren[Math.min(j, bChildren.length - 1)],
+              ),
+              (index) => (index < 0 ? b.childBlocks.length : index),
+            ),
+          );
+          j--;
+          continue;
+        }
+        return false;
+      }
+
       return true;
     }
     if (a.isText && b.isText && a.text === b.text) return true;

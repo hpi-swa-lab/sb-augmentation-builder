@@ -1,8 +1,9 @@
 import { SBBlock } from "../../core/model.js";
+import { useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { Side, findChange, rangeShift } from "../../utils.js";
 import {
-  mapIndex,
+  mapIndexToLocal,
   markInputEditableForNode,
   remapIndices,
   remapIndicesReverse,
@@ -30,7 +31,13 @@ export function bindSourceString(node: SBBlock) {
 }
 
 export function bindPlainString(node: SBBlock) {
-  const contentNodes = node.childBlocks as SBBlock[];
+  if (node.type !== "string" && node.type !== "template_string")
+    throw new Error("Expected string");
+
+  const contentNodes =
+    node.type === "template_string"
+      ? node.children.slice(1, node.children.length - 1)
+      : (node.childBlocks as SBBlock[]);
   const quote = node.childNode(0) as SBBlock | null;
   if (!quote) return { text: "", onLocalChange: () => {} };
 
@@ -51,35 +58,60 @@ export function bindPlainString(node: SBBlock) {
     range,
     indexMap,
     onLocalChange: (change: Change<any>) => {
-      change.from = mapIndex(indexMap, change.from) + range[0];
-      change.to = mapIndex(indexMap, change.to) + range[0];
+      change.from = mapIndexToLocal(indexMap, change.from) + range[0];
+      change.to = mapIndexToLocal(indexMap, change.to) + range[0];
       if (change.insert)
         change.insert = remapIndicesReverse(change.insert, rules)[0];
       if (change.selectionRange)
         change.selectionRange = [
-          mapIndex(indexMap, change.selectionRange[0]) + range[0],
-          mapIndex(indexMap, change.selectionRange[1]) + range[0],
+          mapIndexToLocal(indexMap, change.selectionRange[0]) + range[0],
+          mapIndexToLocal(indexMap, change.selectionRange[1]) + range[0],
         ];
       node.editor.applyChanges([change]);
     },
   };
 }
 
-export function TextArea({ text, onLocalChange, range, indexMap, style }) {
+//add onSlectionChange
+export function TextArea({
+  text,
+  onLocalChange,
+  onLocalSelectionChange = (textarea) => {},
+  range,
+  indexMap,
+  style,
+  textStyle: _textStyle = {},
+}) {
+  // text = text[text.length - 1] === "\n" ? text : text + "\n";
+  const textAreaRef = useRef(null);
   const textStyle = {
     padding: 0,
     lineHeight: "inherit",
     fontWeight: "inherit",
     fontSize: "inherit",
     border: "none",
+    ..._textStyle,
   };
+
+  useEffect(() => {
+    const handler = () => {
+      if (document.activeElement === textAreaRef.current)
+        onLocalSelectionChange(textAreaRef.current);
+    };
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
+  }, []);
+
   return h(
     "span",
     { style: { ...style, display: "inline-grid" } },
     h(
       "textarea",
       {
-        ref: markInputEditableForNode(range, indexMap),
+        ref: (e) => {
+          textAreaRef.current = e;
+          markInputEditableForNode(range, indexMap)(e);
+        },
         rows: 1,
         cols: 1,
         style: {
@@ -110,10 +142,10 @@ export function TextArea({ text, onLocalChange, range, indexMap, style }) {
       "span",
       {
         style: {
-          ...textStyle,
           whiteSpace: "pre-wrap",
           visibility: "hidden",
           gridArea: "1 / 1 / 2 / 2",
+          ...textStyle,
         },
       },
       text,

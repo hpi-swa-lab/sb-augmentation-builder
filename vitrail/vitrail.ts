@@ -5,6 +5,7 @@ import {
   RemoveOp,
   UpdateOp,
 } from "../core/diff.js";
+import { EditOptions, ModelEditor } from "../core/matcher.ts";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import {
   useContext,
@@ -17,9 +18,11 @@ import { createContext, h, render } from "../external/preact.mjs";
 import {
   Side,
   adjustIndex,
+  allChildren,
   clamp,
   last,
   rangeContains,
+  rangeEqual,
   rangeIntersects,
   rangeShift,
   takeWhile,
@@ -28,10 +31,14 @@ import {
   adjacentCursorPosition,
   cursorPositionsForIndex,
 } from "../view/focus.ts";
+import { forwardRef } from "../view/widgets.js";
 
 // TODO
 // marker (and not just replacement) support
 // redo needs to be aware of intentToDeleteNodes
+// process replacements in two phases: remove all and buffer, then add all
+// change text just after spawn (while models are still loading)
+// codemirror: nested editors block cursor rendering
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -40,16 +47,42 @@ import {
   return document.activeElement === this;
 };
 
-const VitrailContext = createContext(null);
+export const VitrailContext = createContext(null);
+export const useVitrailProps = () =>
+  useContext(VitrailContext).vitrail.props.value;
+export const usePaneProps = () =>
+  useContext(VitrailContext).pane.props.value ?? {};
 
 type ReplacementProps = { [field: string]: any } & {
   nodes: SBNode[];
   replacement: Replacement<any>;
 };
 
+function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
+  if (a instanceof SBNode) {
+    if (a.id !== b?.id) return false;
+    if (editBuffer.hasChangeIn(a)) return false;
+    return true;
+  }
+  if (a === b) return true;
+  if (Array.isArray(a)) {
+    if (a.length !== b?.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  if (typeof a === "object") {
+    for (const key in a) {
+      if (!compareReplacementProps(a[key], b[key], editBuffer)) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 export interface Replacement<Props extends ReplacementProps> {
   matchedNode: SBNode;
   nodes: SBNode[];
+  lastMatch: Props;
   view: HTMLElement;
   augmentation: Augmentation<Props>;
 }
@@ -87,12 +120,12 @@ export interface Augmentation<Props extends ReplacementProps> {
   deletionInteraction?: DeletionInteraction;
 }
 
-interface Model {
+export interface Model {
   parse: <T>(sourceString: string, v: Vitrail<T>) => Promise<SBNode>;
   canBeDefault: boolean;
 }
 
-export interface ReversibleChange<T> {
+export type ReversibleChange<T> = {
   from: number;
   to: number;
   insert: string;
@@ -100,14 +133,12 @@ export interface ReversibleChange<T> {
   sourcePane?: Pane<T>;
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
-  // Optional list of nodes that the user explicitly requested to be deleted.
-  // May be used by validations to determine if a change is valid.
-  intentDeleteNodes?: SBNode[];
-}
+} & EditOptions;
 export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 
 type CreatePaneFunc<T> = (
   fetchAugmentations: PaneFetchAugmentationsFunc<T>,
+  hostOptions?: any,
 ) => Pane<T>;
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string, undoable: boolean) => void;
@@ -116,6 +147,7 @@ export type PaneFetchAugmentationsFunc<T> = (
   parent: Pane<T> | null,
 ) => Augmentation<any>[] | null;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
+type PaneEnsureContinueEditing = () => void;
 type PaneFocusRangeFunc = (head: number, anchor: number) => void;
 type ValidatorFunc<T> = (
   root: SBNode,
@@ -123,7 +155,7 @@ type ValidatorFunc<T> = (
   changes: ReversibleChange<T>[],
 ) => boolean;
 
-export class Vitrail<T> extends EventTarget {
+export class Vitrail<T> extends EventTarget implements ModelEditor {
   _panes: Pane<T>[] = [];
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
@@ -133,6 +165,12 @@ export class Vitrail<T> extends EventTarget {
 
   createPane: CreatePaneFunc<T>;
   _showValidationPending: (show: boolean) => void;
+
+  // general-purpose way for the outside world to set values
+  _props = signal({});
+  get props() {
+    return this._props;
+  }
 
   get sourceString() {
     return this._sourceString;
@@ -190,6 +228,10 @@ export class Vitrail<T> extends EventTarget {
     return this._panes.find((p) => p.view === view) ?? null;
   }
 
+  async ensureModel(model: Model) {
+    await this._loadModel(model);
+  }
+
   async registerValidator(model: Model, cb: ValidatorFunc<T>) {
     if (!(model instanceof SBLanguage)) throw new Error("no model given");
     const p: [Model, ValidatorFunc<T>] = [model, cb];
@@ -210,6 +252,9 @@ export class Vitrail<T> extends EventTarget {
   async _loadModel(model: Model) {
     if (!this._models.has(model)) {
       this._models.set(model, await model.parse(this.sourceString, this));
+      this.dispatchEvent(
+        new CustomEvent("newModelLoaded", { detail: { model } }),
+      );
     }
   }
 
@@ -226,6 +271,16 @@ export class Vitrail<T> extends EventTarget {
   activeTransactionList: ReversibleChange<T>[] | null = null;
   _pendingChanges: ReturnType<typeof signal>;
   _revertChanges: Change<T>[] = [];
+
+  transaction(cb: () => void) {
+    if (this.activeTransactionList)
+      throw new Error("Nested transactions not supported right now");
+    this.activeTransactionList = [];
+    cb();
+    const list = this.activeTransactionList;
+    this.activeTransactionList = null;
+    this.applyChanges(list);
+  }
 
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
     if (
@@ -306,8 +361,8 @@ export class Vitrail<T> extends EventTarget {
     // may create or delete panes while iterating, so iterate over a copy
     for (const pane of [...this._panes]) {
       // if we are deleted while iterating, don't process diff
-      if (pane.nodes[0]?.connected && pane.view.isConnected) {
-        pane.applyChanges(changes.filter((c) => c.sourcePane !== pane));
+      if (pane.nodes[0]?.connected) {
+        pane.applyChanges(allChanges.filter((c) => c.sourcePane !== pane));
       }
     }
 
@@ -321,16 +376,25 @@ export class Vitrail<T> extends EventTarget {
       }
     }
 
-    const target = last(allChanges).selectionRange;
-    const candidates = this._cursorRoots().flatMap((r) =>
-      cursorPositionsForIndex(r, target[0]),
-    );
-    const focused = candidates.find((p) => (p.element as any).hasFocus());
-    if (!focused) {
-      (candidates[0].element as any).focusRange(
-        candidates[0].index,
-        candidates[0].index,
-      );
+    if (!allChanges.some((c) => c.noFocus)) {
+      const target = last(allChanges).selectionRange;
+      let current = this.getSelection();
+      if (!current?.range || !rangeEqual(current?.range, target)) {
+        const candidates = this._cursorRoots().flatMap((r) =>
+          cursorPositionsForIndex(r, target[0]),
+        );
+        const head =
+          candidates.find((p) => (p.element as any).hasFocus()) ??
+          candidates[0];
+        const anchor = cursorPositionsForIndex(head.element, target[1])[0]
+          ?.index;
+        (head.element as any).focusRange(head.index, anchor ?? head.index);
+        current = { element: head.element, range: target };
+      }
+
+      if (allChanges.some((c) => c.requireContinueInput)) {
+        this.paneForView(current?.element)?.ensureContinueEditing();
+      }
     }
 
     this.dispatchEvent(
@@ -349,6 +413,35 @@ export class Vitrail<T> extends EventTarget {
         )
         .map((p) => p.view),
     ];
+  }
+
+  getSelection() {
+    for (const root of this._cursorRoots()) {
+      for (const node of allChildren(root)) {
+        if (node.hasFocus?.() && node.getSelection) {
+          let selection = node.getSelection();
+          return { range: selection, element: node };
+        }
+      }
+    }
+    return null;
+  }
+
+  selectedNode(model?: Model) {
+    const selection = this.getSelection();
+    if (!selection) return null;
+
+    const { range } = selection;
+    return this._models
+      .get(model ?? this.defaultModel)
+      ?.childEncompassingRange(range);
+  }
+
+  selectedString() {
+    const selection = this.getSelection();
+    if (!selection) return null;
+    const { range } = selection;
+    return this.sourceString.slice(range[0], range[1]);
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -411,7 +504,7 @@ export class Vitrail<T> extends EventTarget {
   replaceTextFromCommand(
     range: [number, number],
     text: string,
-    intentDeleteNodes?: SBNode[],
+    editOptions: EditOptions,
   ) {
     range = this.adjustRange(range, true);
     const previousText = this._rootPane.getText().slice(range[0], range[1]);
@@ -421,17 +514,21 @@ export class Vitrail<T> extends EventTarget {
         to: range[1],
         insert: text,
         selectionRange: [range[0] + text.length, range[0] + text.length],
-        intentDeleteNodes,
         inverse: {
           from: range[0],
           to: range[0] + text.length,
           insert: previousText,
         },
+        ...editOptions,
       },
     ]);
   }
 
-  insertTextFromCommand(position: number, text: string) {
+  insertTextFromCommand(
+    position: number,
+    text: string,
+    editOptions: EditOptions,
+  ) {
     position = this.adjustRange([position, position], true)[0];
     this.applyChanges([
       {
@@ -444,6 +541,7 @@ export class Vitrail<T> extends EventTarget {
           to: position + text.length,
           insert: "",
         },
+        ...editOptions,
       },
     ]);
   }
@@ -457,12 +555,15 @@ export class Pane<T> {
   replacements: Replacement<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
   startIndex: number = -1;
+  startLineNumber: number = -1;
+  props = signal(null);
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
   hasFocus: () => boolean;
   _applyLocalChanges: PaneApplyLocalChangesFunc<T>;
   getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
+  ensureContinueEditing: PaneEnsureContinueEditing;
   getText: PaneGetTextFunc;
   setText: PaneSetTextFunc;
   syncReplacements: () => void;
@@ -472,6 +573,10 @@ export class Pane<T> {
       this.nodes[0].range[0],
       last(this.nodes).range[1],
     ]);
+  }
+
+  get sourceString() {
+    return this.vitrail.sourceString.slice(this.range[0], this.range[1]);
   }
 
   constructor({
@@ -484,6 +589,7 @@ export class Pane<T> {
     hasFocus,
     syncReplacements,
     getLocalSelectionIndices,
+    ensureContinueEditing,
     fetchAugmentations,
     applyLocalChanges,
   }: {
@@ -493,6 +599,7 @@ export class Pane<T> {
     syncReplacements: () => void;
     hasFocus: () => boolean;
     focusRange: PaneFocusRangeFunc;
+    ensureContinueEditing: PaneEnsureContinueEditing;
     getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
     fetchAugmentations: PaneFetchAugmentationsFunc<T>;
     applyLocalChanges: PaneApplyLocalChangesFunc<T>;
@@ -506,12 +613,14 @@ export class Pane<T> {
     this.getText = getText;
     this.hasFocus = hasFocus;
     this.focusRange = focusRange;
+    this.ensureContinueEditing = ensureContinueEditing;
     this.syncReplacements = syncReplacements;
     this._applyLocalChanges = applyLocalChanges;
     this.getLocalSelectionIndices = getLocalSelectionIndices;
     this._fetchAugmentations = fetchAugmentations;
 
     let pane = this;
+    (this.view as any)._debugPane = this;
     (this.view as any).cursorPositions = function* () {
       yield* pane.paneCursorPositions();
     };
@@ -520,6 +629,9 @@ export class Pane<T> {
     };
     (this.view as any).hasFocus = function () {
       return pane.hasFocus();
+    };
+    (this.view as any).getSelection = function () {
+      return rangeShift(pane.getLocalSelectionIndices(), pane.startIndex);
     };
   }
 
@@ -585,6 +697,7 @@ export class Pane<T> {
 
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
     this.startIndex = nodes[0].range[0];
+    this._computeLineNumber();
     this.nodes = nodes;
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
@@ -618,12 +731,14 @@ export class Pane<T> {
     ) {
       // depending on how the AST shifted, we may be off; if we have
       // pendingChanges, the AST won't update.
-      const targetText = this.nodes.map((n) => n.sourceString).join("");
+      const targetText = this.sourceString;
       if (this.getText() !== targetText) {
         this.setText(targetText, true);
       }
       this.startIndex = this.nodes[0].range[0];
     }
+
+    this._computeLineNumber();
   }
 
   updateReplacements(editBuffer: EditBuffer) {
@@ -650,7 +765,9 @@ export class Pane<T> {
     for (const root of changedNodes) {
       for (const node of root.andAllParents()) {
         const replacement = this.getReplacementFor(node);
-        const match = replacement?.augmentation.match(node, this);
+        const match = replacement
+          ? this.matchAugmentation(node, replacement.augmentation)
+          : null;
         // check for replacements that are now gone because a change made them invalid
         if (replacement && !match) {
           this.uninstallReplacement(replacement);
@@ -659,12 +776,10 @@ export class Pane<T> {
     }
 
     for (const replacement of this.replacements) {
-      if (replacement.augmentation.rerender?.(editBuffer)) {
-        const match = replacement.augmentation.match(
-          replacement.matchedNode,
-          this,
-        );
+      const match = this.reRenderReplacement(replacement, editBuffer);
+      if (match) {
         replacement.nodes = match.nodes;
+        replacement.lastMatch = match;
         this.renderAugmentation(replacement, match);
       }
     }
@@ -676,11 +791,13 @@ export class Pane<T> {
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
           if (!node) break;
-          if (!rangeContains(this.range, node.range)) break;
+          if (!this.containsNode(node)) break;
 
           const match = this.mayReplace(node, augmentation);
           if (match) this.installReplacement(node, augmentation, match);
-          node = node?.parent;
+          node = node.parent;
+          // if we check this node later anyways, no need to ascend from here
+          if (node && changedNodes.has(node)) break;
         }
       }
     }
@@ -688,15 +805,42 @@ export class Pane<T> {
     this.syncReplacements();
   }
 
+  containsNode(node: SBNode) {
+    if (node.language === this.nodes[0]?.language)
+      return this.nodes.some((n) => n.contains(node));
+    return rangeContains(this.range, node.range);
+  }
+
+  reRenderReplacement(replacement: Replacement<any>, editBuffer: EditBuffer) {
+    if (!replacement.augmentation.rerender?.(editBuffer)) return null;
+
+    const match = this.matchAugmentation(
+      replacement.matchedNode,
+      replacement.augmentation,
+    );
+    if (compareReplacementProps(match, replacement.lastMatch, editBuffer))
+      return null;
+    return match;
+  }
+
+  matchAugmentation(node: SBNode, augmentation: Augmentation<any>) {
+    const match = augmentation.match(node, this);
+    if (!match) return null;
+    match.nodes = [node];
+    return match;
+  }
+
   mayReplace(node: SBNode, augmentation: Augmentation<any>) {
     if (this.getReplacementFor(node)) return null;
     // prevent recursion
     if (
+      this.nodes[0] === node &&
       this.parentPane?.replacements.some((r) => r.matchedNode === this.nodes[0])
     )
       return false;
-    const match = augmentation.match(node, this);
+    const match = this.matchAugmentation(node, augmentation);
     if (!match) return false;
+    if (!match.nodes) match.nodes = [node];
     if (
       this.replacements.some((r) =>
         rangeContains(
@@ -737,11 +881,12 @@ export class Pane<T> {
       "vitrail-replacement-container",
     ) as VitrailReplacementContainer;
 
-    const replacement = {
+    const replacement: Replacement<any> = {
       matchedNode,
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
       augmentation,
+      lastMatch: match,
     };
 
     view.vitrail = this.vitrail;
@@ -868,14 +1013,56 @@ export class Pane<T> {
     }
     return false;
   }
+
+  _computeLineNumber() {
+    const source = this.vitrail.sourceString;
+    this.startLineNumber = 1;
+    for (let i = 0; i < this.startIndex; i++) {
+      if (source[i] === "\n") this.startLineNumber++;
+    }
+    return this.startLineNumber;
+  }
 }
 
-export function VitrailPane({ fetchAugmentations, nodes, style, ref }) {
+type VitrailPaneProps = {
+  fetchAugmentations?: PaneFetchAugmentationsFunc<any>;
+  hostOptions: any;
+  nodes: SBNode[];
+  style: any;
+  className: string;
+  ref;
+  props: { [field: string]: any };
+};
+export const VitrailPane = forwardRef(function VitrailPane(
+  props: VitrailPaneProps,
+  ref,
+) {
+  if (props.nodes && props.nodes.length > 0)
+    return h(_VitrailPane, { ...props, ref });
+  else return null;
+});
+
+const _VitrailPane = forwardRef(function _VitrailPane(
+  {
+    fetchAugmentations,
+    hostOptions,
+    nodes,
+    style,
+    className,
+    props,
+  }: VitrailPaneProps,
+  ref,
+) {
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
-  const vitrail = nodes[0]?.editor;
+  //console.log(nodes);
+  const vitrail: Vitrail<any> = nodes[0]?.editor;
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
-    () => vitrail.createPane(fetchAugmentations),
+    () =>
+      vitrail.createPane(
+        fetchAugmentations ?? ((p) => p?.fetchAugmentations()),
+        hostOptions,
+      ),
     [vitrail],
   );
 
@@ -887,15 +1074,18 @@ export function VitrailPane({ fetchAugmentations, nodes, style, ref }) {
     return () => vitrail.unregisterPane(pane);
   }, [vitrail, ...nodes]);
 
+  pane.props.value = props;
+
   return h("span", {
     key: "stable",
     style,
+    class: className,
     ref: (el: HTMLElement) => {
       if (ref) ref.current = el;
       if (el && !pane.view.isConnected) el.appendChild(pane.view);
     },
   });
-}
+});
 
 export function VitrailPaneWithWhitespace({ nodes, ignoreLeft, ...props }) {
   const list = [
@@ -956,8 +1146,27 @@ export function useValidateKeepReplacement(replacement: Replacement<any>) {
     (_root, _diff, changes) =>
       changesIntendToDeleteNode(changes, replacement.matchedNode) ||
       (replacement.matchedNode?.connected &&
-        replacement.augmentation.match(replacement.matchedNode, pane) !== null),
+        pane.matchAugmentation(
+          replacement.matchedNode,
+          replacement.augmentation,
+        ) !== null),
     [...replacement.nodes, replacement.augmentation],
+  );
+}
+
+export function useValidateNoError(nodes: SBNode[]) {
+  useValidator(nodes[0].language, () => !nodes.some((n) => n.hasError), nodes);
+}
+
+export function useValidateKeepNodes(nodes: SBNode[], model?: Model) {
+  console.assert(nodes.length > 0 || model);
+  useValidator(
+    model ?? nodes[0].language,
+    (_root, _diff, changes) =>
+      nodes.every(
+        (node) => changesIntendToDeleteNode(changes, node) || node.connected,
+      ),
+    nodes,
   );
 }
 
@@ -1007,6 +1216,10 @@ class VitrailReplacementContainer extends HTMLElement {
   }
 
   *cursorPositions() {
+    // we may currently be offscreen, e.g. when temporarily detached
+    // during pending changes
+    if (!this.isConnected) return;
+
     switch (this.selection) {
       case SelectionInteraction.Start:
         yield { element: this, index: this.range[0] };
@@ -1109,6 +1322,12 @@ class VitrailReplacementContainer extends HTMLElement {
   focusRange(head: number, anchor: number) {
     this._selectedAtStart = head === this.range[0];
     this.focus();
+  }
+
+  getSelection() {
+    return this._selectedAtStart
+      ? [this.range[0], this.range[0]]
+      : [this.range[1], this.range[1]];
   }
 
   onClick(e: MouseEvent) {

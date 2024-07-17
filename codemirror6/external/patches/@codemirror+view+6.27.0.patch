@@ -1,0 +1,32 @@
+diff --git a/node_modules/@codemirror/view/dist/index.js b/node_modules/@codemirror/view/dist/index.js
+index b842e91..a090476 100644
+--- a/node_modules/@codemirror/view/dist/index.js
++++ b/node_modules/@codemirror/view/dist/index.js
+@@ -8756,20 +8756,20 @@ const selectionLayer = /*@__PURE__*/layer({
+     class: "cm-selectionLayer"
+ });
+ const themeSpec = {
+-    ".cm-line": {
+-        "& ::selection, &::selection": { backgroundColor: "transparent !important" },
+-    },
+-    ".cm-content": {
+-        "& :focus": {
++    "> .cm-scroller > .cm-content": {
++        "& :not(.cm-content):focus": {
+             caretColor: "initial !important",
+             "&::selection, & ::selection": {
+                 backgroundColor: "Highlight !important"
+             }
+         }
+-    }
++    },
++    "> .cm-scroller > .cm-content > .cm-line": {
++        "& ::selection, &::selection": { backgroundColor: "transparent !important" },
++    },
+ };
+ if (CanHidePrimary)
+-    themeSpec[".cm-line"].caretColor = themeSpec[".cm-content"].caretColor = "transparent !important";
++    themeSpec["> .cm-scroller > .cm-content > .cm-line"].caretColor = themeSpec["> .cm-scroller > .cm-content"].caretColor = "transparent !important";
+ const hideNativeSelection = /*@__PURE__*/Prec.highest(/*@__PURE__*/EditorView.theme(themeSpec));
+ 
+ const setDropCursorPos = /*@__PURE__*/StateEffect.define({

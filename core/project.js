@@ -9,12 +9,52 @@ export class Project extends EventTarget {
 
   get name() {}
 
+  openFiles = new Map();
+
   async writeFile(path, source) {
     throw new Error("writeFile not implemented");
   }
 
   async readFile(path) {
     return (await this.readFiles([path]))[0].data;
+  }
+
+  async openFile(path) {
+    const firstTime =
+      !this.openFiles.has(path) || this.openFiles.get(path) === 0;
+    this.openFiles.set(path, (this.openFiles.get(path) ?? 0) + 1);
+
+    const content = await this.readFile(path);
+    this.dispatchEvent(
+      new CustomEvent("openFile", { detail: { path, content } }),
+    );
+    if (firstTime)
+      this.dispatchEvent(
+        new CustomEvent("openFileFirst", { detail: { path } }),
+      );
+    return content;
+  }
+
+  closeFile(path) {
+    this.openFiles.set(path, this.openFiles.get(path) - 1);
+    console.assert(this.openFiles.get(path) >= 0);
+    const allClosed = this.openFiles.get(path) === 0;
+    this.dispatchEvent(new CustomEvent("closeFile", { detail: { path } }));
+    if (allClosed)
+      this.dispatchEvent(new CustomEvent("closeFileAll", { detail: { path } }));
+  }
+
+  async saveFile(path, content) {
+    await this.writeFile(path, content);
+    this.dispatchEvent(new CustomEvent("saveFile", { detail: { path } }));
+  }
+
+  onChangeFile(path, oldSource, newSource, changes, diff) {
+    this.dispatchEvent(
+      new CustomEvent("changeFile", {
+        detail: { path, oldSource, newSource, changes, diff },
+      }),
+    );
   }
 
   _data = new Map();

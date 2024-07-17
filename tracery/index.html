@@ -6,77 +6,7 @@
 
   <body>
     <div id="editor"></div>
-    <script type="module">
-      import { browser } from "./browser.ts";
-      import { augmentationBuilder } from "./augmentation-builder.ts";
-      import { createDefaultCodeMirror } from "../vitrail/codemirror6.ts";
-
-      createDefaultCodeMirror(
-        `
-const smileys =  {
-  model: languageFor("javascript"),
-  matcherDepth: 3,
-  rerender: () => true,
-  match: (x, _pane) =>  metaexec(x, (capture) => [
-    x => x.type === "lexical_declaration",
-    x => x.childNode(0),
-    all(
-      [replace(capture)],
-      [
-        x => x.text,
-        capture("type"),
-      ])
-  ]),
-  examples: [
-    "const a = 1",
-    "let b = 2",
-  ],
-  view: ({ type, nodes }) => {
-    return h(
-      "span",
-      {
-        onclick: () =>
-          nodes[0].replaceWith(type === "let" ? "const" : "let"),
-      },
-      type === "let" ? "let 😀" : "const 😇"
-    )
-  }
-};
-
-
-export const text = {
-  model: languageFor("javascript"),
-  matcherDepth: 1,
-  rerender: () => true,
-  examples: ["abc", "def"],
-  match: (x, _pane) =>
-    metaexec(x, (capture) => [
-      (it) => it.type === "string",
-      all([replace(capture)], [bindPlainString, capture("text")]),
-    ]),
-  view: ({ text }) => {
-    return h(TextArea, text);
-  },
-};
-
-import { browser } from "browser.ts";
-
-class MyCls {
-  constructor() {
-    this.hello();
-  }
-
-  hello() {
-    console.log("Hello, world!");
-  }
-}
-
-
-function hello() {
-}`,
-        document.querySelector("#editor"),
-        [browser, augmentationBuilder],
-      );
-    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="./main.js"></script>
   </body>
 </html>

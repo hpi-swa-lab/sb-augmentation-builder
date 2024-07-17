@@ -26,7 +26,7 @@ export const pipelineBuilder = {
     return metaexec(x, (capture) => [
       all(
         [
-          query("metaexec($_,$_ => $pipeline)"),
+          query("metaexec($a,$b => $pipeline)"),
           (it) => it.pipeline,
           (it) => new PipelineBinding(it),
           capture("pipeline"),
@@ -45,33 +45,24 @@ export const pipelineBuilder = {
 //  `
 //  const pipeline = (node) =>
 //    metaexec(node, (capture) => [
-//      (it) => it.type == "program",
-//      (it) => it.children,
+//          (it) => it.type == "program2",
+//          (it) => it.type == "program2",
 //      all(
 //        [
-//          (it) => it.type == "program",
+//          (it) => it.type == "program2",
 //          (it) => it.children,
-//        ],
-//        [
-//          (it) => it.type == "program",
-//          (it) => it.children,
-//          all(
-//            [(it) => it.type == "program",
-//            (it) => it.children],
-//            capture("test")
-//          )
-//        ],
+//        ]
 //      )
 //    ]);
 //  `,
 //  document.querySelector("#editor")!,
-//  [watch],
+//  [pipelineBuilder],
 //);
 
 const v = createDefaultCodeMirror(
   `
 function collectToplevel(node) {
-    return metaexec(node, (capture) => [
+    return metaexec(node, (capture,selectedInput,selectedOutput) => [
       (it) => it.named,
       (it) => it.type != "comment",
       all(
@@ -87,8 +78,7 @@ function collectToplevel(node) {
                 [
                   first(
                     [
-                      type("class_declaration"),
-                      //Thing about queryAndCapture methode
+                      selected(type("class_declaration")),
                       query("class $name {$$$members}"),
                     ],
                     [
@@ -98,7 +88,10 @@ function collectToplevel(node) {
                     [
                       type("function_declaration"),
                       (it) => it.children.find((it) => it.type == "identifier"),
-                      (it) => ({ name: it, members: [] }),
+                      all(
+                        [(it) => it.name],
+                        [(it) => it.members]
+                      ),
                     ],
                   ),
                   all(

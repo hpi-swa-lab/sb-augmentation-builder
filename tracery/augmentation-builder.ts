@@ -1,7 +1,5 @@
-import { languageFor } from "../core/languages.js";
-import { SBNode, extractType } from "../core/model.js";
-import { useMemo, useRef } from "../external/preact-hooks.mjs";
-import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
+import { SBBlock, SBNode } from "../core/model.js";
+import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -10,162 +8,238 @@ import {
 import {
   metaexec,
   type,
-  all,
-  replace,
+  query,
+  captureAll,
+  spawnArray,
+  getDebugHistory,
+  debugHistory,
+  evalRange,
 } from "../sandblocks/query-builder/functionQueries.js";
+import { NodeArray } from "./node-array.ts";
 import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
+import { openBrowser } from "./browser.ts";
+import { FileProject } from "./project.js";
+import { useComputed, useSignal } from "../external/preact-signals.mjs";
+import { randomId, rangeSize } from "../utils.js";
+import { useAsyncEffect } from "../view/widgets.js";
+import { objectToString } from "./query-builder.ts";
 
-const objectField = (field) => (it) =>
-  it.findQuery(`let a = {${field}: $value}`, extractType("pair"))?.value;
+export async function openNewAugmentation(
+  project: FileProject,
+  example: string,
+  node: SBNode,
+) {
+  const name = prompt("Name of the augmentation");
+  const template = `import { languageFor } from "./core/languages.js";
+import { metaexec, all, } from "./sandblocks/query-builder/functionQueries.js";
+import { h } from "./external/preact.mjs";
 
-function NodeList({ container, view, style, wrap, add }) {
-  const nodes = container.childBlocks;
-  view ??= (it: SBNode, ref, onmouseleave, onmousemove) =>
-    h(VitrailPane, { nodes: [it], ref, onmouseleave, onmousemove });
-  wrap ??= (it) => h("div", { style: { display: "flex" } }, it);
-  add ??= ([left, top], ref, onclick, onmouseleave) =>
-    h(
-      "div",
-      {
-        ref,
-        onclick,
-        onmouseleave,
-        style: {
-          width: "1rem",
-          height: "1rem",
-          background: "#555",
-          borderRadius: "50%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          lineHeight: "1",
-          color: "#fff",
-          cursor: "pointer",
-          position: "fixed",
-          top,
-          left,
-        },
-      },
-      "+",
-    );
-  style = { display: "flex", flexDirection: "column", ...style };
-
-  return wrap(
-    nodes.map((it, index) =>
-      h(_NodeListItem, {
-        onInsert: (atEnd) =>
-          container.insert("'a'", "expression", index + (atEnd ? 1 : 0)),
-        node: it,
-        view,
-        add,
-      }),
-    ),
-  );
-}
-
-function _NodeListItem({ onInsert, node, view, add }) {
-  const hoverStart = useSignal(false);
-  const hoverEnd = useSignal(false);
-  const showAddPoint = useSignal(null);
-  const ref = useRef();
-  const addRef = useRef();
-
-  useSignalEffect(() => {
-    if (hoverStart.value || hoverEnd.value) {
-      const rect = ref.current.getBoundingClientRect();
-      showAddPoint.value = [
-        rect.x,
-        rect.y + rect.height * (hoverStart.value ? 0.05 : 0.95),
-      ];
-    } else {
-      showAddPoint.value = null;
-    }
+export const ${name} = {
+  matcherDepth: Infinity,
+  model: languageFor("${node.language.name}"),
+  examples: [${JSON.stringify(example)}],
+  match: (it) => metaexec(it, (capture) => [query(${JSON.stringify(example)})]),
+  view: ({ nodes }) => h("div", {}, "Augmentation"),
+  rerender: () => true,
+}`;
+  await project.createFile(name + ".ts", template);
+  openBrowser(project, {
+    initialSelection: {
+      topLevel: name,
+      path: project.path + "/" + name + ".ts",
+    },
   });
-
-  const hideAdd = () => {
-    hoverEnd.value = false;
-    hoverStart.value = false;
-  };
-
-  return [
-    showAddPoint.value &&
-      add(showAddPoint.value, addRef, () => onInsert(hoverEnd.value), hideAdd),
-    view(
-      node,
-      ref,
-      (e) => {
-        const box = ref.current.getBoundingClientRect();
-        hoverStart.value = e.clientY < box.top + box.height * 0.1;
-        hoverEnd.value = e.clientY > box.top + box.height * 0.9;
-      },
-      (e) => {
-        if (addRef.current && addRef.current.contains(e.relatedTarget)) return;
-        hideAdd();
-      },
-    ),
-  ];
 }
 
-export const augmentationBuilder = {
-  matcherDepth: 4,
-  model: languageFor("javascript"),
+function getAbsolutePath(node: SBBlock) {
+  const n = node.cloneOffscreen();
+  const path = (n.atField("source") as any).childBlock(0);
+  // TODO not sure how to resolve this properly yet
+  // full URL is needed since we are using a dynamic import without path
+  path.replaceWith(path.text.replace(/^\./, "https://localhost:3000"));
+  return n.sourceString;
+}
+
+export const augmentationBuilder = (model) => ({
+  matcherDepth: 8,
+  model,
   rerender: () => true,
   match: (node) =>
     metaexec(node, (capture) => [
       type("object"),
-      replace(capture),
-      all(
-        [objectField("matcherDepth"), capture("depth")],
-        [objectField("model"), capture("model")],
-        [objectField("match"), capture("match")],
-        [objectField("view"), capture("view")],
-        [objectField("examples"), capture("examples")],
+      query(
+        `({
+        matcherDepth: $depth,
+        model: $model,
+        match: $match,
+        view: $view,
+        rerender: $rerender,
+        (?examples: [$_examples]?)
+      })`,
+        "object",
       ),
+      captureAll(capture),
     ]),
-  view: ({ examples, nodes: [node] }) => {
-    const augmentation = useMemo(
-      () => eval(`const a = ${node.sourceString}; a`),
-      [node.sourceString],
+  view: ({ examples, match, view, nodes: [node] }) => {
+    const augmentation = useSignal(null);
+    const debugId = useMemo(() => randomId().toString(), []);
+    const debugHistoryAug = useComputed(() =>
+      debugHistory.value ? debugHistory.value : new Map(),
     );
+
+    useAsyncEffect(async () => {
+      debugHistory.value = new Map(
+        debugHistory.value.set(`suc_${debugId}`, false),
+      );
+      try {
+        const aug = node.cloneOffscreen();
+        aug
+          .findQuery("metaexec($_args)")
+          ?.args?.insert(`"${debugId}"`, "expression", 9e8);
+        const imports =
+          metaexec(node.root, (capture) => [
+            (it) => it.childBlocks,
+            spawnArray((it) =>
+              metaexec(it, (capture) => [
+                type("import_statement"),
+                getAbsolutePath,
+                capture("source"),
+              ]),
+            ),
+            capture("imports"),
+          ])
+            ?.imports?.map((i) => i.source)
+            .join("\n") ?? "";
+        const src = `${imports}
+        export const a = ${aug.sourceString}`;
+        const a = (
+          await import("data:text/javascript;charset=utf-8;base64," + btoa(src))
+        ).a;
+        augmentation.value = a;
+        //console.log("Aug");
+        //console.log(augmentation.value);
+        //console.log(debugHistory.value.get(`suc_${debugId}`));
+      } catch (e) {
+        console.log("Failed to eval augmentation", e);
+      }
+    }, [node.sourceString, evalRange.value]);
+
+    const exampleSelectionRange = useSignal([0, 0]);
+
+    if (debugHistoryAug.value.has(`fin_${debugId}`))
+      console.log(debugHistory.value.get(`fin_${debugId}`));
 
     return h(
       "div",
-      { style: { display: "flex", border: "1px solid #333" } },
-      h("div", {}, "Augmentation", h(VitrailPane, { nodes: [node] })),
+      {
+        style: { display: "flex", border: "1px solid #333" },
+        focusable: true,
+      },
       h(
-        "table",
-        { style: { width: 400 } },
+        "div",
+        {},
+        h("strong", {}, "Match"),
+        h("div", {}, h(VitrailPane, { nodes: [match], props: { debugId } })),
+        //h("strong", {}, "History"),
+        //h(
+        //  "div",
+        //  {},
+        //  debugHistoryAug.value.has(`fin_${debugId}`)
+        //    ? debugHistoryAug.value
+        //        .get(`fin_${debugId}`)
+        //        .map((it) =>
+        //          h(
+        //            "div",
+        //            {},
+        //            `id: ${it.id.toString()}, ${objectToString(it, 1, true)}`,
+        //          ),
+        //        )
+        //    : null,
+        //),
+      ),
+      h(
+        "div",
+        {},
+
+        h("strong", {}, "View"),
+        h("div", {}, h(VitrailPane, { nodes: [view] })),
+        h("hr"),
+
         h(
-          "tr",
-          { style: { height: "1rem" } },
-          h("td", {}, "Examples"),
-          h("td", {}, "Preview"),
+          "table",
+          { style: { maxWidth: "550px", width: "100%", tableLayout: "fixed" } },
+          h(
+            "tr",
+            { style: { height: "1rem" } },
+            h("td", {}, "Examples"),
+            h("td", {}, "Preview"),
+          ),
+          h(NodeArray, {
+            insertItem: () => "['', [0, 0]]",
+            container: examples,
+            wrap: (it) => it,
+            view: (it, ref, onmousemove, onmouseleave) => {
+              const e = bindPlainString(it.childBlock(0));
+              return h(
+                "tr",
+                { ref, onmousemove, onmouseleave },
+                h(
+                  "td",
+                  {},
+                  h(TextArea, {
+                    ...e,
+                    onLocalSelectionChange: (textarea) => {
+                      exampleSelectionRange.value = [
+                        textarea.selectionStart,
+                        textarea.selectionEnd,
+                      ];
+                    },
+                    style: {
+                      width: "100%",
+                      minWidth: "250px",
+                      border: "1px solid #ccc",
+                    },
+                  }),
+                  h(
+                    "button",
+                    {
+                      style: {
+                        visibility:
+                          rangeSize(exampleSelectionRange.value) > 0
+                            ? "visible"
+                            : "hidden",
+                      },
+                      onclick: () => {
+                        evalRange.value = [
+                          exampleSelectionRange.value[0],
+                          exampleSelectionRange.value[1],
+                        ];
+                        exampleSelectionRange.value = [0, 0];
+                        augmentation.value = null;
+                      },
+                    },
+                    "Mark for Feedback",
+                  ),
+                ),
+                h(
+                  "td",
+                  {},
+                  h(CodeMirrorWithVitrail, {
+                    // FIXME currently destroys and recreates the entire editor.
+                    // can we do it incrementally?
+                    key: augmentation.value,
+                    value: { value: e.text },
+                    augmentations: augmentation.value
+                      ? [augmentation.value]
+                      : [],
+                  }),
+                ),
+              );
+            },
+          }),
         ),
-        h(NodeList, {
-          container: examples,
-          wrap: (it) => it,
-          view: (it, ref, onmousemove, onmouseleave) => {
-            const e = bindPlainString(it);
-            return h(
-              "tr",
-              { ref, onmousemove, onmouseleave },
-              h("td", {}, h(TextArea, { ...e, style: { width: "100%" } })),
-              h(
-                "td",
-                {},
-                h(CodeMirrorWithVitrail, {
-                  // FIXME currently destroys and recreates the entire editor.
-                  // can we do it incrementally?
-                  key: node.sourceString,
-                  value: e.text,
-                  augmentations: [augmentation],
-                }),
-              ),
-            );
-          },
-        }),
       ),
     );
   },
-};
+});

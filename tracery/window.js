@@ -1,17 +1,27 @@
 import { useState, useEffect, useRef } from "../external/preact-hooks.mjs";
-import { focusWithoutScroll, matchesKey, orParentThat } from "../utils.js";
+import {
+  appendCss,
+  focusWithoutScroll,
+  linkCss,
+  matchesKey,
+  orParentThat,
+} from "../utils.js";
 import { h, button, registerPreactElement, render } from "../view/widgets.js";
 import { List } from "../sandblocks/list.js";
 
 function wantsMouseOverFocus(e) {
   return (
-    e.getAttribute("focusable") ||
+    e.hasAttribute("focusable") ||
     (e.tagName === "INPUT" && e.type === "text") ||
     e.tagName === "TEXTAREA"
   );
 }
 
-const mouseOverForFocus = false;
+export function parentWindow(dom) {
+  return orParentThat(dom, (e) => e.tagName === "TRACERY-WINDOW");
+}
+
+const mouseOverForFocus = true;
 let globalMousePos = { x: 0, y: 0 };
 document.addEventListener("mousemove", (e) => {
   globalMousePos = { x: e.clientX, y: e.clientY };
@@ -84,13 +94,98 @@ export function Window({
     updateFocus();
   };
 
+  useEffect(() => {
+    const parent = root.shadowRoot;
+    linkCss("../external/codicon/codicon.css", parent);
+    appendCss(`.codicon { vertical-align: middle; }`, parent);
+    appendCss(
+      `
+.tracery-window {
+  border: 1px solid #ccc;
+  position: absolute;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  border-radius: 5px;
+  box-shadow: 0px 0.9px 1px hsl(0deg 0% 58% / 0.34),
+0px 6.2px 7.2px -0.3px hsl(0deg 0% 58% / 0.35),
+0px 11.7px 13.6px -0.6px hsl(0deg 0% 58% / 0.36),
+0px 18.9px 22px -1px hsl(0deg 0% 58% / 0.37),
+-0.1px 29.7px 34.5px -1.3px hsl(0deg 0% 58% / 0.38),
+-0.1px 45.8px 53.2px -1.6px hsl(0deg 0% 58% / 0.39),
+-0.1px 69px 80.2px -1.9px hsl(0deg 0% 58% / 0.4),
+-0.2px 100.9px 117.3px -2.2px hsl(0deg 0% 58% / 0.4);
+}
+.tracery-window.fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  border: none;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+.tracery-window.fullscreen .tracery-window-bar {
+  display: none;
+}
+.tracery-window.fullscreen .tracery-window-resize {
+  display: none;
+}
+
+.tracery-window-bar {
+  background-color: #eee;
+  cursor: move;
+  padding: 2px;
+  display: flex;
+  gap: 0.25rem;
+  border-radius: 5px 5px 0 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.tracery-window-resize {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  background-color: #ccc;
+  cursor: nwse-resize;
+}
+
+.tracery-window-resize-initial {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  left: calc(50% - 8px);
+  top: calc(50% - 8px);
+  cursor: nwse-resize;
+  z-index: 999999999;
+}
+
+.tracery-window-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}`,
+      parent,
+    );
+  }, [root]);
+
   const raise = () => {
     const all = [...document.querySelectorAll("tracery-window")].sort(
       (a, b) => a.style.zIndex - b.style.zIndex,
     );
     all.splice(all.indexOf(root), 1);
     all.push(root);
-    all.forEach((w, i) => (w.style.zIndex = 100 + i));
+    all.forEach((w, i) => {
+      w.style.zIndex = 100 + i;
+      w.style.position = "absolute";
+      w.style.top = 0;
+      w.style.left = 0;
+    });
   };
 
   useEffect(() => {
@@ -129,72 +224,6 @@ export function Window({
 
   return [
     h(
-      "style",
-      {},
-      `
-.tracery-window {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  border: 1px solid #ccc;
-  position: absolute;
-  background-color: #fff;
-  display: flex;
-  flex-direction: column;
-}
-.tracery-window.fullscreen {
-  width: 100vw !important;
-  height: 100vh !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  border: none;
-  box-shadow: none;
-  box-sizing: border-box;
-}
-.tracery-window.fullscreen .tracery-window-bar {
-  display: none;
-}
-.tracery-window.fullscreen .tracery-window-resize {
-  display: none;
-}
-
-.tracery-window-bar {
-  background-color: #ccc;
-  cursor: move;
-  padding: 2px;
-  display: flex;
-  gap: 0.25rem;
-}
-
-.tracery-window-resize {
-  width: 16px;
-  height: 16px;
-  position: absolute;
-  bottom: -8px;
-  right: -8px;
-  background-color: #ccc;
-  cursor: nwse-resize;
-}
-
-.tracery-window-resize-initial {
-  width: 16px;
-  height: 16px;
-  position: absolute;
-  left: calc(50% - 8px);
-  top: calc(50% - 8px);
-  cursor: nwse-resize;
-  z-index: 999999999;
-}
-
-.tracery-window-content {
-  /* overflow: auto; */
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  min-height: 0;
-}`,
-    ),
-    h(
       "div",
       {
         ref: windowRef,
@@ -223,7 +252,14 @@ export function Window({
             onMove: (delta) =>
               setPosition((p) => ({ x: p.x + delta.x, y: p.y + delta.y })),
           },
-          [button("x", close), title],
+          [
+            h("span", {
+              style: { cursor: "pointer" },
+              class: "codicon codicon-close",
+              onClick: close,
+            }),
+            title,
+          ],
         ),
         h("div", { class: "tracery-window-content" }, children, h("slot")),
         initialPlacement &&

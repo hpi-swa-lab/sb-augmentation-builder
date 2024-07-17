@@ -1,6 +1,5 @@
-import { WeakArray, exec, last, rangeEqual } from "../utils.js";
+import { WeakArray, adjustIndex, exec, last, rangeEqual } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
-// import { OffscreenEditor } from "./editor.js";
 export {
   SBMatcher,
   SBDefaultLanguageMatcher,
@@ -34,6 +33,59 @@ const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
 
 export const extractType = (type) => (node) => node.firstOfType(type);
 
+export class OffscreenEditor {
+  constructor(root) {
+    if (root) {
+      console.assert(root._sourceString, "node must have a source string");
+      console.assert(root._language, "node must have a language");
+      this.root = root;
+      this.root._editor = this;
+    }
+  }
+
+  insertTextFromCommand(position, text) {
+    this.replaceTextFromCommand([position, position], text);
+  }
+
+  replaceTextFromCommand(range, text) {
+    this.applyChanges([{ from: range[0], to: range[1], insert: text }]);
+  }
+
+  applyChanges(changes) {
+    if (this.activeTransactionList) {
+      const affinity = last(changes).sideAffinity;
+      this.activeTransactionList.push(
+        ...changes.map((c) => ({
+          ...c,
+          from: adjustIndex(c.from, this.activeTransactionList, affinity),
+          to: adjustIndex(c.to, this.activeTransactionList, affinity),
+        })),
+      );
+      return;
+    }
+
+    let newText = this.root._sourceString;
+    for (const { insert, from, to } of changes) {
+      newText = newText.slice(0, from) + insert + newText.slice(to);
+    }
+    const { root, tx } = this.root.language.reParse(newText, this.root);
+    tx.commit();
+    this.root = root;
+    this.root._editor = this;
+  }
+
+  activeTransactionList = null;
+  transaction(cb) {
+    if (this.activeTransactionList)
+      throw new Error("Nested transactions not supported right now");
+    this.activeTransactionList = [];
+    cb();
+    const list = this.activeTransactionList;
+    this.activeTransactionList = null;
+    this.applyChanges(list);
+  }
+}
+
 export class SBLanguage {
   constructor({ name, extensions, defaultExtensions }) {
     this.name = name;
@@ -58,10 +110,10 @@ export class SBLanguage {
   parseSync(text, editor) {
     return this._assignState(this._parse(text), text, editor);
   }
-  async parseOffscreen(text) {
-    const root = await this.parse(text);
-    // FIXME cyclic import
-    // root._editor = new OffscreenEditor(root);
+  parseOffscreen(text) {
+    const editor = new OffscreenEditor();
+    const root = this.parseSync(text, editor);
+    editor.root = root;
     return root;
   }
 
@@ -76,6 +128,7 @@ export class SBLanguage {
       oldRoot,
       this._parse(text, oldRoot),
     );
+    if (root !== oldRoot) tx.set(oldRoot, "_sourceString", null);
     root._language = this;
     root._editor = oldRoot._editor;
     tx.set(root, "_sourceString", text);
@@ -94,6 +147,10 @@ export class SBLanguage {
     root._editor = editor;
     return root;
   }
+
+  isExpression(node) {
+    return false;
+  }
 }
 
 class _SBBaseLanguage extends SBLanguage {
@@ -105,6 +162,10 @@ class _SBBaseLanguage extends SBLanguage {
     const root = new SBBlock("document", null, 0, text.length, true);
     root._language = this;
     root._sourceString = text;
+
+    const content = new SBText(text, 0, text.length);
+    root.appendChild(content);
+
     return root;
   }
 }
@@ -118,6 +179,7 @@ function _nextNodeId() {
 
 export class SBNode {
   _parent = null;
+  _range = [0, 0];
   _language = undefined;
   shards = new WeakArray();
 
@@ -133,6 +195,12 @@ export class SBNode {
     return exec(this, ...script);
   }
 
+  cloneOffscreen() {
+    const root = this.language.parseOffscreen(this.root.sourceString);
+    const node = root.childForRange(this.range);
+    return node;
+  }
+
   internalClone() {
     const c = this.shallowClone();
     c._id = this._id;
@@ -143,7 +211,7 @@ export class SBNode {
   }
 
   get language() {
-    return this._language ?? this.root._language;
+    return this._language ?? this.parent?.language;
   }
 
   get id() {
@@ -167,7 +235,7 @@ export class SBNode {
   }
 
   get isRoot() {
-    return !!this._sourceString;
+    return this._sourceString !== undefined;
   }
 
   get sourceString() {
@@ -209,8 +277,9 @@ export class SBNode {
   }
 
   get editor() {
-    if (this.root._editor) return this.root._editor;
-    return this.orParentThat((p) => p.shards.any?.editor)?.shards.any.editor;
+    if (this._editor) return this._editor;
+    return this.parent?.editor;
+    // return this.orParentThat((p) => p.shards.any?.editor)?.shards.any.editor;
   }
 
   get context() {
@@ -219,6 +288,10 @@ export class SBNode {
 
   get field() {
     return this._field;
+  }
+
+  get isExpression() {
+    return false;
   }
 
   atField(field) {
@@ -400,11 +473,20 @@ export class SBNode {
     else return this.parent?.orParentThat(predicate);
   }
 
+  orHasParent(node) {
+    let n = this;
+    while (n) {
+      if (n === node) return true;
+      n = n.parent;
+    }
+    return false;
+  }
+
   prependString(string) {
     this.editor.insertTextFromCommand(this.range[0], string);
   }
 
-  insert(string, type, index) {
+  insert(string, type, index, editOptions) {
     const list = this.childBlocks.filter(
       (child) =>
         child.compatibleWith(type) && this.language.separatorContextFor(child),
@@ -422,8 +504,17 @@ export class SBNode {
     const sep = this.language.separatorContextFor(ref);
 
     if (index < list.length)
-      this.editor.insertTextFromCommand(ref.range[0], string + sep);
-    else this.editor.insertTextFromCommand(ref.range[1], sep + string);
+      this.editor.insertTextFromCommand(
+        ref.range[0],
+        string + sep,
+        editOptions,
+      );
+    else
+      this.editor.insertTextFromCommand(
+        ref.range[1],
+        sep + string,
+        editOptions,
+      );
   }
 
   insertBefore(string, type) {
@@ -432,6 +523,12 @@ export class SBNode {
 
   insertAfter(string, type) {
     this.parent.insert(string, type, this.parent.childBlocks.indexOf(this) + 1);
+  }
+
+  get hasError() {
+    return (
+      this.type === "ERROR" || this.children.some((child) => child.hasError)
+    );
   }
 
   // The nodes that should be deleted, when a delete action is invoked
@@ -476,6 +573,10 @@ export class SBNode {
       [remove[0].range[0], last(remove).range[1]],
       "",
     );
+  }
+
+  removeSelf() {
+    this.editor.replaceTextFromCommand(this.range, "");
   }
 
   isWhitespace() {
@@ -561,9 +662,9 @@ export class SBNode {
   }
 
   // edit operations
-  replaceWith(str, intentDeleteNodes) {
+  replaceWith(str, editOptions) {
     if (typeof str === "number") str = str.toString();
-    this.editor.replaceTextFromCommand(this.range, str, intentDeleteNodes);
+    this.editor.replaceTextFromCommand(this.range, str, editOptions);
   }
 
   wrapWith(start, end) {
@@ -746,6 +847,10 @@ export class SBBlock extends SBNode {
     return (this._literalHash ??= hashCombine(
       this.children.reduce((a, node) => hashCombine(a, node.literalHash), 0),
     ));
+  }
+
+  get isExpression() {
+    return this.language.isExpression(this);
   }
 }
 
