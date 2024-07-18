@@ -50,6 +50,8 @@ async function insertItem() {
         label: "Flow: Array",
         text: `spawnArray((node) => metaexec(node, (capture) => []))`,
       },
+      { label: "Flow: Optional", text: `optional([])` },
+      { label: "Flow: Also", text: `also([])` },
     ])
   )?.text;
 }
@@ -271,7 +273,6 @@ function StepType({ type }) {
 }
 
 function StepQuery({ query, extract, deep = false }) {
-  console.log("QueryStep " + deep);
   const expanded = useSignal(false);
 
   return h(
@@ -553,7 +554,6 @@ function PipelineStep({
                 style: {
                   borderLeft: "2px solid black",
                   marginLeft: "1rem",
-                  marginTop: "-2px",
                   height: connectionHeight,
                 },
               }),

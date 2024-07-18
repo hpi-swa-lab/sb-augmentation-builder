@@ -22,15 +22,8 @@ export const augExample = {
       capture("node"),
       (it) => it.text,
       first(
-        [
-          (it) => /rgb\((\d+),(\d+),(\d+)\)/i.exec(it),
-          also([(_) => 10, capture("base")]),
-          optional([(_) => false]),
-        ],
-        [
-          (it) => /#([a-z0-9]{2})([a-z0-9]{2})([a-z0-9]{2})/i.exec(it),
-          also([(_) => 16, capture("base")]),
-        ],
+        [(it) => /rgb\((\d+),(\d+),(\d+)\)/i.exec(it)],
+        [(it) => /#([a-z0-9]{2})([a-z0-9]{2})([a-z0-9]{2})/i.exec(it)],
       ),
       (it) => ({
         r: parseInt(it[1], capture.get("base")),
