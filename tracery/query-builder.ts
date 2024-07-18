@@ -497,7 +497,7 @@ function PipelineStep({
 
   if (step.stepType == PipelineSteps.ALL)
     return h(NodeArray, {
-      container: step.node,
+      container: step.node.atField("arguments"),
       items: step.steps,
       insertItem,
       wrap: (it) =>
