@@ -337,12 +337,18 @@ export function selected(selectedInput, selectedOutput, ...pipeline) {
   };
 }
 
-//execute abitray code, without effecting the the next step in the pipline
-//helpfull for debugging
-export function also(...pipeline) {
+//execute abitray code, without effecting the the next step in the pipeline
+export function also(pipeline) {
   return (it, debugId = null) => {
     const og_it = it;
+    if (debugId) {
+      historyNextLevel(debugId);
+      historyAddStep(debugId, 0, {});
+    }
     execScript(debugId, it, ...pipeline);
+    if (debugId) {
+      historyPreviousLevel(debugId);
+    }
     return og_it;
   };
 }
@@ -360,7 +366,6 @@ export function first(...pipelines) {
       const res = execScript(debugId, it, ...pipeline);
       if (debugId) {
         historyPreviousLevel(debugId);
-        //historyMerge(debugId, tmp_id);
       }
       if (res) {
         return res;

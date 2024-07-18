@@ -118,6 +118,7 @@ const PipelineSteps = {
   EXTRACT: "extract",
   TYPE: "type",
   OPTIONAL: "optional",
+  ALSO: "also",
 };
 
 function getPipelineStep(node) {
@@ -178,6 +179,15 @@ function getPipelineStep(node) {
         all(
           [(it) => it.steps, getPipelineStep, capture("steps")],
           [() => PipelineSteps.OPTIONAL, capture("stepType")],
+        ),
+        (_) => true,
+      ],
+      [
+        query("also([$_steps])"),
+        log("also"),
+        all(
+          [(it) => it.steps, getPipelineStep, capture("steps")],
+          [() => PipelineSteps.ALSO, capture("stepType")],
         ),
         (_) => true,
       ],
@@ -363,6 +373,26 @@ function Optional({ steps, debugId }) {
           name: "question",
         }),
         "Optional",
+      ),
+      h(PipelineStep, { step: steps, debugId }),
+    ),
+  ];
+}
+
+function Also({ steps, debugId }) {
+  return [
+    h(
+      "div",
+      {},
+      h(
+        "div",
+        {
+          style: { display: "flex" },
+        },
+        h(Codicon, {
+          name: "debug-step-over",
+        }),
+        "Also",
       ),
       h(PipelineStep, { step: steps, debugId }),
     ),
@@ -559,6 +589,8 @@ function PipelineStep({
         return h(StepType, step);
       case PipelineSteps.OPTIONAL:
         return h(Optional, { ...step, debugId });
+      case PipelineSteps.ALSO:
+        return h(Also, { ...step, debugId });
       default:
         return h(VitrailPaneWithWhitespace, {
           nodes: [step.node],
@@ -750,6 +782,9 @@ function calcIds(pipeline, start = []) {
     let index = 0;
     pipeline.forEach((step) => {
       step["id"] = [...start, index];
+      if (step.stepType == PipelineSteps.ALSO) {
+        //debugger;
+      }
       if (
         [
           PipelineSteps.ALL,
@@ -761,7 +796,13 @@ function calcIds(pipeline, start = []) {
       }
       //FIX ME: This is a workarround, because the matching of SPWAN_ARRAY is done differently.
       //It does not contain a list of steps, but a pipeline object.
-      if (step.stepType == PipelineSteps.SPAWN_ARRAY) {
+      if (
+        [
+          PipelineSteps.SPAWN_ARRAY,
+          PipelineSteps.ALSO,
+          PipelineSteps.OPTIONAL,
+        ].includes(step.stepType)
+      ) {
         step.steps["id"] = [...start, index, 0];
         calcIds(step.steps.steps, step.steps["id"]);
       }
