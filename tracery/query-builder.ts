@@ -426,6 +426,7 @@ function PipelineStep({
       container: step.node.atField("arguments"),
       items: step.steps,
       insertItem: insertPipelineWithItem,
+      buttonPos: ["start", "end"],
       wrap: (it) =>
         h(
           "div",
@@ -512,6 +513,7 @@ function PipelineStep({
       container: step.node.atField("arguments"),
       items: step.steps,
       insertItem: insertPipelineWithItem,
+      buttonPos: ["start", "end"],
       wrap: (it) =>
         h(
           "div",

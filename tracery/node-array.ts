@@ -17,6 +17,7 @@ export function NodeArray({
   wrap,
   add,
   remove,
+  buttonPos = ["top", "bottom"],
 }) {
   nodeFromItem ??= (it) =>
     it?.node ? it.node.orParentThat((p) => p.parent === container) : it;
@@ -111,22 +112,35 @@ export function NodeArray({
             view,
             add,
             remove,
+            buttonPos,
           });
         }),
   );
 }
 
-function _NodeArrayItem({ onInsert, onRemove, item, view, add, remove }) {
+function _NodeArrayItem({
+  onInsert,
+  onRemove,
+  item,
+  view,
+  add,
+  remove,
+  buttonPos,
+}) {
   const hoverStart = useSignal(false);
   const hoverEnd = useSignal(false);
   const hoverNode = useSignal(false);
   const showAddPointTop = useSignal(null);
   const showAddPointBottom = useSignal(null);
+  const showAddPointStart = useSignal(null);
+  const showAddPointEnd = useSignal(null);
   const showRemovePoint = useSignal(null);
 
   const ref = useRef();
   const addRefTop = useRef();
   const addRefBottom = useRef();
+  const addRefStart = useRef();
+  const addRefEnd = useRef();
   const removeRef = useRef();
 
   useSignalEffect(() => {
@@ -135,10 +149,14 @@ function _NodeArrayItem({ onInsert, onRemove, item, view, add, remove }) {
       const rect = ref.current.getBoundingClientRect();
       showAddPointTop.value = [rect.left + 9, rect.top - 13];
       showAddPointBottom.value = [rect.left + 9, rect.top + rect.height];
+      showAddPointStart.value = [rect.left - 9, rect.bottom - rect.height / 2];
+      showAddPointEnd.value = [rect.right, rect.bottom - rect.height / 2];
       showRemovePoint.value = [rect.left + rect.width - 10, rect.top - 5];
     } else {
       showAddPointTop.value = null;
       showRemovePoint.value = null;
+      showAddPointStart.value = null;
+      showAddPointEnd.value = null;
       showAddPointBottom.value = null;
     }
   });
@@ -153,15 +171,32 @@ function _NodeArrayItem({ onInsert, onRemove, item, view, add, remove }) {
   const hoverPadding = 100;
 
   return [
-    showAddPointTop.value &&
-      add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo),
-    showAddPointBottom.value &&
-      add(
-        showAddPointBottom.value,
-        addRefBottom,
-        () => onInsert(true),
-        hideHalo,
-      ),
+    buttonPos.includes("top")
+      ? showAddPointTop.value &&
+        add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
+      : null,
+    buttonPos.includes("bottom")
+      ? showAddPointBottom.value &&
+        add(
+          showAddPointBottom.value,
+          addRefBottom,
+          () => onInsert(true),
+          hideHalo,
+        )
+      : null,
+    buttonPos.includes("start")
+      ? showAddPointStart.value &&
+        add(
+          showAddPointStart.value,
+          addRefStart,
+          () => onInsert(false),
+          hideHalo,
+        )
+      : null,
+    buttonPos.includes("end")
+      ? showAddPointEnd.value &&
+        add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
+      : null,
     showRemovePoint.value &&
       remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
     view(
@@ -182,6 +217,9 @@ function _NodeArrayItem({ onInsert, onRemove, item, view, add, remove }) {
           (addRefTop.current && addRefTop.current.contains(e.relatedTarget)) ||
           (addRefBottom.current &&
             addRefBottom.current.contains(e.relatedTarget)) ||
+          (addRefStart.current &&
+            addRefStart.current.contains(e.relatedTarget)) ||
+          (addRefEnd.current && addRefEnd.current.contains(e.relatedTarget)) ||
           (removeRef.current && removeRef.current.contains(e.relatedTarget))
         )
           return;
