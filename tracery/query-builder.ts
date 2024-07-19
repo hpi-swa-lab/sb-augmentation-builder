@@ -56,6 +56,11 @@ async function insertItem() {
   )?.text;
 }
 
+async function insertPipelineWithItem() {
+  const test = await insertItem();
+  return "[" + test + "]";
+}
+
 export const queryBuilder = (model) => {
   return {
     matcherDepth: Infinity,
@@ -416,7 +421,7 @@ function PipelineStep({
     step.node.parent.childBlocks[step.node.parent.childBlocks.length - 1]?.id ==
     step.node.id;
 
-  if (step.stepType == PipelineSteps.FIRST)
+  if (step.stepType == PipelineSteps.FIRST) {
     return h(NodeArray, {
       container: step.node,
       items: step.steps,
@@ -468,7 +473,9 @@ function PipelineStep({
           ] == step.node.id;
         return h(
           "div",
-          { style: { display: "flex", flexDirection: "column" } },
+          {
+            style: { display: "flex", flexDirection: "column" },
+          },
           h(PipelineStep, {
             debugId,
             step,
@@ -495,12 +502,13 @@ function PipelineStep({
         );
       },
     });
+  }
 
-  if (step.stepType == PipelineSteps.ALL)
+  if (step.stepType == PipelineSteps.ALL) {
     return h(NodeArray, {
       container: step.node.atField("arguments"),
       items: step.steps,
-      insertItem,
+      insertItem: insertPipelineWithItem,
       wrap: (it) =>
         h(
           "div",
@@ -515,15 +523,25 @@ function PipelineStep({
           },
           it,
         ),
-      view: (step) =>
-        h(PipelineStep, {
-          debugId,
-          step,
-          containerRef,
-          onmousemove,
-          onmouseleave,
-        }),
+      view: (step, containerRef, onmousemove, onmouseleave) =>
+        h(
+          "div",
+          {
+            style: { border: "2px dotted red" },
+            ref: containerRef,
+            onmouseleave,
+            onmousemove,
+          },
+          h(PipelineStep, {
+            debugId,
+            step,
+            containerRef,
+            onmousemove,
+            onmouseleave,
+          }),
+        ),
     });
+  }
 
   if (step.stepType == PipelineSteps.PIPELINE)
     return h(NodeArray, {
