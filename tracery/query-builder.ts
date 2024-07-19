@@ -423,9 +423,9 @@ function PipelineStep({
 
   if (step.stepType == PipelineSteps.FIRST) {
     return h(NodeArray, {
-      container: step.node,
+      container: step.node.atField("arguments"),
       items: step.steps,
-      insertItem,
+      insertItem: insertPipelineWithItem,
       wrap: (it) =>
         h(
           "div",
@@ -466,7 +466,7 @@ function PipelineStep({
       //  },
       //}),
 
-      view: (step) => {
+      view: (step, containerRef, onmousemove, onmouseleave) => {
         const lastStep =
           step.node.parent?.childBlocks?.map((it) => it.id)[
             step.node.parent?.childBlocks?.length - 1
@@ -475,6 +475,9 @@ function PipelineStep({
           "div",
           {
             style: { display: "flex", flexDirection: "column" },
+            ref: containerRef,
+            onmouseleave,
+            onmousemove,
           },
           h(PipelineStep, {
             debugId,
