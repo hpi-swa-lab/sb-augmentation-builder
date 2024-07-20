@@ -26,6 +26,12 @@ function Tracery() {
   );
 
   useEffect(() => {
+    const handler = async () => await project?.close();
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [project]);
+
+  useEffect(() => {
     const listener = (e) => {
       if (matchesKey(e, "Ctrl-b")) {
         openBrowser(project, {

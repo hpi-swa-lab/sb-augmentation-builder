@@ -56,6 +56,7 @@ function handler(socket, name, cb) {
 }
 
 let lastWrites = new Map();
+const processes = new Map();
 
 function listenToFileChanges(path, socket) {
   const watcher = chokidar
@@ -156,42 +157,51 @@ npx tree-sitter build-wasm
 cp ${repoName}.wasm ${upToRoot}/../../../external/${repoName}.wasm"`);
   });
 
-  handler(socket, "startProcess", async ({ command, args, cwd, binary }) => {
-    const proc = spawn(command, args, { cwd, shell: true });
-    const pid = proc.pid;
+  handler(socket, "hasProcess", async ({ pid }) => processes.has(pid));
 
-    function enc(data) {
-      return data.toString(binary ? "base64" : "utf-8");
-    }
-
-    const weakProc = new WeakRef(proc);
-    cleanup.push(() => weakProc.deref()?.kill());
-
-    const writeCallback = (req, complete) => {
-      if (req.pid === pid)
-        proc.stdin.write(binary ? Buffer.from(req.data, "base64") : req.data);
-      complete({});
-    };
-    const closeCallback = (req) => {
-      if (req.pid === pid) proc.stdin.end();
-    };
-
-    socket.on("writeProcess", writeCallback);
-    socket.on("closeProcess", closeCallback);
-    proc.stdout.on("data", (data) => {
-      socket.emit("process", { type: "stdout", data: enc(data), pid });
-    });
-    proc.stderr.on("data", (data) => {
-      console.log(data.toString());
-      socket.emit("process", { type: "stderr", data: enc(data), pid });
-    });
-    proc.on("close", (code) => {
-      socket.emit("process", { type: "close", code, pid });
-      socket.off("writeProcess", writeCallback);
-      socket.off("closeProcess", closeCallback);
-    });
-    return { pid };
+  handler(socket, "writeProcess", async ({ pid, data, binary }) => {
+    const proc = processes.get(pid);
+    if (proc) proc.stdin.write(binary ? Buffer.from(data, "base64") : data);
+    return {};
   });
+
+  handler(socket, "closeProcess", async ({ pid }) => {
+    const proc = processes.get(pid);
+    proc?.stdin.end();
+    return {};
+  });
+
+  handler(
+    socket,
+    "startProcess",
+    async ({ command, args, cwd, binary, keepAlive }) => {
+      const proc = spawn(command, args, { cwd, shell: true });
+      const pid = proc.pid;
+      processes.set(pid, proc);
+
+      function enc(data) {
+        return data.toString(binary ? "base64" : "utf-8");
+      }
+
+      if (!keepAlive) {
+        const weakProc = new WeakRef(proc);
+        cleanup.push(() => weakProc.deref()?.kill());
+      }
+
+      proc.stdout.on("data", (data) => {
+        io.sockets.emit("process", { type: "stdout", data: enc(data), pid });
+      });
+      proc.stderr.on("data", (data) => {
+        console.log(data.toString());
+        io.sockets.emit("process", { type: "stderr", data: enc(data), pid });
+      });
+      proc.on("close", (code) => {
+        processes.delete(pid);
+        io.sockets.emit("process", { type: "close", code, pid });
+      });
+      return { pid };
+    },
+  );
 });
 
 const port = process.env.PORT ?? 3000;

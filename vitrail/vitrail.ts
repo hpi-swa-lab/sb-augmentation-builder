@@ -399,7 +399,12 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
     this.dispatchEvent(
       new CustomEvent("change", {
-        detail: { changes: allChanges, sourceString: this.sourceString },
+        detail: {
+          changes: allChanges,
+          sourceString: this.sourceString,
+          oldSource,
+          diff: update,
+        },
       }),
     );
   }

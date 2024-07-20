@@ -1,5 +1,5 @@
 import { useEffect, useState } from "../external/preact-hooks.mjs";
-import { socket } from "../sandblocks/host.js";
+import { socket, withSocket } from "./host.js";
 import {
   all,
   debugIt,
@@ -133,7 +133,9 @@ export const watch = (model) => ({
   },
 });
 
-socket?.on("sb-watch", ({ id, e }) => window.sbWatch(e, id));
+withSocket((socket) =>
+  socket.on("sb-watch", ({ id, e }) => window.sbWatch(e, id)),
+);
 window.sbWatch = function (value, id) {
   sbWatch.registry.get(id)?.reportValue(value);
   return value;

@@ -10,7 +10,6 @@ import { SBBaseLanguage, SBNode } from "../core/model.js";
 import { useEffect } from "../external/preact-hooks.mjs";
 import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
-import { request } from "../sandblocks/host.js";
 import {
   metaexec,
   replace,
@@ -37,6 +36,7 @@ import {
   openNewAugmentation,
 } from "./augmentation-builder.ts";
 import { format } from "./format.js";
+import { request } from "./host.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
 import { uiBuilder } from "./ui-builder.ts";
@@ -167,11 +167,22 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
   useEffect(() => {
     if (path) {
       source.value = null;
-      request("readFiles", { paths: [path] }).then(
-        ([file]) => (source.value = file.data),
-      );
+      project.openFile(path).then((data) => (source.value = data));
     }
   }, [path]);
+
+  useEffect(() => {
+    const languageClient = project.languageClientFor(languageForPath(path));
+    if (!languageClient) return;
+
+    const handler = ({ detail: { path: p, diagnostics } }) => {
+      if (p === path) {
+        console.log(diagnostics);
+      }
+    };
+    languageClient.addEventListener("diagnostics", handler);
+    return () => languageClient.removeEventListener("diagnostics", handler);
+  }, []);
 
   const { augmentations, cmExtensions } = extensionsForPath(path);
 
@@ -209,6 +220,7 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       onshowsenders: () => findReferences("senders"),
       onshowimplementors: () => findReferences("implementors"),
       onwrapwithwatch: () => _wrapWithWatch(),
+      onchange: (e) => project.onChangeFile({ ...e.detail, path }),
       oncreateaugmentation: () =>
         vitrail.value &&
         openNewAugmentation(

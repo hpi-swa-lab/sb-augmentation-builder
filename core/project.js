@@ -24,15 +24,14 @@ export class Project extends EventTarget {
       !this.openFiles.has(path) || this.openFiles.get(path) === 0;
     this.openFiles.set(path, (this.openFiles.get(path) ?? 0) + 1);
 
-    const content = await this.readFile(path);
-    this.dispatchEvent(
-      new CustomEvent("openFile", { detail: { path, content } }),
-    );
+    const text = await this.readFile(path);
+    this.dispatchEvent(new CustomEvent("openFile", { detail: { path, text } }));
     if (firstTime)
       this.dispatchEvent(
-        new CustomEvent("openFileFirst", { detail: { path } }),
+        new CustomEvent("openFileFirst", { detail: { path, text } }),
       );
-    return content;
+
+    return text;
   }
 
   closeFile(path) {
@@ -49,29 +48,12 @@ export class Project extends EventTarget {
     this.dispatchEvent(new CustomEvent("saveFile", { detail: { path } }));
   }
 
-  onChangeFile(path, oldSource, newSource, changes, diff) {
+  onChangeFile({ path, sourceString, oldSource, changes, diff }) {
     this.dispatchEvent(
       new CustomEvent("changeFile", {
-        detail: { path, oldSource, newSource, changes, diff },
+        detail: { path, newSource: sourceString, oldSource, changes, diff },
       }),
     );
-  }
-
-  _data = new Map();
-  data(key, ifAbsent) {
-    if (this._data.has(key)) return this._data.get(key);
-    if (ifAbsent) {
-      const value = ifAbsent();
-      this._data.set(key, value);
-      return value;
-    }
-    return null;
-  }
-  clearData(key) {
-    this._data.delete(key);
-  }
-  get allData() {
-    return this._data;
   }
 
   // return an array of { path: string, data: string }

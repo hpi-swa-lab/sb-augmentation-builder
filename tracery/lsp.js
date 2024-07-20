@@ -1,16 +1,7 @@
 import { Extension } from "../core/extension.js";
-import { openComponentInWindow } from "../sandblocks/window.js";
-import { Process, hostAvailable } from "../sandblocks/host.js";
-import { FileEditor } from "../sandblocks/file-project/file-editor.js";
+import { Process } from "./host.js";
 import { sequenceMatch } from "../utils.js";
 import { languageFor, languageForPath } from "../core/languages.js";
-
-registerLsp(
-  lsp,
-  "tsLSP",
-  (project) =>
-    new StdioTransport("typescript-language-server", ["--stdio"], project.path),
-);
 
 const LSP_SYMBOL_KIND = {
   file: 1,
@@ -76,45 +67,38 @@ const LSP_TEXT_DOCUMENT_SYNC_KIND = {
   incremental: 2,
 };
 
-const lsps = [
-  {
-    languages: [languageFor("javascript"), languageFor("typescript")],
-    transport: new StdioTransport(
-      "typescript-language-server",
-      ["--stdio"],
-      project.path,
-    ),
-  },
-];
-const runningLsps = new Map();
-function createIsMyFile(languages) {
-  return (path) => languages.includes(languageForPath(path));
-}
+export function languageClientFor(project, language) {
+  const languageServers = [
+    {
+      languages: [languageFor("javascript"), languageFor("typescript")],
+      transport: new StdioTransport(
+        "typescript-language-server",
+        ["--stdio"],
+        project.path,
+      ),
+    },
+  ];
 
-function checkLspInvoke(project, path) {
-  for (const config of lsps) {
-    const { languages, transport } = config;
-    const isMyFile = createIsMyFile(languages);
-    if (isMyFile(path)) {
-      if (!runningLsps.has(config)) {
-        const lsp = new LanguageClient(project, transport);
-        lsp.start();
-        runningLsps.set(config, lsp);
-        connectLsp(project, lsp, isMyFile);
-      }
+  for (const config of languageServers) {
+    if (config.languages.includes(language)) {
+      const client = new LanguageClient(project, config.transport, language);
+      client.start();
+      return client;
     }
   }
+
+  return null;
 }
 
-function connectLsp(project, lsp, isMyFile) {
-  project.addEventListener("openFileFirst", async ({ detail: { path } }) => {
-    if (isMyFile(path)) lsp.didOpen(editor);
-  });
+function connectLanguageClientToProject(project, lsp, isMyFile) {
+  project.addEventListener(
+    "openFileFirst",
+    async ({ detail: { path, text } }) => {
+      if (isMyFile(path)) lsp.didOpen(path, text);
+    },
+  );
   project.addEventListener("closeFileAll", async ({ detail: { path } }) => {
-    if (isMyFile(path)) lsp.didClose(editor);
-  });
-  project.addEventListener("changeFile", async ({ detail: { path } }) => {
-    if (isMyFile(path)) lsp.didChange(editor);
+    if (isMyFile(path)) lsp.didClose(path);
   });
   // FIXME what if two independent change the same file?
   project.addEventListener(
@@ -300,11 +284,7 @@ async function browseLocation(project, { uri, range: { start, end } }) {
   // FIXME loading the file twice this way...
   const position = positionToIndex(await project.readFile(path), start);
 
-  openComponentInWindow(FileEditor, {
-    initialSelection: [position, position],
-    project,
-    path,
-  });
+  throw new Error("todo");
 }
 
 class Transport {
@@ -313,16 +293,26 @@ class Transport {
   }
   async start() {}
   async write() {}
+  async close() {}
+  storeForRecovery() {}
 }
 
 export class StdioTransport extends Transport {
+  static async restore({ process }) {
+    const p = await Process.restore(process);
+    if (!p) return null;
+    const t = new StdioTransport(null, null, null);
+    t._connect(p);
+    return t;
+  }
+
   constructor(command, args, cwd) {
     super();
     this.command = command;
     this.args = args;
     // if we get a browser-only url or similar, start the lsp
     // in the server directory instead.
-    this.cwd = [".", "/"].includes(cwd[0]) ? cwd : ".";
+    this.cwd = cwd ? ([".", "/"].includes(cwd[0]) ? cwd : ".") : null;
     this.buffer = new Uint8Array();
   }
 
@@ -333,8 +323,18 @@ export class StdioTransport extends Transport {
     this.buffer = newBuffer;
   }
 
+  storeForRecovery() {
+    return { process: this.process.storeForRecovery() };
+  }
+
   async start() {
-    this.process = new Process()
+    this._connect(new Process());
+    await this.process.start(this.command, this.args, this.cwd, true, true);
+  }
+
+  _connect(process) {
+    this.process = process;
+    this.process
       .onClose(this.onClose)
       .onStdout((data) => {
         this.appendData(data);
@@ -344,7 +344,10 @@ export class StdioTransport extends Transport {
         // FIXME should also buffer
         this.onStderr(new TextDecoder().decode(e));
       });
-    await this.process.start(this.command, this.args, this.cwd, true);
+  }
+
+  async close() {
+    await this.process.close();
   }
 
   _processBuffer() {
@@ -376,15 +379,30 @@ export class StdioTransport extends Transport {
   }
 }
 
-export class LanguageClient {
-  lastRequestId = 0;
+export class LanguageClient extends EventTarget {
+  static async restore(project, language, { transport }) {
+    const t = await StdioTransport.restore(transport);
+    if (!t) return null;
+    const languageClient = new LanguageClient(project, t, language);
+    await languageClient._afterInitialize();
+    return languageClient;
+  }
+
+  storeForRecovery() {
+    return { transport: this.transport.storeForRecovery() };
+  }
+
+  lastRequestId = +new Date();
   pending = new Map();
   textDocumentVersions = new Map();
   diagnostics = new Map();
   queuedRequests = [];
   initialized = false;
 
-  constructor(project, transport) {
+  constructor(project, transport, language) {
+    super();
+
+    this.language = language;
     this.project = project;
     this.transport = transport;
     transport.onMessage = (message) => {
@@ -409,10 +427,22 @@ export class LanguageClient {
       this.log("[closed]", code);
       console.log("process closed", code);
     };
+
+    connectLanguageClientToProject(
+      project,
+      this,
+      (path) => this.language === languageForPath(path),
+    );
   }
 
   log(...msg) {
     if (false) console.log(...msg);
+  }
+
+  async suspend() {
+    await Promise.all(
+      this.textDocumentVersions.entries().map(([file]) => this.didClose(file)),
+    );
   }
 
   async write(data) {
@@ -427,6 +457,12 @@ export class LanguageClient {
         window: { workDoneProgress: true },
         textDocument: {
           hover: {},
+          publishDiagnostics: {
+            relatedInformation: true,
+            codeDescriptionSupport: true,
+            dataSupport: true,
+            tagSupport: { valueSet: [1, 2] },
+          },
           synchronization: {
             didSave: true,
             dynamicRegistration: true,
@@ -462,34 +498,34 @@ export class LanguageClient {
     this.capabilities = res.capabilities;
 
     await this._notification("initialized", {});
+    await this._afterInitialize();
+  }
 
+  async _afterInitialize() {
     this.initialized = true;
     for (const request of this.queuedRequests) {
       await this.write(request);
     }
   }
 
-  async didSave(editor) {
+  async didSave(path, text) {
     await this._notification("textDocument/didSave", {
-      textDocument: {
-        uri: `file://${editor.context.path}`,
-      },
-      text: editor.sourceString,
+      textDocument: { uri: `file://${path}` },
+      text,
     });
   }
 
-  async didOpen(editor) {
-    this.textDocumentVersions.set(editor.context, 1);
+  async didOpen(path, text) {
+    this.textDocumentVersions.set(path, 1);
+
+    const language = languageForPath(path);
 
     await this._notification("textDocument/didOpen", {
       textDocument: {
-        uri: `file://${editor.context.path}`,
-        languageId:
-          editor.defaultModel.name === "tsx"
-            ? "typescriptreact"
-            : editor.defaultModel.name,
+        uri: `file://${path}`,
+        languageId: language.name === "tsx" ? "typescriptreact" : language.name,
         version: 1,
-        text: editor.sourceString,
+        text,
       },
     });
   }
@@ -500,15 +536,15 @@ export class LanguageClient {
     return this.capabilities?.textDocumentSync?.change;
   }
 
-  async didChange(node, oldSource, newSource, changes) {
+  async didChange(path, oldSource, newSource, changes) {
     if (this.serverChangeKind === LSP_TEXT_DOCUMENT_SYNC_KIND.none) return;
 
-    const version = this.textDocumentVersions.get(node.context) + 1;
-    this.textDocumentVersions.set(node.context, version);
+    const version = this.textDocumentVersions.get(path) + 1;
+    this.textDocumentVersions.set(path, version);
 
     await this._notification("textDocument/didChange", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${path}`,
         version,
       },
       contentChanges:
@@ -525,24 +561,24 @@ export class LanguageClient {
     });
   }
 
-  async didClose(node) {
-    this.textDocumentVersions.delete(node.context);
-    this.diagnostics.delete(node.context.path);
+  async didClose(path) {
+    this.textDocumentVersions.delete(path);
+    this.diagnostics.delete(path);
 
     await this._notification("textDocument/didClose", {
-      textDocument: { uri: `file://${node.context.path}` },
+      textDocument: { uri: `file://${path}` },
     });
   }
 
-  async formatting(node) {
+  async formatting(path) {
     const edits = await this._request("textDocument/formatting", {
       textDocument: {
-        uri: `file://${node.context.path}`,
+        uri: `file://${path}`,
       },
       options: { tabSize: 2 },
     });
     node.editor.applyChanges(
-      edits.map((e) => convertEdit(node, e)),
+      edits.map((e) => convertEdit(path, e)),
       [0, 0],
     );
   }
@@ -614,11 +650,12 @@ export class LanguageClient {
           message.params.uri.slice("file://".length),
           message.params.diagnostics,
         );
-        for (const [context] of this.textDocumentVersions.entries()) {
-          if (context.path === message.params.uri.slice("file://".length)) {
-            context.editor.updateExtension(diagnostics, "lsp-diagnostics");
-          }
-        }
+        const path = message.params.uri.slice("file://".length);
+        this.dispatchEvent(
+          new CustomEvent("diagnostics", {
+            detail: { path, diagnostics: message.params.diagnostics },
+          }),
+        );
         break;
       case "window/workDoneProgress/create":
         this._response(message.id, null);
