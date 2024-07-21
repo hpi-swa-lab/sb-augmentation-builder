@@ -182,7 +182,7 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     };
     languageClient.addEventListener("diagnostics", handler);
     return () => languageClient.removeEventListener("diagnostics", handler);
-  }, []);
+  }, [path]);
 
   const { augmentations, cmExtensions } = extensionsForPath(path);
 

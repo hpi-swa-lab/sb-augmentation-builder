@@ -8,7 +8,7 @@ import { openComponentInWindow } from "./window.js";
 export class FileProject extends Project {
   path;
 
-  languageClients = new Map();
+  languageClients = [];
 
   static deserialize(obj) {
     if (typeof obj.path !== "string") return null;
@@ -33,47 +33,33 @@ export class FileProject extends Project {
   }
 
   languageClientFor(language) {
-    // FIXME
-    if (true) return null;
-    if (this.languageClients.has(language))
-      return this.languageClients.get(language);
+    const languageClient = this.languageClients.find((c) =>
+      c.languages.includes(language),
+    );
+    if (languageClient) return languageClient;
     const server = languageClientFor(this, language);
-    if (server) this.languageClients.set(language, server);
+    if (server) this.languageClients.push(server);
     return server;
   }
 
   async open() {
     this.root = await request("openProject", { path: this.path });
 
-    this.languageClients = new Map(
-      (
-        await Promise.all(
-          Object.entries(
-            JSON.parse(localStorage.restoreLanguageClients ?? "{}"),
-          ).map(async ([name, data]) => [
-            languageFor(name),
-            await LanguageClient.restore(this, languageFor(name), data),
-          ]),
-        )
-      ).filter(([_, server]) => server),
-    );
+    this.languageClients = (
+      await Promise.all(
+        JSON.parse(localStorage.restoreLanguageClients ?? "[]").map((data) =>
+          LanguageClient.restore(this, data),
+        ),
+      )
+    ).filter((server) => server);
   }
 
   async close() {
     localStorage.restoreLanguageClients = JSON.stringify(
-      Object.fromEntries(
-        this.languageClients
-          .entries()
-          .map(([language, server]) => [
-            language.name,
-            server.storeForRecovery(),
-          ]),
-      ),
+      this.languageClients.map((client) => client.storeForRecovery()),
     );
 
-    await Promise.all(
-      this.languageClients.values().map((server) => server.suspend()),
-    );
+    await Promise.all(this.languageClients.map((client) => client.suspend()));
   }
 
   async createFile(path, data) {

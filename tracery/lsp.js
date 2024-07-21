@@ -81,7 +81,11 @@ export function languageClientFor(project, language) {
 
   for (const config of languageServers) {
     if (config.languages.includes(language)) {
-      const client = new LanguageClient(project, config.transport, language);
+      const client = new LanguageClient(
+        project,
+        config.transport,
+        config.languages,
+      );
       client.start();
       return client;
     }
@@ -380,16 +384,23 @@ export class StdioTransport extends Transport {
 }
 
 export class LanguageClient extends EventTarget {
-  static async restore(project, language, { transport }) {
+  static async restore(project, { transport, languageNames }) {
     const t = await StdioTransport.restore(transport);
     if (!t) return null;
-    const languageClient = new LanguageClient(project, t, language);
+    const languageClient = new LanguageClient(
+      project,
+      t,
+      languageNames.map(languageFor),
+    );
     await languageClient._afterInitialize();
     return languageClient;
   }
 
   storeForRecovery() {
-    return { transport: this.transport.storeForRecovery() };
+    return {
+      transport: this.transport.storeForRecovery(),
+      languageNames: this.languages.map((l) => l.name),
+    };
   }
 
   lastRequestId = +new Date();
@@ -399,10 +410,10 @@ export class LanguageClient extends EventTarget {
   queuedRequests = [];
   initialized = false;
 
-  constructor(project, transport, language) {
+  constructor(project, transport, languages) {
     super();
 
-    this.language = language;
+    this.languages = languages;
     this.project = project;
     this.transport = transport;
     transport.onMessage = (message) => {
@@ -428,10 +439,8 @@ export class LanguageClient extends EventTarget {
       console.log("process closed", code);
     };
 
-    connectLanguageClientToProject(
-      project,
-      this,
-      (path) => this.language === languageForPath(path),
+    connectLanguageClientToProject(project, this, (path) =>
+      this.languages.includes(languageForPath(path)),
     );
   }
 
