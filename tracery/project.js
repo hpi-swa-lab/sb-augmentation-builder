@@ -1,4 +1,4 @@
-import { languageFor, languageForPath } from "../core/languages.js";
+import { languageForPath } from "../core/languages.js";
 import { Project } from "../core/project.js";
 import { button } from "../view/widgets.js";
 import { request, withSocket } from "./host.js";

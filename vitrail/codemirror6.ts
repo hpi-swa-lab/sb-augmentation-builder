@@ -7,6 +7,8 @@ import {
   ReversibleChange,
   Vitrail,
   replacementRange,
+  Marker,
+  markerRange,
 } from "./vitrail.ts";
 import {
   EditorView,
@@ -51,9 +53,9 @@ import {
 import {
   rangeShift,
   parallelToSequentialChanges,
-  isNullRange,
   arrayEqual,
   withDo,
+  rangeContains,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef } from "../external/preact-hooks.mjs";
@@ -160,35 +162,48 @@ export async function codeMirror6WithVitrail(
   augmentations: Augmentation<any>[],
   extensionsForPane: any[],
 ) {
+  function validAugmentationInstance(
+    a: AugmentationInstance<any>,
+    vitrail: Vitrail<any>,
+  ) {
+    const range = replacementRange(a, vitrail);
+    return a.augmentation.type === "mark"
+      ? range[0] < range[1]
+      : range[0] <= range[1];
+  }
   const extensions = (pane: Pane<EditorView>) => {
     const replacementsField = StateField.define({
       create: () => Decoration.none,
-      update: () =>
-        RangeSet.of(
-          pane.replacements
-            .filter((r) => !isNullRange(replacementRange(r, pane.vitrail)))
-            .map((r) => {
-              const range = rangeShift(
-                replacementRange(r, pane.vitrail),
-                -pane.startIndex,
-              );
+      update: () => {
+        const s = pane.replacements
+          .filter((a) => validAugmentationInstance(a, pane.vitrail))
+          .flatMap((r) => {
+            const range = rangeShift(
+              replacementRange(r, pane.vitrail),
+              -pane.startIndex,
+            );
 
-              return (
-                r.augmentation.type === "replace"
-                  ? (range[0] === range[1]
-                      ? Decoration.widget
-                      : Decoration.replace)({
-                      widget: new CodeMirrorReplacementWidget(r),
-                    })
-                  : Decoration.mark({ attributes: r.view })
-              ).range(...range);
-            })
-            .sort((a, b) =>
-              a.from === b.from
-                ? a.value.startSide - b.value.startSide
-                : a.from - b.from,
-            ),
-        ),
+            return r.augmentation.type === "replace"
+              ? (range[0] === range[1]
+                  ? Decoration.widget
+                  : Decoration.replace)({
+                  widget: new CodeMirrorReplacementWidget(r),
+                }).range(...range)
+              : (r.view as Marker[]).map((v) =>
+                  Decoration.mark({ attributes: v.attributes }).range(
+                    ...markerRange(v, range as [number, number]),
+                  ),
+                );
+          })
+          .filter((r) => rangeContains(pane.range, [r.from, r.to]))
+          .sort((a, b) =>
+            a.from === b.from
+              ? a.value.startSide - b.value.startSide
+              : a.from - b.from,
+          );
+
+        return RangeSet.of(s);
+      },
       provide: (f) => [
         EditorView.decorations.from(f),
         // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),

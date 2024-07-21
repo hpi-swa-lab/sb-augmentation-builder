@@ -406,6 +406,7 @@ export class LanguageClient extends EventTarget {
   lastRequestId = +new Date();
   pending = new Map();
   textDocumentVersions = new Map();
+  lastDocumentText = new Map();
   diagnostics = new Map();
   queuedRequests = [];
   initialized = false;
@@ -526,6 +527,7 @@ export class LanguageClient extends EventTarget {
 
   async didOpen(path, text) {
     this.textDocumentVersions.set(path, 1);
+    this.lastDocumentText.set(path, text);
 
     const language = languageForPath(path);
 
@@ -550,6 +552,7 @@ export class LanguageClient extends EventTarget {
 
     const version = this.textDocumentVersions.get(path) + 1;
     this.textDocumentVersions.set(path, version);
+    this.lastDocumentText.set(path, newSource);
 
     await this._notification("textDocument/didChange", {
       textDocument: {
@@ -572,6 +575,7 @@ export class LanguageClient extends EventTarget {
 
   async didClose(path) {
     this.textDocumentVersions.delete(path);
+    this.lastDocumentText.delete(path);
     this.diagnostics.delete(path);
 
     await this._notification("textDocument/didClose", {
@@ -645,10 +649,6 @@ export class LanguageClient extends EventTarget {
     });
   }
 
-  diagnosticsFor(path) {
-    return this.diagnostics.get(path) ?? [];
-  }
-
   async _handleServerMessage(message) {
     switch (message.method) {
       case "window/logMessage":
@@ -662,7 +662,17 @@ export class LanguageClient extends EventTarget {
         const path = message.params.uri.slice("file://".length);
         this.dispatchEvent(
           new CustomEvent("diagnostics", {
-            detail: { path, diagnostics: message.params.diagnostics },
+            detail: {
+              path,
+              diagnostics: message.params.diagnostics.map((d) => ({
+                ...d,
+                severity: ["", "error", "warning", "info", "hint"][d.severity],
+                tags: (d.tags ?? []).map(
+                  (t) => ["", "unnecessary", "deprecated"][t],
+                ),
+                range: rangeToIndices(this.lastDocumentText.get(path), d.range),
+              })),
+            },
           }),
         );
         break;

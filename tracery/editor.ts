@@ -8,13 +8,13 @@ import {
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage, SBBlock, SBNode } from "../core/model.js";
 import { useEffect } from "../external/preact-hooks.mjs";
-import { useSignal } from "../external/preact-signals.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   metaexec,
   replace,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { last, takeWhile } from "../utils.js";
+import { appendCss, last, takeWhile } from "../utils.js";
 import {
   CodeMirrorWithVitrail,
   baseCMExtensions,
@@ -40,6 +40,8 @@ import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
 import { watch, wrapWithWatch } from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
+
+appendCss(`.diagnostic { background: rgba(255, 0, 0, 0.2); }`);
 
 function defineAction(bind, name) {
   Vim.defineAction(name, (cm) =>
@@ -204,6 +206,13 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     wrapWithWatch(node);
   };
 
+  useSignalEffect(() => {
+    // subscribe
+    diagnostics.value;
+
+    vitrail.value?.updateAllReplacements();
+  });
+
   const language = languageForPath(path) ?? SBBaseLanguage;
   return (
     path &&
@@ -232,15 +241,19 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       augmentations: <Augmentation<any>[]>[
         ...augmentations,
         singleDeclaration(language),
-        // {
-        //  type: "mark" as const,
-        //   model: SBBaseLanguage,
-        //   matcherDepth: 1,
-        //   match: (node) =>
-        //     node instanceof SBBlock && node.type === "document" && {},
-        //   view: () =>
-        //     diagnostics.value.map((d) => ({ relativeRange: [], style: {} })),
-        // },
+        {
+          type: "mark" as const,
+          model: SBBaseLanguage,
+          matcherDepth: 1,
+          match: (node) =>
+            node instanceof SBBlock && node.type === "document" && {},
+          view: () =>
+            diagnostics.value.map((d) => ({
+              attributes: { class: "diagnostic" },
+              offset: d.range[0],
+              length: d.range[1] - d.range[0],
+            })),
+        },
       ],
       cmExtensions: [
         vim(),

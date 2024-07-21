@@ -26,6 +26,7 @@ import {
   rangeIntersects,
   rangeShift,
   takeWhile,
+  withDo,
 } from "../utils.js";
 import {
   adjacentCursorPosition,
@@ -79,21 +80,34 @@ function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
   return false;
 }
 
+export interface Marker {
+  offset?: number;
+  length?: number;
+  attributes: { [key: string]: any };
+}
+
 export interface AugmentationInstance<Props extends ReplacementProps> {
   matchedNode: SBNode;
   nodes: SBNode[];
   lastMatch: Props;
-  view: HTMLElement | object;
+  view: HTMLElement | Marker[];
   augmentation: Augmentation<Props>;
 }
 export function replacementRange(
-  replacement: AugmentationInstance<any>,
+  a: AugmentationInstance<any>,
   vitrail: Vitrail<any>,
 ) {
   return vitrail.adjustRange(
-    [replacement.nodes[0].range[0], last(replacement.nodes).range[1]],
+    [a.nodes[0].range[0], last(a.nodes).range[1]],
     true,
   );
+}
+
+export function markerRange(a: Marker, base: [number, number]) {
+  return [
+    base[0] + (a.offset ?? 0),
+    a.length === undefined ? base[1] : base[0] + (a.offset ?? 0) + a.length,
+  ];
 }
 
 type JSX = any;
@@ -115,13 +129,7 @@ export interface Augmentation<Props extends ReplacementProps> {
   model: Model;
   matcherDepth: number;
   match: (node: SBNode, pane: Pane<any>) => Props | null;
-  view: (props: Props) =>
-    | JSX
-    | {
-        offset?: number;
-        length?: number;
-        attributes: { [key: string]: any };
-      };
+  view: (props: Props) => JSX | Marker;
   rerender?: (editBuffer: EditBuffer) => boolean;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
@@ -273,6 +281,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     for (const pane of this._panes) {
       await pane.loadModels(this);
     }
+  }
+
+  updateAllReplacements() {
+    for (const pane of this._panes) pane.updateAllReplacements(this);
   }
 
   activeTransactionList: ReversibleChange<T>[] | null = null;
@@ -694,7 +706,7 @@ export class Pane<T> {
     }
     function* myReplacement(r) {
       last = null;
-      yield* r.view.cursorPositions();
+      if (r.view instanceof HTMLElement) yield* r.view.cursorPositions();
     }
 
     const replacements = this.replacements.sort(
@@ -718,6 +730,10 @@ export class Pane<T> {
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
+    this.updateAllReplacements(v);
+  }
+
+  updateAllReplacements(v: Vitrail<T>) {
     const buffers = this.getInitEditBuffersForRoots([...v._models.values()]);
     for (const buffer of buffers) this.updateReplacements(buffer);
   }
@@ -807,7 +823,7 @@ export class Pane<T> {
         let node: SBNode | null = root;
         for (let i = 0; i <= augmentation.matcherDepth; i++) {
           if (!node) break;
-          if (!this.containsNode(node)) break;
+          if (!this.containsNode(node, augmentation.type === "mark")) break;
 
           const match = this.mayReplace(node, augmentation);
           if (match) this.installReplacement(node, augmentation, match);
@@ -821,10 +837,12 @@ export class Pane<T> {
     this.syncReplacements();
   }
 
-  containsNode(node: SBNode) {
+  containsNode(node: SBNode, allowPartial: boolean) {
     if (node.language === this.nodes[0]?.language)
       return this.nodes.some((n) => n.contains(node));
-    return rangeContains(this.range, node.range);
+    return allowPartial
+      ? rangeIntersects(this.range, node.range)
+      : rangeContains(this.range, node.range);
   }
 
   reRenderReplacement(
@@ -861,11 +879,14 @@ export class Pane<T> {
     if (!match) return false;
     if (!match.nodes) match.nodes = [node];
     if (
-      this.replacements.some((r) =>
-        rangeContains(
-          [r.nodes[0].range[0], last(r.nodes).range[1]],
-          [match.nodes[0].range[0], last(match.nodes).range[1]],
-        ),
+      augmentation.type === "replace" &&
+      this.replacements.some(
+        (r) =>
+          r.augmentation.type === "replace" &&
+          rangeContains(
+            [r.nodes[0].range[0], last(r.nodes).range[1]],
+            [match.nodes[0].range[0], last(match.nodes).range[1]],
+          ),
       )
     )
       return false;
@@ -903,13 +924,13 @@ export class Pane<T> {
     augmentation: Augmentation<ReplacementProps>,
     match: Props,
   ) {
-    let view: VitrailReplacementContainer | object;
+    let view: VitrailReplacementContainer | Marker[];
     if (augmentation.type === "replace") {
       view = document.createElement(
         "vitrail-replacement-container",
       ) as VitrailReplacementContainer;
     } else {
-      view = {};
+      view = [];
     }
 
     const replacement: AugmentationInstance<any> = {
@@ -948,7 +969,9 @@ export class Pane<T> {
     return [...roots].map(
       (root) =>
         new EditBuffer([
-          ...[...this.allVisibleNodesOf(root)].flatMap((n) => n.initOps()),
+          ...withDo([...this.allVisibleNodesOf(root)], (l) =>
+            l.length < 1 ? [root] : l,
+          ).flatMap((n) => n.initOps()),
         ]),
     );
   }
