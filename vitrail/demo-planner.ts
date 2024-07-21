@@ -50,6 +50,7 @@ const evalLastMemo = (source) => {
 };
 
 export const planner = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: Infinity,
   rerender: () => true,

@@ -19,6 +19,7 @@ const query = (query, extract?) => (it) => it.query(query, extract);
 const queryDeep = (query, extract?) => (it) => it.findQuery(query, extract);
 
 export const pipelineBuilder = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: Infinity,
   rerender: () => true,

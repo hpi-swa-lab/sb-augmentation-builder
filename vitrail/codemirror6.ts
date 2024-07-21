@@ -3,7 +3,7 @@ import {
   Change,
   Pane,
   PaneFetchAugmentationsFunc,
-  Replacement,
+  AugmentationInstance,
   ReversibleChange,
   Vitrail,
   replacementRange,
@@ -125,9 +125,9 @@ export async function createDefaultCodeMirror(
 }
 
 class CodeMirrorReplacementWidget extends WidgetType {
-  replacement: Replacement<any>;
+  replacement: AugmentationInstance<any>;
 
-  constructor(replacement: Replacement<any>) {
+  constructor(replacement: AugmentationInstance<any>) {
     super();
     this.replacement = replacement;
   }
@@ -163,8 +163,8 @@ export async function codeMirror6WithVitrail(
   const extensions = (pane: Pane<EditorView>) => {
     const replacementsField = StateField.define({
       create: () => Decoration.none,
-      update: () => {
-        return RangeSet.of(
+      update: () =>
+        RangeSet.of(
           pane.replacements
             .filter((r) => !isNullRange(replacementRange(r, pane.vitrail)))
             .map((r) => {
@@ -172,15 +172,23 @@ export async function codeMirror6WithVitrail(
                 replacementRange(r, pane.vitrail),
                 -pane.startIndex,
               );
+
               return (
-                range[0] === range[1] ? Decoration.widget : Decoration.replace
-              )({
-                widget: new CodeMirrorReplacementWidget(r),
-              }).range(...range);
+                r.augmentation.type === "replace"
+                  ? (range[0] === range[1]
+                      ? Decoration.widget
+                      : Decoration.replace)({
+                      widget: new CodeMirrorReplacementWidget(r),
+                    })
+                  : Decoration.mark({ attributes: r.view })
+              ).range(...range);
             })
-            .sort((a, b) => a.from - b.from),
-        );
-      },
+            .sort((a, b) =>
+              a.from === b.from
+                ? a.value.startSide - b.value.startSide
+                : a.from - b.from,
+            ),
+        ),
       provide: (f) => [
         EditorView.decorations.from(f),
         // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),
@@ -194,8 +202,8 @@ export async function codeMirror6WithVitrail(
         return tr.effects.filter((e) => e.is(IntentToDelete));
       }),
       EditorView.editable.from(replacementsField, (v) => {
-        const replacement: Replacement<any> | null =
-          v.iter().value?.widget.replacement;
+        const replacement: AugmentationInstance<any> | null =
+          v.iter().value?.widget?.replacement;
         // check if there is a single replacement covering the entire pane
         return !(replacement && arrayEqual(replacement.nodes, pane.nodes));
       }),

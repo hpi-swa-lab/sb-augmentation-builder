@@ -20,6 +20,7 @@ export function createPlaceholder(label: string) {
 }
 
 export const placeholder = (model) => ({
+  type: "replace" as const,
   model,
   matcherDepth: 1,
   match: (x, _pane) =>

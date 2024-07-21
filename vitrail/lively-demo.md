@@ -60,6 +60,7 @@ editor.value = source
 const query = (query, extract) => (it) => it.query(query, extract);
 
 const watch = {
+  type: "replace",
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -95,6 +96,7 @@ const watch = {
 
 
 const smileys =  {
+  type: "replace",
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -121,6 +123,7 @@ const smileys =  {
 };
 
 const colorstring =  {
+  type: "replace",
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -164,6 +167,7 @@ const colorstring =  {
 
 
 const dataurlimage =  {
+  type: "replace",
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -221,6 +225,7 @@ const dataurlimage =  {
 
 
 const tables = {
+  type: "replace",
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,

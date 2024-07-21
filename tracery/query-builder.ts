@@ -63,6 +63,7 @@ async function insertPipelineWithItem() {
 
 export const queryBuilder = (model) => {
   return {
+    type: "replace" as const,
     matcherDepth: Infinity,
     model,
     rerender: () => true,

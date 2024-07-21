@@ -10,6 +10,7 @@ import {
 } from "./sandblocks/query-builder/functionQueries.js";
 
 export const augExample = {
+  type: "replace",
   matcherDepth: Infinity,
   model: languageFor("typescript"),
   match: (it) =>

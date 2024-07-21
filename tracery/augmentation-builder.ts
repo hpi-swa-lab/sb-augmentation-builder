@@ -36,6 +36,7 @@ import { metaexec, all, } from "./sandblocks/query-builder/functionQueries.js";
 import { h } from "./external/preact.mjs";
 
 export const ${name} = {
+  type: "replace" as const,
   matcherDepth: Infinity,
   model: languageFor("${node.language.name}"),
   examples: [${JSON.stringify(example)}],
@@ -62,6 +63,7 @@ function getAbsolutePath(node: SBBlock) {
 }
 
 export const augmentationBuilder = (model) => ({
+  type: "replace" as const,
   matcherDepth: 8,
   model,
   rerender: () => true,
@@ -70,6 +72,7 @@ export const augmentationBuilder = (model) => ({
       type("object"),
       query(
         `({
+        type: $type,
         matcherDepth: $depth,
         model: $model,
         match: $match,

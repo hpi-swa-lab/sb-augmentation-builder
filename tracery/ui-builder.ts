@@ -18,6 +18,7 @@ import { openNodesInWindow } from "./editor.ts";
 import { NodeArray } from "./node-array.ts";
 
 export const uiBuilder = (model): Augmentation<any> => ({
+  type: "replace" as const,
   model,
   match: (it) =>
     metaexec(it, (capture) => [

@@ -55,7 +55,7 @@ export const usePaneProps = () =>
 
 type ReplacementProps = { [field: string]: any } & {
   nodes: SBNode[];
-  replacement: Replacement<any>;
+  replacement: AugmentationInstance<any>;
 };
 
 function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
@@ -79,15 +79,15 @@ function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
   return false;
 }
 
-export interface Replacement<Props extends ReplacementProps> {
+export interface AugmentationInstance<Props extends ReplacementProps> {
   matchedNode: SBNode;
   nodes: SBNode[];
   lastMatch: Props;
-  view: HTMLElement;
+  view: HTMLElement | object;
   augmentation: Augmentation<Props>;
 }
 export function replacementRange(
-  replacement: Replacement<any>,
+  replacement: AugmentationInstance<any>,
   vitrail: Vitrail<any>,
 ) {
   return vitrail.adjustRange(
@@ -111,10 +111,17 @@ export enum DeletionInteraction {
 }
 
 export interface Augmentation<Props extends ReplacementProps> {
+  type: "replace" | "mark";
   model: Model;
   matcherDepth: number;
   match: (node: SBNode, pane: Pane<any>) => Props | null;
-  view: (props: Props) => JSX;
+  view: (props: Props) =>
+    | JSX
+    | {
+        offset?: number;
+        length?: number;
+        attributes: { [key: string]: any };
+      };
   rerender?: (editBuffer: EditBuffer) => boolean;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
@@ -557,7 +564,7 @@ export class Pane<T> {
   view: HTMLElement;
   host: T;
   nodes: SBNode[];
-  replacements: Replacement<any>[] = [];
+  replacements: AugmentationInstance<any>[] = [];
   markers: { nodes: SBNode[] }[] = [];
   startIndex: number = -1;
   startLineNumber: number = -1;
@@ -645,7 +652,11 @@ export class Pane<T> {
       // FIXME I think this may not return the closest parent
       return (
         this.vitrail._panes.find((p) =>
-          p.replacements.some((r) => r.view.contains(this.view)),
+          p.replacements.some(
+            (r) =>
+              r.augmentation.type === "replace" &&
+              (r.view as HTMLElement).contains(this.view),
+          ),
         ) ?? null
       );
 
@@ -816,7 +827,10 @@ export class Pane<T> {
     return rangeContains(this.range, node.range);
   }
 
-  reRenderReplacement(replacement: Replacement<any>, editBuffer: EditBuffer) {
+  reRenderReplacement(
+    replacement: AugmentationInstance<any>,
+    editBuffer: EditBuffer,
+  ) {
     if (!replacement.augmentation.rerender?.(editBuffer)) return null;
 
     const match = this.matchAugmentation(
@@ -859,20 +873,27 @@ export class Pane<T> {
   }
 
   renderAugmentation<Props extends Omit<ReplacementProps, "replacement">>(
-    replacement: Replacement<
-      Props & { nodes: SBNode[]; replacement: Replacement<any> }
+    replacement: AugmentationInstance<
+      Props & { nodes: SBNode[]; replacement: AugmentationInstance<any> }
     >,
-    match: Props,
+    match: Props & { nodes: SBNode[] },
   ) {
     console.assert(!!this.vitrail);
-    render(
-      h(
-        VitrailContext.Provider,
-        { value: { vitrail: this.vitrail, pane: this } },
-        h(replacement.augmentation.view, { ...match, replacement }),
-      ),
-      replacement.view,
-    );
+    if (replacement.augmentation.type === "replace") {
+      render(
+        h(
+          VitrailContext.Provider,
+          { value: { vitrail: this.vitrail, pane: this } },
+          h(replacement.augmentation.view, { ...match, replacement }),
+        ),
+        replacement.view,
+      );
+    } else {
+      replacement.view = replacement.augmentation.view({
+        ...match,
+        replacement,
+      });
+    }
   }
 
   installReplacement<
@@ -882,11 +903,16 @@ export class Pane<T> {
     augmentation: Augmentation<ReplacementProps>,
     match: Props,
   ) {
-    const view = document.createElement(
-      "vitrail-replacement-container",
-    ) as VitrailReplacementContainer;
+    let view: VitrailReplacementContainer | object;
+    if (augmentation.type === "replace") {
+      view = document.createElement(
+        "vitrail-replacement-container",
+      ) as VitrailReplacementContainer;
+    } else {
+      view = {};
+    }
 
-    const replacement: Replacement<any> = {
+    const replacement: AugmentationInstance<any> = {
       matchedNode,
       nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
       view,
@@ -894,20 +920,23 @@ export class Pane<T> {
       lastMatch: match,
     };
 
-    view.vitrail = this.vitrail;
-    view.replacement = replacement;
+    if (view instanceof HTMLElement) {
+      view.vitrail = this.vitrail;
+      view.replacement = replacement;
+    }
+
     this.replacements.push(replacement);
 
     this.renderAugmentation(replacement, match);
   }
 
-  uninstallReplacement(replacement: Replacement<any>) {
+  uninstallReplacement(replacement: AugmentationInstance<any>) {
     // FIXME still needed?
     // for (const pane of [...this.vitrail._panes]) {
     //   if (replacement.view.contains(pane.view))
     //     this.vitrail.unregisterPane(pane);
     // }
-    render(null, replacement.view);
+    if (replacement.view instanceof HTMLElement) render(null, replacement.view);
     this.replacements.splice(this.replacements.indexOf(replacement), 1);
   }
 
@@ -1144,7 +1173,9 @@ export function useValidator(
   }, [vitrail, ...deps]);
 }
 
-export function useValidateKeepReplacement(replacement: Replacement<any>) {
+export function useValidateKeepReplacement(
+  replacement: AugmentationInstance<any>,
+) {
   const { pane }: { pane: Pane<any> } = useContext(VitrailContext);
   useValidator(
     replacement.augmentation.model,
@@ -1176,7 +1207,7 @@ export function useValidateKeepNodes(nodes: SBNode[], model?: Model) {
 }
 
 class VitrailReplacementContainer extends HTMLElement {
-  replacement: Replacement<any>;
+  replacement: AugmentationInstance<any>;
   vitrail: Vitrail<any>;
 
   get deletion() {

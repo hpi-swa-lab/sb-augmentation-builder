@@ -125,6 +125,7 @@ appendCss(`
 `);
 
 export const xstate = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: 100,
   rerender: () => true,
@@ -154,6 +155,7 @@ export const xstate = {
 };
 
 export const sendAction = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -169,6 +171,7 @@ export const sendAction = {
 };
 
 export const watch = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -209,6 +212,7 @@ export const watch = {
 };
 
 export const smileys = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   examples: ["const a = 123"],
   matcherDepth: 3,
@@ -229,6 +233,7 @@ export const smileys = {
 };
 
 export const colorstring = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: 3,
   rerender: () => true,
@@ -263,6 +268,7 @@ export const colorstring = {
 };
 
 export const text = {
+  type: "replace" as const,
   model: languageFor("javascript"),
   matcherDepth: 1,
   rerender: () => true,

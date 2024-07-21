@@ -57,6 +57,7 @@ export function wrapWithWatch(node) {
 }
 
 export const watch = (model) => ({
+  type: "replace" as const,
   model,
   rerender: () => true,
   match: (n) =>
@@ -88,7 +89,7 @@ export const watch = (model) => ({
     useValidateKeepReplacement(replacement);
 
     useEffect(() => {
-      window.sbWatch.registry.set(watchId, replacement);
+      (window as any).sbWatch.registry.set(watchId, replacement);
 
       replacement.reportValue = (value) => {
         setCount((c) => c + 1);
@@ -96,7 +97,7 @@ export const watch = (model) => ({
       };
 
       return () => {
-        window.sbWatch.registry.delete(watchId);
+        (window as any).sbWatch.registry.delete(watchId);
       };
     }, [replacement, watchId]);
 
@@ -134,10 +135,10 @@ export const watch = (model) => ({
 });
 
 withSocket((socket) =>
-  socket.on("sb-watch", ({ id, e }) => window.sbWatch(e, id)),
+  socket.on("sb-watch", ({ id, e }) => (window as any).sbWatch(e, id)),
 );
-window.sbWatch = function (value, id) {
-  sbWatch.registry.get(id)?.reportValue(value);
+(window as any).sbWatch = function (value, id) {
+  (window as any).sbWatch.registry.get(id)?.reportValue(value);
   return value;
 };
-window.sbWatch.registry = new Map();
+(window as any).sbWatch.registry = new Map();

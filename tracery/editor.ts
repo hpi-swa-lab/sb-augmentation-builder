@@ -6,7 +6,7 @@ import {
   javascript,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
-import { SBBaseLanguage, SBNode } from "../core/model.js";
+import { SBBaseLanguage, SBBlock, SBNode } from "../core/model.js";
 import { useEffect } from "../external/preact-hooks.mjs";
 import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
@@ -36,11 +36,9 @@ import {
   openNewAugmentation,
 } from "./augmentation-builder.ts";
 import { format } from "./format.js";
-import { request } from "./host.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
-import { uiBuilder } from "./ui-builder.ts";
-import { watch, wrapWithWatch } from "./watch.js";
+import { watch, wrapWithWatch } from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
 
 function defineAction(bind, name) {
@@ -69,7 +67,10 @@ Vim.defineAction(
   (cm) => (parentWindow(cm.cm6.state.facet(PaneFacet).view) as any)?.close(),
 );
 
-function extensionsForPath(path) {
+function extensionsForPath(path): {
+  cmExtensions: any[];
+  augmentations: Augmentation<any>[];
+} {
   const language = languageForPath(path);
   if (language === languageFor("javascript"))
     return {
@@ -133,6 +134,7 @@ function FullDeclarationPane({ nodes, ...props }) {
 }
 
 const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
+  type: "replace" as const,
   matcherDepth: 1,
   model,
   selectionInteraction: SelectionInteraction.Skip,
@@ -162,6 +164,7 @@ export function openNodesInWindow(nodes: SBNode[], props: any = {}) {
 
 export function TraceryEditor({ project, path, nodes, window, onLoad }) {
   const source = useSignal(null);
+  const diagnostics = useSignal([]);
   const vitrail: { value: Vitrail<any> } = useSignal(null);
 
   useEffect(() => {
@@ -175,10 +178,8 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     const languageClient = project.languageClientFor(languageForPath(path));
     if (!languageClient) return;
 
-    const handler = ({ detail: { path: p, diagnostics } }) => {
-      if (p === path) {
-        console.log(diagnostics);
-      }
+    const handler = ({ detail: { path: p, diagnostics: d } }) => {
+      if (p === path) diagnostics.value = d;
     };
     languageClient.addEventListener("diagnostics", handler);
     return () => languageClient.removeEventListener("diagnostics", handler);
@@ -228,7 +229,19 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
           vitrail.value.selectedString() ?? "",
           vitrail.value.selectedNode(),
         ),
-      augmentations: [...augmentations, singleDeclaration(language)],
+      augmentations: <Augmentation<any>[]>[
+        ...augmentations,
+        singleDeclaration(language),
+        // {
+        //  type: "mark" as const,
+        //   model: SBBaseLanguage,
+        //   matcherDepth: 1,
+        //   match: (node) =>
+        //     node instanceof SBBlock && node.type === "document" && {},
+        //   view: () =>
+        //     diagnostics.value.map((d) => ({ relativeRange: [], style: {} })),
+        // },
+      ],
       cmExtensions: [
         vim(),
         ...cmExtensions,
