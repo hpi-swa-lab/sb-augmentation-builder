@@ -173,40 +173,32 @@ function _NodeArrayItem({
   //TODO: padding is useless, because onmouseleave overwrites this
   const hoverPadding = 100;
 
-  return h(
-    "div",
-    {
-      style: {
-        //outline: "1px solid gray",
-        outline: showAddPointTop.value ? "1px solid gray" : "0px",
-        display: "flex",
-      },
-    },
+  return [
     buttonPos.includes(BUTTON_PLACEMENT.TOP)
       ? showAddPointTop.value &&
-          add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
+        add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
       : null,
     buttonPos.includes(BUTTON_PLACEMENT.BOTTOM)
       ? showAddPointBottom.value &&
-          add(
-            showAddPointBottom.value,
-            addRefBottom,
-            () => onInsert(true),
-            hideHalo,
-          )
+        add(
+          showAddPointBottom.value,
+          addRefBottom,
+          () => onInsert(true),
+          hideHalo,
+        )
       : null,
     buttonPos.includes(BUTTON_PLACEMENT.START)
       ? showAddPointStart.value &&
-          add(
-            showAddPointStart.value,
-            addRefStart,
-            () => onInsert(false),
-            hideHalo,
-          )
+        add(
+          showAddPointStart.value,
+          addRefStart,
+          () => onInsert(false),
+          hideHalo,
+        )
       : null,
     buttonPos.includes(BUTTON_PLACEMENT.END)
       ? showAddPointEnd.value &&
-          add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
+        add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
       : null,
     showRemovePoint.value &&
       remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
@@ -237,7 +229,7 @@ function _NodeArrayItem({
         hideHalo();
       },
     ),
-  );
+  ];
 }
 export const BUTTON_PLACEMENT = {
   START: "start",

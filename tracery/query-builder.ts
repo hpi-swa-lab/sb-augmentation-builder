@@ -9,7 +9,7 @@ import {
   query,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { NodeArray } from "./node-array.ts";
+import { BUTTON_PLACEMENT, NodeArray } from "./node-array.ts";
 import { Codicon } from "../view/widgets.js";
 import {
   VitrailPane,
@@ -28,6 +28,7 @@ import { computed, useSignal } from "../external/preact-signals.mjs";
 import { useMemo } from "../external/preact-hooks.mjs";
 import { languageFor } from "../core/languages.js";
 import { Explorer } from "./explorer.ts";
+import { outline } from "./outline.ts";
 
 const history = computed(() => {
   //console.log(debugHistory.value.get(1));
@@ -426,7 +427,7 @@ function PipelineStep({
       container: step.node.atField("arguments"),
       items: step.steps,
       insertItem: insertPipelineWithItem,
-      buttonPos: ["start", "end"],
+      buttonPos: [BUTTON_PLACEMENT.START, BUTTON_PLACEMENT.END],
       wrap: (it) =>
         h(
           "div",
@@ -436,7 +437,12 @@ function PipelineStep({
               flexDirection: "column",
               marginLeft: "0rem",
               marginRight: "1rem",
+              outline: "1px dotted red",
             },
+            id: "outerDivFirst",
+            ref: containerRef,
+            onmousemove,
+            onmouseleave,
           },
           h(
             "div",
@@ -448,7 +454,6 @@ function PipelineStep({
                 borderTop: "0px solid black",
               },
             },
-
             it,
           ),
           h("div", {
@@ -476,6 +481,7 @@ function PipelineStep({
           "div",
           {
             style: { display: "flex", flexDirection: "column" },
+            id: "pipeline",
             ref: containerRef,
             onmouseleave,
             onmousemove,
@@ -513,7 +519,7 @@ function PipelineStep({
       container: step.node.atField("arguments"),
       items: step.steps,
       insertItem: insertPipelineWithItem,
-      buttonPos: ["start", "end"],
+      buttonPos: [BUTTON_PLACEMENT.START, BUTTON_PLACEMENT.END],
       wrap: (it) =>
         h(
           "div",
@@ -532,7 +538,6 @@ function PipelineStep({
         h(
           "div",
           {
-            style: { border: "2px dotted red" },
             ref: containerRef,
             onmouseleave,
             onmousemove,
@@ -556,7 +561,12 @@ function PipelineStep({
       wrap: (it) =>
         h(
           "div",
-          { style: { display: "flex", flexDirection: "column" } },
+          {
+            style: { display: "flex", flexDirection: "column" },
+            ref: containerRef,
+            onmousemove,
+            onmouseleave,
+          },
           last
             ? h("div", {
                 style: {
