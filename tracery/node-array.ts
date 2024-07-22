@@ -150,7 +150,10 @@ function _NodeArrayItem({
       showAddPointTop.value = [rect.left + 9, rect.top - 13];
       showAddPointBottom.value = [rect.left + 9, rect.top + rect.height];
       showAddPointStart.value = [rect.left - 9, rect.bottom - rect.height / 2];
-      showAddPointEnd.value = [rect.right, rect.bottom - rect.height / 2];
+      showAddPointEnd.value = [
+        rect.left + rect.width - 10,
+        rect.bottom - rect.height / 2,
+      ];
       showRemovePoint.value = [rect.left + rect.width - 10, rect.top - 5];
     } else {
       showAddPointTop.value = null;
@@ -170,32 +173,40 @@ function _NodeArrayItem({
   //TODO: padding is useless, because onmouseleave overwrites this
   const hoverPadding = 100;
 
-  return [
-    buttonPos.includes("top")
+  return h(
+    "div",
+    {
+      style: {
+        //outline: "1px solid gray",
+        outline: showAddPointTop.value ? "1px solid gray" : "0px",
+        display: "flex",
+      },
+    },
+    buttonPos.includes(BUTTON_PLACEMENT.TOP)
       ? showAddPointTop.value &&
-        add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
+          add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
       : null,
-    buttonPos.includes("bottom")
+    buttonPos.includes(BUTTON_PLACEMENT.BOTTOM)
       ? showAddPointBottom.value &&
-        add(
-          showAddPointBottom.value,
-          addRefBottom,
-          () => onInsert(true),
-          hideHalo,
-        )
+          add(
+            showAddPointBottom.value,
+            addRefBottom,
+            () => onInsert(true),
+            hideHalo,
+          )
       : null,
-    buttonPos.includes("start")
+    buttonPos.includes(BUTTON_PLACEMENT.START)
       ? showAddPointStart.value &&
-        add(
-          showAddPointStart.value,
-          addRefStart,
-          () => onInsert(false),
-          hideHalo,
-        )
+          add(
+            showAddPointStart.value,
+            addRefStart,
+            () => onInsert(false),
+            hideHalo,
+          )
       : null,
-    buttonPos.includes("end")
+    buttonPos.includes(BUTTON_PLACEMENT.END)
       ? showAddPointEnd.value &&
-        add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
+          add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
       : null,
     showRemovePoint.value &&
       remove(showRemovePoint.value, removeRef, () => onRemove(), hideHalo),
@@ -226,5 +237,11 @@ function _NodeArrayItem({
         hideHalo();
       },
     ),
-  ];
+  );
 }
+export const BUTTON_PLACEMENT = {
+  START: "start",
+  END: "end",
+  TOP: "top",
+  BOTTOM: "bottom",
+};
