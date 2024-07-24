@@ -437,7 +437,6 @@ function PipelineStep({
               flexDirection: "column",
               marginLeft: "0rem",
               marginRight: "1rem",
-              outline: "1px dotted red",
             },
             id: "outerDivFirst",
             ref: containerRef,
@@ -834,7 +833,8 @@ function calcIds(pipeline, start = []) {
           PipelineSteps.SPAWN_ARRAY,
           PipelineSteps.ALSO,
           PipelineSteps.OPTIONAL,
-        ].includes(step.stepType)
+        ].includes(step.stepType) &&
+        step.steps
       ) {
         step.steps["id"] = [...start, index, 0];
         calcIds(step.steps.steps, step.steps["id"]);
