@@ -3,6 +3,7 @@ import {
   augBool,
   augChartsColor,
   augChartsJS,
+  augChartsType,
   augTransparentColor,
 } from "../aug-example-charts.ts";
 import { vim, Vim } from "../codemirror6/external/codemirror-vim.mjs";
@@ -92,6 +93,7 @@ function extensionsForPath(path) {
         augTransparentColor(language),
         augBool(language),
         augColor(language),
+        augChartsType(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -108,6 +110,7 @@ function extensionsForPath(path) {
         augTransparentColor(language),
         augBool(language),
         augColor(language),
+        augChartsType(language),
       ],
     };
   return { cmExtensions: [], augmentations: [] };

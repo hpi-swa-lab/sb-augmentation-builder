@@ -63,29 +63,45 @@ export const augColor = (model) => ({
     console.log("a: " + a);
     return h(
       "div",
-      {},
-      node.sourceString,
-      h("input", {
-        type: "color",
-        onchange: (e) => node.replaceWith(e.target.value + a.toString(16)),
-        value: `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`,
-      }),
-      h("input", {
-        type: "range",
-        min: 0,
-        max: 1,
-        step: 0.01,
-        value: a / 255,
-        onchange: (e) => {
-          const new_alpha = Math.round(e.target.value * 255).toString(16);
-          console.log("new_alpha: " + new_alpha);
-          const replacement = `#${r.toString(16)}${g.toString(16)}${b.toString(
-            16,
-          )}${new_alpha}`;
-          console.log("replacement: " + replacement);
-          node.replaceWith(replacement, "expression");
+      {
+        style: {
+          display: "flow",
+          flowDirection: "column",
+          boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
+          padding: "1rem",
         },
-      }),
+      },
+      h(
+        "div",
+        {},
+        "color: ",
+        h("input", {
+          type: "color",
+          onchange: (e) => node.replaceWith(e.target.value + a.toString(16)),
+          value: `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`,
+        }),
+      ),
+      h(
+        "div",
+        {},
+        "Opacity: ",
+        h("input", {
+          type: "range",
+          min: 0,
+          max: 1,
+          step: 0.01,
+          value: a / 255,
+          onchange: (e) => {
+            const new_alpha = Math.round(e.target.value * 255).toString(16);
+            console.log("new_alpha: " + new_alpha);
+            const replacement = `#${r.toString(16)}${g.toString(
+              16,
+            )}${b.toString(16)}${new_alpha}`;
+            console.log("replacement: " + replacement);
+            node.replaceWith(replacement, "expression");
+          },
+        }),
+      ),
     );
   },
   rerender: () => true,

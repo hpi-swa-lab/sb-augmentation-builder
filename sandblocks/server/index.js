@@ -20,10 +20,14 @@ try {
   cert = fs.readFileSync("localhost.pem");
 } catch (error) {}
 
+const options = {
+  key: key,
+  cert: cert,
+  passphrase: "1234",
+};
+
 const app = express();
-const server = key
-  ? https.createServer({ key, cert }, app)
-  : http.createServer(app);
+const server = key ? https.createServer(options, app) : http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());

@@ -15,7 +15,9 @@ import {
   allMatch,
   optional,
   queryDeep,
+  getField,
 } from "./sandblocks/query-builder/functionQueries.js";
+import { StringEnum } from "./tracery/enum.ts";
 import { Codicon } from "./view/widgets.js";
 import { VitrailPane, VitrailPaneWithWhitespace } from "./vitrail/vitrail.ts";
 
@@ -34,6 +36,49 @@ export const augBool = (model) => ({
       onChange: (e) => node.replaceWith(e.target.value, "expression"),
     });
   },
+  rerender: () => true,
+  examples: [
+    [
+      "Utils.transparentize(Utils.CHART_COLORS.blue, 0.5)",
+      [0, 0],
+      "Utils.CHART_COLORS.blue",
+      [0, 0],
+    ],
+  ],
+});
+
+export const augChartsType = (model) => ({
+  matcherDepth: Infinity,
+  model: model,
+  match: (it) =>
+    metaexec(it, (capture) => [
+      (it) => it.type == "pair",
+      (it) => it.atField("key").text == "type",
+      capture("type"),
+      () => "type",
+      capture("name"),
+    ]),
+  view: ({ type, name }) =>
+    h(StringEnum, {
+      node: type.atField("value"),
+      wrap: (it) =>
+        h(
+          "div",
+          { style: { display: "flex", flexDirection: "row" } },
+          `${name}: `,
+          it,
+        ),
+      options: [
+        "bar",
+        "bubble",
+        "doughnut",
+        "pie",
+        "line",
+        "polarArea",
+        "radar",
+        "scatter",
+      ],
+    }),
   rerender: () => true,
   examples: [
     [
@@ -223,11 +268,12 @@ export const augChartsJS = (model) => ({
           queryDeep("const config = $config"),
           (it) => it.config,
           capture("config"),
+          all([getField("type"), capture("type")]),
         ],
         [queryDeep("const data = $data"), (it) => it.data, capture("data")],
       ),
     ]),
-  view: ({ nodes, labels, datasets, config, data }) => {
+  view: ({ nodes, labels, datasets, config, data, type }) => {
     //debugger;
     const canvasRef = useRef(null);
     useEffect(() => {
@@ -254,13 +300,16 @@ export const augChartsJS = (model) => ({
 
     return h(
       "div",
-      { style: { display: "flex", flexDirection: "row" } },
+      {
+        style: { display: "flex", flexDirection: "row", alignItems: "center" },
+      },
       h(
         "div",
         { style: { border: "2px solid red" } },
         h("h2", {}, "charts.js"),
         h("h3", {}, "config"),
         h(VitrailPaneWithWhitespace, { nodes: [config] }),
+
         h("h3", {}, "labels"),
         h(
           "div",
@@ -270,27 +319,72 @@ export const augChartsJS = (model) => ({
           h(
             "div",
             {},
-            datasets.map((it, index) => [
-              index + ":",
-              h(
-                "div",
-                { style: { border: "1px solid gray" } },
-                it.map((it) => {
-                  return h(
+            datasets.map((dataset, index) => {
+              const expanded = useSignal(true);
+              return [
+                h(
+                  "div",
+                  {
+                    style: {
+                      boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
+                      padding: "1rem",
+                      margin: "1rem",
+                    },
+                  },
+                  h(
                     "div",
-                    {},
-                    `${it.key}: `,
-                    h(VitrailPaneWithWhitespace, {
-                      nodes: [it.value],
+                    {
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        flexDirection: "row",
+                      },
+                      onclick: () => (expanded.value = !expanded.value),
+                    },
+                    h(
+                      "h4",
+                      { style: { flexGrow: 4 } },
+                      dataset.map((it) => it.key).includes("label")
+                        ? dataset.find((it) => it.key == "label").value
+                            .childBlocks[0].text
+                        : "unnamed",
+                    ),
+                    h(Codicon, {
+                      name: expanded.value ? "chevron-up" : "chevron-down",
+                      style: { width: "1rem" },
                     }),
-                  );
-                }),
-              ),
-            ]),
+                  ),
+                  expanded.value
+                    ? dataset.map((it) => {
+                        return h(
+                          "div",
+                          {},
+                          `${it.key}: `,
+                          h(VitrailPaneWithWhitespace, {
+                            nodes: [it.value],
+                          }),
+                        );
+                      })
+                    : null,
+                ),
+              ];
+            }),
           ),
         ),
       ),
-      h("div", { style: { width: "500px" } }, h("canvas", { ref: canvasRef })),
+      h(
+        "div",
+        {
+          style: {
+            width: "500px",
+            height: "auto",
+            resize: "both",
+            overflow: "auto",
+            border: "2px solid gray",
+          },
+        },
+        h("canvas", { ref: canvasRef }),
+      ),
     );
   },
   rerender: () => true,
