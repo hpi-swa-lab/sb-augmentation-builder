@@ -4,7 +4,17 @@ import { Codicon } from "../view/widgets.js";
 export function StringEnum({ node, options, view, wrap }) {
   const dropDownVisible = useSignal(false);
   wrap ??= (it) => h("div", {}, it);
-  view ??= (it) => h("div", {}, it);
+  view ??= (it) =>
+    h(
+      "div",
+      {
+        style: {
+          padding: "0.5rem",
+          borderBottom: "1px solid gray",
+        },
+      },
+      it,
+    );
   options ??= [];
   return wrap(
     h(
@@ -19,7 +29,7 @@ export function StringEnum({ node, options, view, wrap }) {
         {
           onclick: () => (dropDownVisible.value = !dropDownVisible.value),
         },
-        node.sourceString,
+        node.sourceString.replaceAll('"', ""),
         h(Codicon, {
           name: dropDownVisible.value ? "chevron-up" : "chevron-down",
           style: { width: "1rem" },
@@ -30,7 +40,10 @@ export function StringEnum({ node, options, view, wrap }) {
             h(
               "div",
               {
-                style: { display: "flex", flexDirection: "column" },
+                style: {
+                  display: "flex",
+                  flexDirection: "column",
+                },
                 onclick: () => {
                   node.replaceWith(`"${option}"`, "expression");
                   dropDownVisible.value = !dropDownVisible.value;

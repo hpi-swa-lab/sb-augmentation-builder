@@ -18,6 +18,7 @@ import {
   getField,
 } from "./sandblocks/query-builder/functionQueries.js";
 import { StringEnum } from "./tracery/enum.ts";
+import { NodeArray } from "./tracery/node-array.ts";
 import { Codicon } from "./view/widgets.js";
 import { VitrailPane, VitrailPaneWithWhitespace } from "./vitrail/vitrail.ts";
 
@@ -32,8 +33,10 @@ export const augBool = (model) => ({
   view: ({ node }) => {
     return h("input", {
       type: "checkbox",
-      value: node.type,
-      onChange: (e) => node.replaceWith(e.target.value, "expression"),
+      checked: node.type == "true",
+      onChange: (e) => {
+        node.replaceWith(e.target.checked.toString(), "expression");
+      },
     });
   },
   rerender: () => true,
@@ -243,6 +246,7 @@ export const augChartsJS = (model) => ({
   match: (it) =>
     metaexec(it, (capture) => [
       (it) => it.type != "programm",
+      capture("root"),
       all(
         [
           queryDeep("const $var = {labels: $labels, datasets: [$_datasets]}"),
@@ -265,6 +269,13 @@ export const augChartsJS = (model) => ({
           ),
         ],
         [
+          queryDeep(
+            "const $var = {labels: $labels, datasets: $datasetContainer}",
+          ),
+          (it) => it.datasetContainer,
+          capture("datasetContainer"),
+        ],
+        [
           queryDeep("const config = $config"),
           (it) => it.config,
           capture("config"),
@@ -273,7 +284,7 @@ export const augChartsJS = (model) => ({
         [queryDeep("const data = $data"), (it) => it.data, capture("data")],
       ),
     ]),
-  view: ({ nodes, labels, datasets, config, data, type }) => {
+  view: ({ nodes, labels, datasets, datasetContainer, config, data, type }) => {
     //debugger;
     const canvasRef = useRef(null);
     useEffect(() => {
@@ -316,10 +327,13 @@ export const augChartsJS = (model) => ({
           {},
           h(VitrailPane, { nodes: [labels] }),
           h("h3", {}, "datasets"),
-          h(
-            "div",
-            {},
-            datasets.map((dataset, index) => {
+          h(NodeArray, {
+            insertItem: () => `{label: "Name"}`,
+            container: datasetContainer,
+            wrap: (it) => it,
+            items: datasets,
+            view: (it, ref, onmousemove, onmouseleave) => {
+              //debugger;
               const expanded = useSignal(true);
               return [
                 h(
@@ -330,6 +344,9 @@ export const augChartsJS = (model) => ({
                       padding: "1rem",
                       margin: "1rem",
                     },
+                    ref,
+                    onmousemove,
+                    onmouseleave,
                   },
                   h(
                     "div",
@@ -344,8 +361,8 @@ export const augChartsJS = (model) => ({
                     h(
                       "h4",
                       { style: { flexGrow: 4 } },
-                      dataset.map((it) => it.key).includes("label")
-                        ? dataset.find((it) => it.key == "label").value
+                      it.map((item) => item.key).includes("label")
+                        ? it.find((it) => it.key == "label").value
                             .childBlocks[0].text
                         : "unnamed",
                     ),
@@ -355,21 +372,81 @@ export const augChartsJS = (model) => ({
                     }),
                   ),
                   expanded.value
-                    ? dataset.map((it) => {
-                        return h(
-                          "div",
-                          {},
-                          `${it.key}: `,
-                          h(VitrailPaneWithWhitespace, {
-                            nodes: [it.value],
-                          }),
-                        );
-                      })
+                    ? [
+                        it.map((it) => {
+                          return h(
+                            "div",
+                            {},
+                            `${it.key}: `,
+                            h(VitrailPaneWithWhitespace, {
+                              nodes: [it.value],
+                            }),
+                          );
+                        }),
+                        //TODO: make this less horrible
+                        h(AddKeyValueButton, {
+                          parentObject: it[0].value.parent.parent,
+                        }),
+                      ]
                     : null,
                 ),
               ];
-            }),
-          ),
+            },
+          }),
+          //h(
+          //  "div",
+          //  {},
+          //  datasets.map((dataset, index) => {
+          //    const expanded = useSignal(true);
+          //    return [
+          //      h(
+          //        "div",
+          //        {
+          //          style: {
+          //            boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
+          //            padding: "1rem",
+          //            margin: "1rem",
+          //          },
+          //        },
+          //        h(
+          //          "div",
+          //          {
+          //            style: {
+          //              display: "flex",
+          //              alignItems: "center",
+          //              flexDirection: "row",
+          //            },
+          //            onclick: () => (expanded.value = !expanded.value),
+          //          },
+          //          h(
+          //            "h4",
+          //            { style: { flexGrow: 4 } },
+          //            dataset.map((it) => it.key).includes("label")
+          //              ? dataset.find((it) => it.key == "label").value
+          //                  .childBlocks[0].text
+          //              : "unnamed",
+          //          ),
+          //          h(Codicon, {
+          //            name: expanded.value ? "chevron-up" : "chevron-down",
+          //            style: { width: "1rem" },
+          //          }),
+          //        ),
+          //        expanded.value
+          //          ? dataset.map((it) => {
+          //              return h(
+          //                "div",
+          //                {},
+          //                `${it.key}: `,
+          //                h(VitrailPaneWithWhitespace, {
+          //                  nodes: [it.value],
+          //                }),
+          //              );
+          //            })
+          //          : null,
+          //      ),
+          //    ];
+          //  }),
+          //),
         ),
       ),
       h(
@@ -439,3 +516,32 @@ export const rgb2hex = (it) =>
       [(it) => it.b, capture("b")],
     ),
   ]);
+
+function AddKeyValueButton({ parentObject }) {
+  const addMode = useSignal(false);
+  const key = useSignal("");
+  const value = useSignal("");
+  console.log(parentObject);
+
+  return h(
+    "div",
+    {},
+    addMode.value
+      ? h(
+          "div",
+          { style: { display: "flex", flexDirection: "row" } },
+          "key: ",
+          h("textarea", {
+            rows: "1",
+            onchange: (e) => (key.value = e.target.value),
+          }),
+          "value: ",
+          h("textarea", {
+            rows: "1",
+            onchange: (e) => (value.value = e.target.value),
+          }),
+          h("button", {}, "✅"),
+        )
+      : h("button", { onclick: () => (addMode.value = true) }, "+"),
+  );
+}
