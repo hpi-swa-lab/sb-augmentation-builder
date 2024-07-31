@@ -101,7 +101,10 @@ export function NodeArray({
               if (container.childBlocks.length == 1) {
                 container.removeFull();
               } else {
-                while (nodeToDelete.parent.id != container.id) {
+                while (
+                  nodeToDelete.parent &&
+                  nodeToDelete.parent.id != container.id
+                ) {
                   nodeToDelete = nodeToDelete.parent;
                 }
                 nodeToDelete.removeFull();

@@ -44,14 +44,14 @@ export const augColor = (model) => ({
           also([() => 16, capture("base")]),
         ],
       ),
-      log("array"),
+      //log("array"),
       (it) => ({
         r: parseInt(it[1], capture.get("base")),
         g: parseInt(it[2], capture.get("base")),
         b: parseInt(it[3], capture.get("base")),
         a: it[4] < 1 ? parseFloat(it[4]) : parseInt(it[4], capture.get("base")),
       }),
-      log("object"),
+      //log("object"),
       all(
         [(it) => it.r, capture("r")],
         [(it) => it.g, capture("g")],
@@ -90,7 +90,7 @@ export const augColor = (model) => ({
           min: 0,
           max: 1,
           step: 0.01,
-          value: a / 255,
+          value: a < 1 ? a : a / 255,
           onchange: (e) => {
             const new_alpha = Math.round(e.target.value * 255).toString(16);
             console.log("new_alpha: " + new_alpha);

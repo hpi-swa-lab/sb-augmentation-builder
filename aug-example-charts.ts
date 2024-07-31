@@ -257,7 +257,6 @@ export const augChartsJS = (model) => ({
               spawnArray([
                 (it) => it.childBlocks,
                 spawnArray([
-                  //(it) => it.childBlocks[0].text == "label",
                   (it) => ({
                     key: it.childBlocks[0].text,
                     value: it.childBlocks[1],
@@ -332,6 +331,8 @@ export const augChartsJS = (model) => ({
             container: datasetContainer,
             wrap: (it) => it,
             items: datasets,
+            nodeFromItem: (item) =>
+              item[0] ? item[0].value.parent.parent : null,
             view: (it, ref, onmousemove, onmouseleave) => {
               //debugger;
               const expanded = useSignal(true);

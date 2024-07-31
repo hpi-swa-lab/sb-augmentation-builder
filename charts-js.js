@@ -1,12 +1,12 @@
-const chars = () => {
+const charts = () => {
   const data = {
     labels: ["Jan", "Feb", "Mar"],
     datasets: [
       {
         label: "Fully Rounded",
         data: [1, 2, 3],
-        borderColor: "#c01c2817",
-        backgroundColor: "rgb(128,128,128, 0.5)",
+        borderColor: "#1111ffff",
+        backgroundColor: "rgb(0,0,255, 0.5)",
         borderWidth: 2,
         borderRadius: 200,
         borderSkipped: false,
@@ -14,7 +14,7 @@ const chars = () => {
       {
         label: "Small Radius",
         data: [4, 5, 6],
-        borderColor: "rgb(128,128,128)",
+        borderColor: "rgb(255,0,128)",
         backgroundColor: "rgb(128,128,128,0.5)",
         borderWidth: 2,
         borderRadius: 5,
