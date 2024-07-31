@@ -106,7 +106,6 @@ export const augChartsColor = (model) => ({
       capture("color"),
     ]),
   view: ({ color, node }) => {
-    console.log("color view for: " + color);
     const dropDownVisible = useSignal(false);
     const CHART_COLORS = {
       red: "rgb(255, 99, 132)",
@@ -240,6 +239,33 @@ export const augTransparentColor = (model) => ({
   ],
 });
 
+const findData = (root, name) => {
+  console.log("name: " + name);
+  function matchRec(root, name) {
+    const res = metaexec(root, (capture) => [
+      (it) => it.type == "variable_declarator",
+      (it) => it.atField("name").text == name,
+      capture("dataString"),
+    ]);
+    console.log("res");
+    console.log(res);
+    return res
+      ? res
+      : root.childBlocks
+          .map((child) => matchRec(child, name))
+          .find((it) => it != null);
+  }
+
+  const res = matchRec(root, name);
+  console.log(res);
+  if (res) {
+    console.log("returning: " + res.dataString.sourceString);
+    return `const ${res.dataString.sourceString}`;
+  } else {
+    return null;
+  }
+};
+
 export const augChartsJS = (model) => ({
   matcherDepth: Infinity,
   model: model,
@@ -260,6 +286,11 @@ export const augChartsJS = (model) => ({
                   (it) => ({
                     key: it.childBlocks[0].text,
                     value: it.childBlocks[1],
+                    valueEvaled: eval(
+                      `${findData(it.root, "month")};${
+                        it.childBlocks[1].sourceString
+                      }`,
+                    ),
                   }),
                 ]),
               ]),
@@ -291,7 +322,11 @@ export const augChartsJS = (model) => ({
       datasets.forEach((dataset, index) => {
         dataset_tmp.push({});
         dataset.forEach((pair) => {
-          dataset_tmp[index][pair.key] = eval(pair.value.sourceString);
+          if (pair.key == "data") {
+            dataset_tmp[index][pair.key] = pair.valueEvaled;
+          } else {
+            dataset_tmp[index][pair.key] = eval(pair.value.sourceString);
+          }
         });
       });
 
@@ -394,60 +429,6 @@ export const augChartsJS = (model) => ({
               ];
             },
           }),
-          //h(
-          //  "div",
-          //  {},
-          //  datasets.map((dataset, index) => {
-          //    const expanded = useSignal(true);
-          //    return [
-          //      h(
-          //        "div",
-          //        {
-          //          style: {
-          //            boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
-          //            padding: "1rem",
-          //            margin: "1rem",
-          //          },
-          //        },
-          //        h(
-          //          "div",
-          //          {
-          //            style: {
-          //              display: "flex",
-          //              alignItems: "center",
-          //              flexDirection: "row",
-          //            },
-          //            onclick: () => (expanded.value = !expanded.value),
-          //          },
-          //          h(
-          //            "h4",
-          //            { style: { flexGrow: 4 } },
-          //            dataset.map((it) => it.key).includes("label")
-          //              ? dataset.find((it) => it.key == "label").value
-          //                  .childBlocks[0].text
-          //              : "unnamed",
-          //          ),
-          //          h(Codicon, {
-          //            name: expanded.value ? "chevron-up" : "chevron-down",
-          //            style: { width: "1rem" },
-          //          }),
-          //        ),
-          //        expanded.value
-          //          ? dataset.map((it) => {
-          //              return h(
-          //                "div",
-          //                {},
-          //                `${it.key}: `,
-          //                h(VitrailPaneWithWhitespace, {
-          //                  nodes: [it.value],
-          //                }),
-          //              );
-          //            })
-          //          : null,
-          //      ),
-          //    ];
-          //  }),
-          //),
         ),
       ),
       h(
@@ -522,7 +503,6 @@ function AddKeyValueButton({ parentObject }) {
   const addMode = useSignal(false);
   const key = useSignal("");
   const value = useSignal("");
-  console.log(parentObject);
 
   return h(
     "div",
