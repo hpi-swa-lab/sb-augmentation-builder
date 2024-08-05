@@ -35,7 +35,6 @@ import {
 import { forwardRef } from "../view/widgets.js";
 
 // TODO
-// marker (and not just replacement) support
 // redo needs to be aware of intentToDeleteNodes
 // process replacements in two phases: remove all and buffer, then add all
 // change text just after spawn (while models are still loading)

@@ -7,7 +7,7 @@ import {
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage, SBBlock, SBNode } from "../core/model.js";
-import { useEffect } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
@@ -35,6 +35,7 @@ import {
   augmentationBuilder,
   openNewAugmentation,
 } from "./augmentation-builder.ts";
+import { exploriants } from "./exploriants.ts";
 import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
@@ -83,6 +84,7 @@ function extensionsForPath(path): {
         watch(language),
         // uiBuilder(language),
         placeholder(language),
+        exploriants(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -94,6 +96,7 @@ function extensionsForPath(path): {
         watch(language),
         // uiBuilder(language),
         placeholder(language),
+        exploriants(language),
       ],
     };
   return { cmExtensions: [], augmentations: [] };
@@ -187,7 +190,10 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     return () => languageClient.removeEventListener("diagnostics", handler);
   }, [path]);
 
-  const { augmentations, cmExtensions } = extensionsForPath(path);
+  const { augmentations, cmExtensions } = useMemo(
+    () => extensionsForPath(path),
+    [path],
+  );
 
   const formatAndSave = async () => {
     if (vitrail.value) await format(vitrail.value, path);
@@ -241,19 +247,19 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       augmentations: <Augmentation<any>[]>[
         ...augmentations,
         singleDeclaration(language),
-        {
-          type: "mark" as const,
-          model: SBBaseLanguage,
-          matcherDepth: 1,
-          match: (node) =>
-            node instanceof SBBlock && node.type === "document" && {},
-          view: () =>
-            diagnostics.value.map((d) => ({
-              attributes: { class: "diagnostic" },
-              offset: d.range[0],
-              length: d.range[1] - d.range[0],
-            })),
-        },
+        // {
+        //   type: "mark" as const,
+        //   model: SBBaseLanguage,
+        //   matcherDepth: 1,
+        //   match: (node) =>
+        //     node instanceof SBBlock && node.type === "document" && {},
+        //   view: () =>
+        //     diagnostics.value.map((d) => ({
+        //       attributes: { class: "diagnostic" },
+        //       offset: d.range[0],
+        //       length: d.range[1] - d.range[0],
+        //     })),
+        // },
       ],
       cmExtensions: [
         vim(),

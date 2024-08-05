@@ -686,6 +686,78 @@ export class TSQuery {
         ? root.firstOfType(extract)
         : extract?.(root) ?? root;
     this.language = language;
+
+    for (const child of this.template.allNodes()) {
+      if (child.optional) this._prepareOptionalEditors(child);
+    }
+  }
+
+  _optionalRoots = new Map();
+
+  _prepareOptionalEditors(a) {
+    const optional = a.optional;
+    let optionalRoot = a.root.internalClone();
+    optionalRoot._sourceString = a.root.sourceString;
+    optionalRoot._language = a.root.language;
+
+    let optionalTemplate = optionalRoot.childForRange(a.range);
+    const captures = [];
+    const toRemove = [];
+    for (const child of optionalTemplate.allNodes()) {
+      if (child.named && child.text.startsWith(this.prefix)) {
+        if (child.text.startsWith(this.parentPrefix)) {
+          captures.push([child.text.slice(2), child.parent]);
+          toRemove.push(child);
+        } else {
+          captures.push([child.text.slice(1), child]);
+          toRemove.push(child);
+        }
+      }
+    }
+
+    console.assert(optionalTemplate.connected);
+    const editor = new OffscreenEditor(optionalTemplate.root);
+    optionalTemplate.root._editor.transaction(() => {
+      for (const marker of toRemove) {
+        if (marker.text.startsWith("$_")) marker.removeFull();
+        // FIXME assumes a single optional child
+        else marker.replaceWith(optional);
+      }
+    });
+
+    editor.root._editor = undefined;
+    optionalRoot = editor.root;
+
+    this._optionalRoots.set(a, (b, currentCaptures, bChildren, j) => {
+      let localRoot = optionalRoot.internalClone();
+      currentCaptures.push(...captures);
+
+      if (optional !== true) {
+        const replaced = localRoot.childForRange([
+          optionalTemplate.range[0],
+          optionalTemplate.range[0] + optional.length,
+        ]);
+
+        for (const capture of captures) {
+          if (capture[1] === optionalTemplate) {
+            capture[1] = replaced;
+          }
+        }
+        optionalTemplate = replaced;
+      }
+      console.assert(optionalTemplate.connected);
+
+      localRoot._editor = new MaybeEditor(
+        b.editor,
+        b,
+        optionalTemplate,
+        // FIXME correct?
+        withDo(
+          b.childBlocks.indexOf(bChildren[Math.min(j, bChildren.length - 1)]),
+          (index) => (index < 0 ? b.childBlocks.length : index),
+        ),
+      );
+    });
   }
 
   match(node) {
@@ -760,64 +832,7 @@ export class TSQuery {
         const match = this._match(aChildren[i], bChildren[j], captures);
         if (match) continue;
         if (aChildren[i].optional) {
-          const optional = aChildren[i].optional;
-          let optionalRoot = aChildren[i].root.internalClone();
-          optionalRoot._sourceString = aChildren[i].root.sourceString;
-          optionalRoot._language = aChildren[i].root.language;
-
-          let optionalTemplate = optionalRoot.childForRange(aChildren[i].range);
-          const toRemove = [];
-          for (const child of optionalTemplate.allNodes()) {
-            if (child.named && child.text.startsWith(this.prefix)) {
-              if (child.text.startsWith(this.parentPrefix)) {
-                captures.push([child.text.slice(2), child.parent]);
-                toRemove.push(child);
-              } else {
-                captures.push([child.text.slice(1), child]);
-                toRemove.push(child);
-              }
-            }
-          }
-
-          console.assert(optionalTemplate.connected);
-          const editor = new OffscreenEditor(optionalTemplate.root);
-          optionalTemplate.root._editor.transaction(() => {
-            for (const marker of toRemove) {
-              if (marker.text.startsWith("$_")) marker.removeFull();
-              // FIXME assumes a single optional child
-              else marker.replaceWith(optional);
-            }
-          });
-
-          editor.root._editor = undefined;
-          optionalRoot = editor.root;
-
-          if (optional !== true) {
-            const replaced = optionalRoot.childForRange([
-              optionalTemplate.range[0],
-              optionalTemplate.range[0] + optional.length,
-            ]);
-
-            for (const capture of captures) {
-              if (capture[1] === optionalTemplate) {
-                capture[1] = replaced;
-              }
-            }
-            optionalTemplate = replaced;
-          }
-          console.assert(optionalTemplate.connected);
-          optionalRoot._editor = new MaybeEditor(
-            b.editor,
-            b,
-            optionalTemplate,
-            // FIXME correct?
-            withDo(
-              b.childBlocks.indexOf(
-                bChildren[Math.min(j, bChildren.length - 1)],
-              ),
-              (index) => (index < 0 ? b.childBlocks.length : index),
-            ),
-          );
+          this._optionalRoots.get(aChildren[i])(b, captures, bChildren, j);
           j--;
           continue;
         }

@@ -23,6 +23,10 @@ export const augExample = {
       ),
     ]),
   view: ({ nodes }) => h("div", {}, "test"),
-  rerender: () => true,
+  rerender: () =>
+    vary("1va2123fdsa", "param", 0, [
+      ["a", () => true],
+      ["b", () => false],
+    ]),
   examples: [["const a = { r: 0.3 }", [0, 0]]],
 };
