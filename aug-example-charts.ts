@@ -1,3 +1,4 @@
+import { wrap } from "module";
 import { languageFor } from "./core/languages.js";
 import { useEffect, useRef } from "./external/preact-hooks.mjs";
 import { useSignal } from "./external/preact-signals.mjs";
@@ -18,9 +19,11 @@ import {
   getField,
 } from "./sandblocks/query-builder/functionQueries.js";
 import { StringEnum } from "./tracery/enum.ts";
-import { NodeArray } from "./tracery/node-array.ts";
+import { BUTTON_PLACEMENT, NodeArray } from "./tracery/node-array.ts";
 import { Codicon } from "./view/widgets.js";
 import { VitrailPane, VitrailPaneWithWhitespace } from "./vitrail/vitrail.ts";
+import { createPlaceholder } from "./vitrail/placeholder.ts";
+import { Dialog, openComponentInWindow } from "./tracery/window.js";
 
 export const augBool = (model) => ({
   matcherDepth: Infinity,
@@ -240,15 +243,12 @@ export const augTransparentColor = (model) => ({
 });
 
 const findData = (root, name) => {
-  console.log("name: " + name);
   function matchRec(root, name) {
     const res = metaexec(root, (capture) => [
       (it) => it.type == "variable_declarator",
       (it) => it.atField("name").text == name,
       capture("dataString"),
     ]);
-    console.log("res");
-    console.log(res);
     return res
       ? res
       : root.childBlocks
@@ -257,9 +257,7 @@ const findData = (root, name) => {
   }
 
   const res = matchRec(root, name);
-  console.log(res);
   if (res) {
-    console.log("returning: " + res.dataString.sourceString);
     return `const ${res.dataString.sourceString}`;
   } else {
     return null;
@@ -366,8 +364,9 @@ export const augChartsJS = (model) => ({
             container: datasetContainer,
             wrap: (it) => it,
             items: datasets,
-            nodeFromItem: (item) =>
-              item[0] ? item[0].value.parent.parent : null,
+            nodeFromItem: (item) => {
+              return item[0] ? item[0].value.parent.parent : null;
+            },
             view: (it, ref, onmousemove, onmouseleave) => {
               //debugger;
               const expanded = useSignal(true);
@@ -407,24 +406,47 @@ export const augChartsJS = (model) => ({
                       style: { width: "1rem" },
                     }),
                   ),
+
                   expanded.value
-                    ? [
-                        it.map((it) => {
-                          return h(
+                    ? h(NodeArray, {
+                        container: it[0].value.parent.parent,
+                        items: it,
+                        nodeFromItem: (item) => {
+                          return item.value.parent;
+                        },
+                        wrap: (it) => it,
+                        view: (it, ref, onmousemove, onmouseleave) =>
+                          h(
                             "div",
-                            {},
+                            { ref, onmouseleave, onmousemove },
                             `${it.key}: `,
                             h(VitrailPaneWithWhitespace, {
                               nodes: [it.value],
                             }),
-                          );
-                        }),
-                        //TODO: make this less horrible
-                        h(AddKeyValueButton, {
-                          parentObject: it[0].value.parent.parent,
-                        }),
-                      ]
-                    : null,
+                          ),
+                        insertItem: insertKeyValue,
+                        insertType: "pair",
+                        buttonPos: [
+                          BUTTON_PLACEMENT.TOP,
+                          BUTTON_PLACEMENT.BOTTOM,
+                        ],
+                      })
+                    : // it.map((it) => {
+                      //   return h(
+                      //     "div",
+                      //     {},
+                      //     `${it.key}: `,
+                      //     h(VitrailPaneWithWhitespace, {
+                      //       nodes: [it.value],
+                      //     }),
+                      //   );
+                      // }),
+                      // //TODO: make this less horrible
+                      // h(AddKeyValueButton, {
+                      //   parentObject: it[0].value.parent.parent,
+                      // }),
+
+                      null,
                 ),
               ];
             },
@@ -499,30 +521,40 @@ export const rgb2hex = (it) =>
     ),
   ]);
 
-function AddKeyValueButton({ parentObject }) {
-  const addMode = useSignal(false);
+async function insertKeyValue() {
+  const test = await new Promise((resolve) => {
+    openComponentInWindow(
+      AddKeyValue,
+      { resolve },
+      { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } },
+    );
+  });
+  return test;
+}
+
+function AddKeyValue({ resolve }) {
   const key = useSignal("");
   const value = useSignal("");
-
-  return h(
-    "div",
-    {},
-    addMode.value
-      ? h(
-          "div",
-          { style: { display: "flex", flexDirection: "row" } },
-          "key: ",
-          h("textarea", {
-            rows: "1",
-            onchange: (e) => (key.value = e.target.value),
-          }),
-          "value: ",
-          h("textarea", {
-            rows: "1",
-            onchange: (e) => (value.value = e.target.value),
-          }),
-          h("button", {}, "✅"),
-        )
-      : h("button", { onclick: () => (addMode.value = true) }, "+"),
-  );
+  return h(Dialog, {
+    window,
+    body: h(
+      "div",
+      { style: { display: "flex", flexDirection: "row" } },
+      "key: ",
+      h("textarea", {
+        rows: "1",
+        onchange: (e) => (key.value = e.target.value),
+      }),
+      "value: ",
+      h("textarea", {
+        rows: "1",
+        onchange: (e) => (value.value = e.target.value),
+      }),
+    ),
+    actions: [
+      ["Cancel", () => resolve(null)],
+      ["Confirm", () => resolve(`${key}: ${value}`)],
+    ],
+    cancelActionIndex: 0,
+  });
 }

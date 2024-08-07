@@ -12,8 +12,8 @@ export function NodeArray({
   view,
   style,
   insertItem,
+  insertType,
   baseIndex,
-
   wrap,
   add,
   remove,
@@ -24,7 +24,8 @@ export function NodeArray({
   items ??= container.childBlocks;
 
   style = { display: "flex", flexDirection: "column", ...style };
-  insertItem ??= () => createPlaceholder("expression");
+  insertType ??= "expression";
+  insertItem ??= () => createPlaceholder(insertType);
   view ??= (it: any, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, {
       nodes: [nodeFromItem(it)],
@@ -84,9 +85,11 @@ export function NodeArray({
     items.length > 0
       ? container.childBlocks.indexOf(nodeFromItem(items[0]))
       : 0;
+
   const insert = async (index: number) => {
     const item = await insertItem(baseIndex + index);
-    if (item) container.insert(item, "expression", baseIndex + index);
+    if (item) container.insert(item, insertType, baseIndex + index);
+    console.log(container.sourceString);
   };
 
   return wrap(

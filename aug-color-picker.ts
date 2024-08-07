@@ -30,7 +30,6 @@ export const augColor = (model) => ({
         ],
         [
           (it) => /rgb\(\ ?(\d+),\ ?(\d+),\ ?(\d+),\ ?([01].\d+)\)/gm.exec(it),
-          log("rgba"),
           also([() => 10, capture("base")]),
         ],
         [
@@ -44,14 +43,12 @@ export const augColor = (model) => ({
           also([() => 16, capture("base")]),
         ],
       ),
-      //log("array"),
       (it) => ({
         r: parseInt(it[1], capture.get("base")),
         g: parseInt(it[2], capture.get("base")),
         b: parseInt(it[3], capture.get("base")),
         a: it[4] < 1 ? parseFloat(it[4]) : parseInt(it[4], capture.get("base")),
       }),
-      //log("object"),
       all(
         [(it) => it.r, capture("r")],
         [(it) => it.g, capture("g")],
@@ -60,7 +57,6 @@ export const augColor = (model) => ({
       ),
     ]),
   view: ({ r, g, b, a, node }) => {
-    console.log("a: " + a);
     return h(
       "div",
       {
@@ -77,7 +73,10 @@ export const augColor = (model) => ({
         "color: ",
         h("input", {
           type: "color",
-          onchange: (e) => node.replaceWith(e.target.value + a.toString(16)),
+          onchange: (e) => {
+            const new_alpha = a < 1 ? Math.round(a * 255).toString(16) : a;
+            node.replaceWith(e.target.value + new_alpha);
+          },
           value: `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`,
         }),
       ),
@@ -93,11 +92,9 @@ export const augColor = (model) => ({
           value: a < 1 ? a : a / 255,
           onchange: (e) => {
             const new_alpha = Math.round(e.target.value * 255).toString(16);
-            console.log("new_alpha: " + new_alpha);
             const replacement = `#${r.toString(16)}${g.toString(
               16,
             )}${b.toString(16)}${new_alpha}`;
-            console.log("replacement: " + replacement);
             node.replaceWith(replacement, "expression");
           },
         }),

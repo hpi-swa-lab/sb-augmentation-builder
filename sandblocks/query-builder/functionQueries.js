@@ -433,10 +433,7 @@ export function query(query, extract) {
   return (it) => it.query(query, extract);
 }
 export function queryDeep(query, extract) {
-  return (it) => {
-    console.log("query: " + query);
-    return it.findQuery(query, extract);
-  };
+  return (it) => it.findQuery(query, extract);
 }
 export function type(typeName) {
   return (it) => it.type === typeName;
