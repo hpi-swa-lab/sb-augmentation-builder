@@ -556,6 +556,10 @@ export function makeUUID() {
   });
 }
 
+export function replaceRange(str, [start, end], replacement) {
+  return str.substring(0, start) + replacement + str.substring(end);
+}
+
 export function appendCss(text, parent) {
   const style = document.createElement("style");
   style.textContent = text;

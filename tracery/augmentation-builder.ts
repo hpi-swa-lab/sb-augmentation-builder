@@ -21,8 +21,8 @@ import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
 import { useComputed, useSignal } from "../external/preact-signals.mjs";
-import { randomId, rangeSize } from "../utils.js";
-import { useAsyncEffect } from "../view/widgets.js";
+import { randomId, rangeSize, replaceRange } from "../utils.js";
+import { useAsyncEffect, useDebouncedEffect } from "../view/widgets.js";
 import { objectToString } from "./query-builder.ts";
 
 export async function openNewAugmentation(
@@ -54,12 +54,41 @@ export const ${name} = {
 }
 
 function getAbsolutePath(node: SBBlock) {
-  const n = node.cloneOffscreen();
-  const path = (n.atField("source") as any).childBlock(0);
+  const path = (node.atField("source") as any).childBlock(0);
+
   // TODO not sure how to resolve this properly yet
   // full URL is needed since we are using a dynamic import without path
-  path.replaceWith(path.text.replace(/^\./, "https://localhost:3000"));
-  return n.sourceString;
+  return replaceRange(
+    node.sourceString,
+    path.range,
+    path.text.replace(/^\./, "https://localhost:3000"),
+  );
+}
+
+async function execAugmentation(node: SBBlock, debugId: string) {
+  const aug = node.cloneOffscreen();
+  aug
+    .findQuery("metaexec($_args)")
+    ?.args?.insert(`"${debugId}"`, "expression", 9e8);
+  const imports =
+    metaexec(node.root, (capture) => [
+      (it) => it.childBlocks,
+      spawnArray((it) =>
+        metaexec(it, (capture) => [
+          type("import_statement"),
+          getAbsolutePath,
+          capture("source"),
+        ]),
+      ),
+      capture("imports"),
+    ])
+      ?.imports?.map((i) => i.source)
+      .join("\n") ?? "";
+  const src = `${imports}
+        export const a = ${aug.sourceString}`;
+  return (
+    await import("data:text/javascript;charset=utf-8;base64," + btoa(src))
+  ).a;
 }
 
 export const augmentationBuilder = (model) => ({
@@ -91,42 +120,18 @@ export const augmentationBuilder = (model) => ({
       debugHistory.value ? debugHistory.value : new Map(),
     );
 
-    useAsyncEffect(async () => {
-      debugHistory.value = new Map(
-        debugHistory.value.set(`suc_${debugId}`, false),
-      );
-      try {
-        const aug = node.cloneOffscreen();
-        aug
-          .findQuery("metaexec($_args)")
-          ?.args?.insert(`"${debugId}"`, "expression", 9e8);
-        const imports =
-          metaexec(node.root, (capture) => [
-            (it) => it.childBlocks,
-            spawnArray((it) =>
-              metaexec(it, (capture) => [
-                type("import_statement"),
-                getAbsolutePath,
-                capture("source"),
-              ]),
-            ),
-            capture("imports"),
-          ])
-            ?.imports?.map((i) => i.source)
-            .join("\n") ?? "";
-        const src = `${imports}
-        export const a = ${aug.sourceString}`;
-        const a = (
-          await import("data:text/javascript;charset=utf-8;base64," + btoa(src))
-        ).a;
-        augmentation.value = a;
-        //console.log("Aug");
-        //console.log(augmentation.value);
-        //console.log(debugHistory.value.get(`suc_${debugId}`));
-      } catch (e) {
-        console.log("Failed to eval augmentation", e);
-      }
-    }, [node.sourceString, evalRange.value]);
+    useDebouncedEffect(
+      500,
+      () => {
+        debugHistory.value = new Map(
+          debugHistory.value.set(`suc_${debugId}`, false),
+        );
+        execAugmentation(node, debugId)
+          .then((a) => (augmentation.value = a))
+          .catch((e) => console.log("Failed to eval augmentation", e));
+      },
+      [node.sourceString, evalRange.value],
+    );
 
     const exampleSelectionRange = useSignal([0, 0]);
 
