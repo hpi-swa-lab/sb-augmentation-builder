@@ -1,4 +1,4 @@
-import { EditBuffer } from "../core/diff.js";
+import { AttachOp, DetachOp, EditBuffer, UpdateOp } from "../core/diff.js";
 import { EditOptions, ModelEditor } from "../core/matcher.ts";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import {
@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "../external/preact-hooks.mjs";
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
-import { createContext, h } from "../external/preact.mjs";
+import { createContext, h, render } from "../external/preact.mjs";
 import {
   Side,
   adjustIndex,
@@ -17,10 +17,32 @@ import {
   rangeEqual,
   rangeShift,
   takeWhile,
+  withDo,
 } from "../utils.js";
 import { cursorPositionsForIndex } from "../view/focus.ts";
 import { forwardRef } from "../view/widgets.js";
 import { Pane } from "./pane.ts";
+
+function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
+  if (a instanceof SBNode) {
+    if (a.id !== b?.id) return false;
+    if (editBuffer.hasChangeIn(a)) return false;
+    return true;
+  }
+  if (a === b) return true;
+  if (Array.isArray(a)) {
+    if (a.length !== b?.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  if (typeof a === "object") {
+    for (const key in a) {
+      if (!compareReplacementProps(a[key], b[key], editBuffer)) return false;
+    }
+    return true;
+  }
+  return false;
+}
 
 // TODO
 // redo needs to be aware of intentToDeleteNodes
@@ -41,9 +63,10 @@ export const useVitrailProps = () =>
 export const usePaneProps = () =>
   useContext(VitrailContext).pane.props.value ?? {};
 
-export type ReplacementProps = { [field: string]: any } & {
+export type ReplacementProps = {
   nodes: SBNode[];
   replacement: AugmentationInstance<any>;
+  [field: string]: any;
 };
 
 export interface Marker {
@@ -53,9 +76,7 @@ export interface Marker {
 }
 
 export interface AugmentationInstance<Props extends ReplacementProps> {
-  matchedNode: SBNode;
-  nodes: SBNode[];
-  lastMatch: Props;
+  match: AugmentationMatch;
   view: HTMLElement | Marker[];
   augmentation: Augmentation<Props>;
 }
@@ -63,10 +84,8 @@ export function replacementRange(
   a: AugmentationInstance<any>,
   vitrail: Vitrail<any>,
 ) {
-  return vitrail.adjustRange(
-    [a.nodes[0].range[0], last(a.nodes).range[1]],
-    true,
-  );
+  const nodes = a.match.props.nodes;
+  return vitrail.adjustRange([nodes[0].range[0], last(nodes).range[1]], true);
 }
 
 export function markerRange(a: Marker, base: [number, number]) {
@@ -94,7 +113,7 @@ export interface Augmentation<Props extends ReplacementProps> {
   type: "replace" | "mark";
   model: Model;
   matcherDepth: number;
-  match: (node: SBNode, pane: Pane<any>) => Props | null;
+  match: (node: SBNode) => Props | null;
   view: (props: Props) => JSX | Marker;
   rerender?: (editBuffer: EditBuffer) => boolean;
   selectionInteraction?: SelectionInteraction;
@@ -105,6 +124,11 @@ export interface Model {
   parse: <T>(sourceString: string, v: Vitrail<T>) => Promise<SBNode>;
   canBeDefault: boolean;
 }
+
+export type AugmentationMatch = {
+  props: { nodes: SBNode[]; [field: string]: any };
+  matchedNode: SBNode;
+};
 
 export type ReversibleChange<T> = {
   from: number;
@@ -131,18 +155,26 @@ type ValidatorFunc<T> = (
 ) => boolean;
 
 export class Vitrail<T> extends EventTarget implements ModelEditor {
+  _sourceString: string;
   _panes: Pane<T>[] = [];
+  _rootPane: Pane<T>;
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
+  _props = signal({});
 
-  _rootPane: Pane<T>;
-  _sourceString: string;
+  // Augmentations
+  _matchedAugmentations: Map<AugmentationMatch, Augmentation<any>> = new Map();
+  _augmentationsCheckedTrees: Map<Augmentation<any>, Set<SBNode>> = new Map();
+
+  // Editing
+  _activeTransactionList: ReversibleChange<T>[] | null = null;
+  _pendingChanges: ReturnType<typeof signal>;
+  _revertChanges: Change<T>[] = [];
 
   createPane: CreatePaneFunc<T>;
   _showValidationPending: (show: boolean) => void;
 
   // general-purpose way for the outside world to set values
-  _props = signal({});
   get props() {
     return this._props;
   }
@@ -177,6 +209,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     });
   }
 
+  // Panes and Models
+
   getModels() {
     return this._models;
   }
@@ -193,9 +227,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     const idx = this._panes.indexOf(pane);
     if (idx !== -1) {
       const [pane] = this._panes.splice(idx, 1);
-      for (const replacement of pane.replacements) {
-        pane.uninstallReplacement(replacement);
-      }
+      pane.unmount();
     } else throw new Error("pane not found");
   }
 
@@ -243,21 +275,15 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
   }
 
-  updateAllReplacements() {
-    for (const pane of this._panes) pane.updateAllReplacements(this);
-  }
-
-  activeTransactionList: ReversibleChange<T>[] | null = null;
-  _pendingChanges: ReturnType<typeof signal>;
-  _revertChanges: Change<T>[] = [];
+  // Editing
 
   transaction(cb: () => void) {
-    if (this.activeTransactionList)
+    if (this._activeTransactionList)
       throw new Error("Nested transactions not supported right now");
-    this.activeTransactionList = [];
+    this._activeTransactionList = [];
     cb();
-    const list = this.activeTransactionList;
-    this.activeTransactionList = null;
+    const list = this._activeTransactionList;
+    this._activeTransactionList = null;
     this.applyChanges(list);
   }
 
@@ -276,13 +302,13 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     for (const change of changes)
       for (const n of change.intentDeleteNodes ?? []) n._language = n.language;
 
-    if (this.activeTransactionList) {
+    if (this._activeTransactionList) {
       const affinity = last(changes).sideAffinity;
-      this.activeTransactionList.push(
+      this._activeTransactionList.push(
         ...changes.map((c) => ({
           ...c,
-          from: adjustIndex(c.from, this.activeTransactionList!, affinity),
-          to: adjustIndex(c.to, this.activeTransactionList!, affinity),
+          from: adjustIndex(c.from, this._activeTransactionList!, affinity),
+          to: adjustIndex(c.to, this._activeTransactionList!, affinity),
         })),
       );
       return;
@@ -346,15 +372,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     // then, update replacements
-    // may create or delete panes while iterating, so iterate over a copy
-    for (const pane of [...this._panes]) {
-      // if we are deleted while iterating, don't process diff
-      if (pane.nodes[0]?.connected) {
-        for (const buffer of update.map((u) => u.diff))
-          pane.updateReplacements(buffer);
-      }
-    }
+    for (const buffer of update.map((u) => u.diff))
+      this.updateAugmentations(buffer, this._panes, true);
 
+    // finally, find a good place for the cursor
     if (!allChanges.some((c) => c.noFocus)) {
       const target = last(allChanges).selectionRange;
       let current = this.getSelection();
@@ -386,46 +407,6 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         },
       }),
     );
-  }
-
-  _cursorRoots() {
-    return [
-      this._rootPane.view,
-      ...this._panes
-        .filter(
-          (p) => p.view.isConnected && !this._rootPane.view.contains(p.view),
-        )
-        .map((p) => p.view),
-    ];
-  }
-
-  getSelection() {
-    for (const root of this._cursorRoots()) {
-      for (const node of allChildren(root)) {
-        if (node.hasFocus?.() && node.getSelection) {
-          let selection = node.getSelection();
-          return { range: selection, element: node };
-        }
-      }
-    }
-    return null;
-  }
-
-  selectedNode(model?: Model) {
-    const selection = this.getSelection();
-    if (!selection) return null;
-
-    const { range } = selection;
-    return this._models
-      .get(model ?? this.defaultModel)
-      ?.childEncompassingRange(range);
-  }
-
-  selectedString() {
-    const selection = this.getSelection();
-    if (!selection) return null;
-    const { range } = selection;
-    return this.sourceString.slice(range[0], range[1]);
   }
 
   adjustRange(range: [number, number], noGrow = false): [number, number] {
@@ -528,6 +509,166 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         ...editOptions,
       },
     ]);
+  }
+
+  // Selection
+
+  _cursorRoots() {
+    return [
+      this._rootPane.view,
+      ...this._panes
+        .filter(
+          (p) => p.view.isConnected && !this._rootPane.view.contains(p.view),
+        )
+        .map((p) => p.view),
+    ];
+  }
+
+  getSelection() {
+    for (const root of this._cursorRoots()) {
+      for (const node of allChildren(root)) {
+        if (node.hasFocus?.() && node.getSelection) {
+          let selection = node.getSelection();
+          return { range: selection, element: node };
+        }
+      }
+    }
+    return null;
+  }
+
+  selectedNode(model?: Model) {
+    const selection = this.getSelection();
+    if (!selection) return null;
+
+    const { range } = selection;
+    return this._models
+      .get(model ?? this.defaultModel)
+      ?.childEncompassingRange(range);
+  }
+
+  selectedString() {
+    const selection = this.getSelection();
+    if (!selection) return null;
+    const { range } = selection;
+    return this.sourceString.slice(range[0], range[1]);
+  }
+
+  // Augmentations
+
+  getInitEditBuffersForRoots(roots: SBNode[]) {
+    return [...roots].map((root) => new EditBuffer(root.initOps()));
+  }
+
+  updateAllAugmentations() {
+    const buffers = this.getInitEditBuffersForRoots([...this._models.values()]);
+    for (const buffer of buffers)
+      this.updateAugmentations(buffer, this._panes, true);
+  }
+
+  updateAugmentations(
+    editBuffer: EditBuffer,
+    panes: Pane<T>[],
+    clearCache: boolean,
+  ) {
+    if (clearCache) this._augmentationsCheckedTrees.clear();
+
+    // update or remove existing augmentations
+    for (const [match, augmentation] of this._matchedAugmentations.entries()) {
+      if (
+        !match.matchedNode.connected ||
+        !augmentation.match(match.matchedNode)
+      ) {
+        this._matchedAugmentations.delete(match);
+      } else {
+        this.reRenderAugmentation(panes, augmentation, match, editBuffer);
+      }
+    }
+
+    // check for new augmentations
+    const changedNodes = new Set<SBNode>();
+    for (const op of editBuffer.posBuf) {
+      if (op instanceof UpdateOp || op instanceof AttachOp)
+        changedNodes.add(op.node);
+    }
+    for (const op of editBuffer.negBuf) {
+      if (op instanceof DetachOp && op.oldParent?.connected)
+        changedNodes.add(op.oldParent);
+    }
+
+    for (const pane of panes) {
+      for (const augmentation of pane.fetchAugmentations()) {
+        if (augmentation.model !== editBuffer.language) continue;
+        let checkedNodes = this._augmentationsCheckedTrees.get(augmentation);
+        if (!checkedNodes) {
+          checkedNodes = new Set();
+          this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
+        }
+
+        for (const root of changedNodes) {
+          let node: SBNode | null = root;
+          for (
+            let i = 0;
+            i <= augmentation.matcherDepth;
+            i++, node = node?.parent
+          ) {
+            // TODO limit to nodes of current pane
+            if (!node) break;
+            if (checkedNodes.has(node)) continue;
+
+            let alreadyMatched = false;
+            for (const [match, aug] of this._matchedAugmentations.entries()) {
+              if (match.matchedNode === node && augmentation === aug) {
+                alreadyMatched = true;
+                break;
+              }
+            }
+            if (alreadyMatched) continue;
+
+            const props = this.matchAugmentation(node, augmentation);
+            if (props)
+              this._matchedAugmentations.set(
+                { props, matchedNode: node },
+                augmentation,
+              );
+
+            // if we check this node later anyways, no need to ascend from here
+            if (node && changedNodes.has(node)) break;
+          }
+        }
+      }
+    }
+
+    for (const pane of panes)
+      if (pane.nodes[0]?.connected) pane.updateAugmentations();
+  }
+
+  reRenderAugmentation(
+    panes: Pane<T>[],
+    augmentation: Augmentation<any>,
+    match: AugmentationMatch,
+    editBuffer: EditBuffer,
+  ) {
+    if (!augmentation.rerender?.(editBuffer)) return null;
+
+    const props = this.matchAugmentation(match.matchedNode, augmentation);
+    if (!props) throw new Error("rerender on non-matching node");
+    if (compareReplacementProps(props, match.props, editBuffer)) return false;
+
+    match.props = props;
+
+    for (const pane of panes) pane.reRenderAugmentation(match);
+  }
+
+  matchAugmentation(
+    node: SBNode,
+    augmentation: Augmentation<any>,
+  ): ReplacementProps | null {
+    const props = augmentation.match(node);
+    if (!props) return null;
+
+    props.nodes ??= [node];
+    props.nodes = Array.isArray(props.nodes) ? props.nodes : [props.nodes];
+    return props;
   }
 }
 
@@ -649,17 +790,17 @@ export function useValidator(
 export function useValidateKeepReplacement(
   replacement: AugmentationInstance<any>,
 ) {
-  const { pane }: { pane: Pane<any> } = useContext(VitrailContext);
+  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   useValidator(
     replacement.augmentation.model,
     (_root, _diff, changes) =>
-      changesIntendToDeleteNode(changes, replacement.matchedNode) ||
-      (replacement.matchedNode?.connected &&
-        pane.matchAugmentation(
-          replacement.matchedNode,
+      changesIntendToDeleteNode(changes, replacement.match.matchedNode) ||
+      (replacement.match.matchedNode?.connected &&
+        vitrail.matchAugmentation(
+          replacement.match.matchedNode,
           replacement.augmentation,
         ) !== null),
-    [...replacement.nodes, replacement.augmentation],
+    [...replacement.match.props.nodes, replacement.augmentation],
   );
 }
 

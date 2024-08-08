@@ -1,7 +1,6 @@
 import {
   Augmentation,
   Change,
-  Pane,
   PaneFetchAugmentationsFunc,
   AugmentationInstance,
   ReversibleChange,
@@ -61,6 +60,7 @@ import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { Vim, getCM } from "../codemirror6/external/codemirror-vim.mjs";
+import { Pane } from "./pane.ts";
 
 const IntentToDelete = StateEffect.define();
 
@@ -195,7 +195,12 @@ export async function codeMirror6WithVitrail(
                   ),
                 );
           })
-          .filter((r) => rangeContains(pane.range, [r.from, r.to]))
+          .filter((r) =>
+            rangeContains(rangeShift(pane.range, -pane.startIndex), [
+              r.from,
+              r.to,
+            ]),
+          )
           .sort((a, b) =>
             a.from === b.from
               ? a.value.startSide - b.value.startSide
@@ -220,7 +225,9 @@ export async function codeMirror6WithVitrail(
         const replacement: AugmentationInstance<any> | null =
           v.iter().value?.widget?.replacement;
         // check if there is a single replacement covering the entire pane
-        return !(replacement && arrayEqual(replacement.nodes, pane.nodes));
+        return !(
+          replacement && arrayEqual(replacement.match.props.nodes, pane.nodes)
+        );
       }),
       Prec.highest(
         keymap.of([

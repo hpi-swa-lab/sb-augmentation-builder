@@ -1,11 +1,5 @@
-import {
-  EditBuffer,
-  RemoveOp,
-  UpdateOp,
-  AttachOp,
-  DetachOp,
-} from "../core/diff";
-import { SBNode } from "../core/model";
+import { EditBuffer } from "../core/diff.js";
+import { SBNode } from "../core/model.js";
 import { signal } from "../external/preact-signals-core.mjs";
 import { render, h } from "../external/preact.mjs";
 import {
@@ -17,9 +11,9 @@ import {
   rangeIntersects,
   rangeContains,
   withDo,
-} from "../utils";
-import { adjacentCursorPosition } from "../view/focus";
-import { VitrailReplacementContainer } from "./replacement-container";
+} from "../utils.js";
+import { adjacentCursorPosition } from "../view/focus.ts";
+import { VitrailReplacementContainer } from "./replacement-container.ts";
 import {
   Vitrail,
   AugmentationInstance,
@@ -29,8 +23,8 @@ import {
   Augmentation,
   VitrailContext,
   Marker,
-  ReplacementProps,
-} from "./vitrail";
+  AugmentationMatch,
+} from "./vitrail.ts";
 
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string, undoable: boolean) => void;
@@ -39,34 +33,11 @@ type PaneGetLocalSelectionIndicesFunc = () => [number, number];
 type PaneEnsureContinueEditing = () => void;
 type PaneFocusRangeFunc = (head: number, anchor: number) => void;
 
-function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
-  if (a instanceof SBNode) {
-    if (a.id !== b?.id) return false;
-    if (editBuffer.hasChangeIn(a)) return false;
-    return true;
-  }
-  if (a === b) return true;
-  if (Array.isArray(a)) {
-    if (a.length !== b?.length) return false;
-    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-    return true;
-  }
-  if (typeof a === "object") {
-    for (const key in a) {
-      if (!compareReplacementProps(a[key], b[key], editBuffer)) return false;
-    }
-    return true;
-  }
-  return false;
-}
-
 export class Pane<T> {
   vitrail: Vitrail<T>;
   view: HTMLElement;
   host: T;
   nodes: SBNode[];
-  replacements: AugmentationInstance<any>[] = [];
-  markers: { nodes: SBNode[] }[] = [];
   startIndex: number = -1;
   startLineNumber: number = -1;
   props = signal(null);
@@ -172,6 +143,10 @@ export class Pane<T> {
     return null;
   }
 
+  unmount() {
+    for (const replacement of this.replacements) render(null, replacement.view);
+  }
+
   fetchAugmentations() {
     if (!this._fetchAugmentations)
       return this.parentPane?.fetchAugmentations() ?? [];
@@ -199,7 +174,8 @@ export class Pane<T> {
     }
 
     const replacements = this.replacements.sort(
-      (a, b) => a.nodes[0].range[0] - b.nodes[0].range[0],
+      (a, b) =>
+        a.match.props.nodes[0].range[0] - b.match.props.nodes[0].range[0],
     );
 
     yield* mine(myRange[0]);
@@ -219,12 +195,19 @@ export class Pane<T> {
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
-    this.updateAllReplacements(v);
+    for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
+      this.vitrail.updateAugmentations(b, [this], false);
   }
 
-  updateAllReplacements(v: Vitrail<T>) {
-    const buffers = this.getInitEditBuffersForRoots([...v._models.values()]);
-    for (const buffer of buffers) this.updateReplacements(buffer);
+  _getInitEditBuffersForRoots(roots: SBNode[]) {
+    return [...roots].map(
+      (root) =>
+        new EditBuffer([
+          ...withDo([...this.allVisibleNodesOf(root)], (l) =>
+            l.length < 1 ? [root] : l,
+          ).flatMap((n) => n.initOps()),
+        ]),
+    );
   }
 
   applyChanges(changes: Change<T>[]) {
@@ -262,65 +245,73 @@ export class Pane<T> {
     this._computeLineNumber();
   }
 
-  updateReplacements(editBuffer: EditBuffer) {
-    if (editBuffer.empty) return;
+  _augmentationInstances: Set<AugmentationInstance<any>> = new Set();
 
-    // check for replacements that are now gone because their node was removed
-    for (const op of editBuffer.negBuf) {
-      if (op instanceof RemoveOp) {
-        const replacement = this.getReplacementFor(op.node);
-        if (replacement) this.uninstallReplacement(replacement);
+  get replacements() {
+    return [...this._augmentationInstances].filter(
+      (i) => i.augmentation.type === "replace",
+    );
+  }
+
+  updateAugmentations() {
+    const active: [AugmentationMatch, Augmentation<any>][] = [];
+    for (const [match, augmentation] of [
+      ...this.vitrail._matchedAugmentations.entries(),
+    ].sort(
+      (a, b) =>
+        b[0].matchedNode.sourceString.length -
+        a[0].matchedNode.sourceString.length,
+    )) {
+      if (
+        this.containsNode(match.matchedNode, augmentation.type === "mark") &&
+        !active.some(([m]) => match.matchedNode.orHasParent(m.matchedNode))
+      ) {
+        active.push([match, augmentation]);
       }
     }
 
-    const changedNodes = new Set<SBNode>();
-    for (const op of editBuffer.posBuf) {
-      if (op instanceof UpdateOp || op instanceof AttachOp)
-        changedNodes.add(op.node);
-    }
-    for (const op of editBuffer.negBuf) {
-      if (op instanceof DetachOp && op.oldParent?.connected)
-        changedNodes.add(op.oldParent);
-    }
-
-    for (const root of changedNodes) {
-      for (const node of root.andAllParents()) {
-        const replacement = this.getReplacementFor(node);
-        const match = replacement
-          ? this.matchAugmentation(node, replacement.augmentation)
-          : null;
-        // check for replacements that are now gone because a change made them invalid
-        if (replacement && !match) {
-          this.uninstallReplacement(replacement);
-        }
+    const current = [...this._augmentationInstances];
+    for (const instance of current) {
+      if (!this.vitrail._matchedAugmentations.has(instance.match)) {
+        if (instance.view instanceof HTMLElement) render(null, instance.view);
+        this._augmentationInstances.delete(instance);
       }
     }
 
-    for (const replacement of this.replacements) {
-      const match = this.reRenderReplacement(replacement, editBuffer);
-      if (match) {
-        replacement.nodes = match.nodes;
-        replacement.lastMatch = match;
-        this.renderAugmentation(replacement, match);
-      }
-    }
+    for (const [match, augmentation] of active) {
+      // prevent recursion
+      if (
+        this.nodes[0] === match.props.nodes[0] &&
+        this.parentPane?.replacements.some(
+          (r) => r.match.props.nodes[0] === this.nodes[0],
+        )
+      )
+        continue;
 
-    // check for new replacements
-    for (const root of changedNodes) {
-      for (const augmentation of this.fetchAugmentations()) {
-        if (augmentation.model !== root.language) continue;
-        let node: SBNode | null = root;
-        for (let i = 0; i <= augmentation.matcherDepth; i++) {
-          if (!node) break;
-          if (!this.containsNode(node, augmentation.type === "mark")) break;
+      if (current.some((i) => i.match === match)) continue;
 
-          const match = this.mayReplace(node, augmentation);
-          if (match) this.installReplacement(node, augmentation, match);
-          node = node.parent;
-          // if we check this node later anyways, no need to ascend from here
-          if (node && changedNodes.has(node)) break;
-        }
+      let view: VitrailReplacementContainer | Marker[];
+      if (augmentation.type === "replace") {
+        view = document.createElement(
+          "vitrail-replacement-container",
+        ) as VitrailReplacementContainer;
+      } else {
+        view = [];
       }
+
+      const instance: AugmentationInstance<any> = {
+        view,
+        augmentation,
+        match,
+      };
+
+      if (view instanceof HTMLElement) {
+        view.vitrail = this.vitrail;
+        view.augmentationInstance = instance;
+      }
+
+      this._augmentationInstances.add(instance);
+      this.renderAugmentation(instance);
     }
 
     this.syncReplacements();
@@ -334,135 +325,33 @@ export class Pane<T> {
       : rangeContains(this.range, node.range);
   }
 
-  reRenderReplacement(
-    replacement: AugmentationInstance<any>,
-    editBuffer: EditBuffer,
-  ) {
-    if (!replacement.augmentation.rerender?.(editBuffer)) return null;
-
-    const match = this.matchAugmentation(
-      replacement.matchedNode,
-      replacement.augmentation,
+  reRenderAugmentation(match: AugmentationMatch) {
+    const instance = [...this._augmentationInstances].find(
+      (i) => i.match === match,
     );
-    if (compareReplacementProps(match, replacement.lastMatch, editBuffer))
-      return null;
-    return match;
+    if (instance) this.renderAugmentation(instance);
   }
 
-  matchAugmentation(node: SBNode, augmentation: Augmentation<any>) {
-    const match = augmentation.match(node, this);
-    if (!match) return null;
-    match.nodes = [node];
-    return match;
-  }
-
-  mayReplace(node: SBNode, augmentation: Augmentation<any>) {
-    if (this.getReplacementFor(node)) return null;
-    // prevent recursion
-    if (
-      this.nodes[0] === node &&
-      this.parentPane?.replacements.some((r) => r.matchedNode === this.nodes[0])
-    )
-      return false;
-    const match = this.matchAugmentation(node, augmentation);
-    if (!match) return false;
-    if (!match.nodes) match.nodes = [node];
-    if (
-      augmentation.type === "replace" &&
-      this.replacements.some(
-        (r) =>
-          r.augmentation.type === "replace" &&
-          rangeContains(
-            [r.nodes[0].range[0], last(r.nodes).range[1]],
-            [match.nodes[0].range[0], last(match.nodes).range[1]],
-          ),
-      )
-    )
-      return false;
-    return match;
-  }
-
-  renderAugmentation<Props extends Omit<ReplacementProps, "replacement">>(
-    replacement: AugmentationInstance<
-      Props & { nodes: SBNode[]; replacement: AugmentationInstance<any> }
-    >,
-    match: Props & { nodes: SBNode[] },
-  ) {
+  renderAugmentation(instance: AugmentationInstance<any>) {
     console.assert(!!this.vitrail);
-    if (replacement.augmentation.type === "replace") {
+    if (instance.augmentation.type === "replace") {
       render(
         h(
           VitrailContext.Provider,
           { value: { vitrail: this.vitrail, pane: this } },
-          h(replacement.augmentation.view, { ...match, replacement }),
+          h(instance.augmentation.view, {
+            ...instance.match.props,
+            replacement: instance,
+          }),
         ),
-        replacement.view,
+        instance.view,
       );
     } else {
-      replacement.view = replacement.augmentation.view({
-        ...match,
-        replacement,
+      instance.view = instance.augmentation.view({
+        ...instance.match.props,
+        replacement: instance,
       });
     }
-  }
-
-  installReplacement<
-    Props extends { [field: string]: any } & { nodes: SBNode[] },
-  >(
-    matchedNode: SBNode,
-    augmentation: Augmentation<ReplacementProps>,
-    match: Props,
-  ) {
-    let view: VitrailReplacementContainer | Marker[];
-    if (augmentation.type === "replace") {
-      view = document.createElement(
-        "vitrail-replacement-container",
-      ) as VitrailReplacementContainer;
-    } else {
-      view = [];
-    }
-
-    const replacement: AugmentationInstance<any> = {
-      matchedNode,
-      nodes: Array.isArray(match.nodes) ? match.nodes : [match.nodes],
-      view,
-      augmentation,
-      lastMatch: match,
-    };
-
-    if (view instanceof HTMLElement) {
-      view.vitrail = this.vitrail;
-      view.replacement = replacement;
-    }
-
-    this.replacements.push(replacement);
-
-    this.renderAugmentation(replacement, match);
-  }
-
-  uninstallReplacement(replacement: AugmentationInstance<any>) {
-    // FIXME still needed?
-    // for (const pane of [...this.vitrail._panes]) {
-    //   if (replacement.view.contains(pane.view))
-    //     this.vitrail.unregisterPane(pane);
-    // }
-    if (replacement.view instanceof HTMLElement) render(null, replacement.view);
-    this.replacements.splice(this.replacements.indexOf(replacement), 1);
-  }
-
-  getReplacementFor(node: SBNode) {
-    return this.replacements.find((r) => r.matchedNode === node);
-  }
-
-  getInitEditBuffersForRoots(roots: SBNode[]) {
-    return [...roots].map(
-      (root) =>
-        new EditBuffer([
-          ...withDo([...this.allVisibleNodesOf(root)], (l) =>
-            l.length < 1 ? [root] : l,
-          ).flatMap((n) => n.initOps()),
-        ]),
-    );
   }
 
   isShowing(node: SBNode) {

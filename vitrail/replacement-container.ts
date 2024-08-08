@@ -8,25 +8,25 @@ import {
 } from "./vitrail";
 
 export class VitrailReplacementContainer extends HTMLElement {
-  replacement: AugmentationInstance<any>;
+  augmentationInstance: AugmentationInstance<any>;
   vitrail: Vitrail<any>;
 
   get deletion() {
     return (
-      this.replacement.augmentation.deletionInteraction ??
+      this.augmentationInstance.augmentation.deletionInteraction ??
       DeletionInteraction.SelectThenFull
     );
   }
 
   get selection() {
     return (
-      this.replacement.augmentation.selectionInteraction ??
+      this.augmentationInstance.augmentation.selectionInteraction ??
       SelectionInteraction.StartAndEnd
     );
   }
 
   get range() {
-    return replacementRange(this.replacement, this.vitrail);
+    return replacementRange(this.augmentationInstance, this.vitrail);
   }
 
   _selectedAtStart = false;
@@ -116,7 +116,9 @@ export class VitrailReplacementContainer extends HTMLElement {
 
   _deleteFull() {
     const range = this.range;
-    const insert = this.replacement.nodes.map((n) => n.sourceString).join("");
+    const insert = this.augmentationInstance.match.props.nodes
+      .map((n) => n.sourceString)
+      .join("");
     this.vitrail.applyChanges([
       {
         from: range[0],
@@ -124,7 +126,7 @@ export class VitrailReplacementContainer extends HTMLElement {
         insert: "",
         selectionRange: [range[0], range[0]],
         inverse: { from: range[0], to: range[0], insert },
-        intentDeleteNodes: this.replacement.nodes,
+        intentDeleteNodes: this.augmentationInstance.match.props.nodes,
       },
     ]);
   }

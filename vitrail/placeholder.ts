@@ -23,7 +23,7 @@ export const placeholder = (model) => ({
   type: "replace" as const,
   model,
   matcherDepth: 1,
-  match: (x, _pane) =>
+  match: (x) =>
     metaexec(x, (capture) => [
       first([
         languageSpecific(

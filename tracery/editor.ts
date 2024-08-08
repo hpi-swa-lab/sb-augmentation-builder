@@ -141,6 +141,7 @@ function FullDeclarationPane({ nodes, ...props }) {
 const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
   type: "replace" as const,
   matcherDepth: 1,
+  rerender: () => true,
   model,
   selectionInteraction: SelectionInteraction.Skip,
   match(node) {
@@ -216,7 +217,8 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
     // subscribe
     diagnostics.value;
 
-    vitrail.value?.updateAllReplacements();
+    // FIXME not a good updating mechanism for diagnostics
+    // vitrail.value?.updateAllAugmentations();
   });
 
   const language = languageForPath(path) ?? SBBaseLanguage;
