@@ -804,13 +804,18 @@ export class SBBlock extends SBNode {
   }
 
   shallowClone() {
-    return new SBBlock(
+    const b = new SBBlock(
       this.type,
       this.field,
       this.range[0],
       this.range[1],
       this.named,
     );
+    if (this.isRoot) {
+      b._sourceString = this._sourceString;
+      b._language = this._language;
+    }
+    return b;
   }
 
   addChild(child) {
