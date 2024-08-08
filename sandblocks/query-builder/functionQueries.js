@@ -1,4 +1,4 @@
-import { div, editor, html } from "../../view/widgets.js";
+import { div, editor, html, Codicon } from "../../view/widgets.js";
 import { h } from "../../external/preact.mjs";
 import {
   VitrailPane,
@@ -403,6 +403,20 @@ export function all(...pipelines) {
     // signal that we completed, but return no sensible value
     return true;
   };
+}
+
+export function getField(name) {
+  return (it) => findFieldRec(it, name);
+}
+
+function findFieldRec(obj, name) {
+  const match = obj.childBlocks.find(
+    (childBlock) =>
+      childBlock.type == "pair" && childBlock.atField("key").text == name,
+  );
+  return match
+    ? match
+    : obj.childBlocks.map((childBlock) => findFieldRec(childBlock, name))[0];
 }
 
 export function captureAll(capture) {

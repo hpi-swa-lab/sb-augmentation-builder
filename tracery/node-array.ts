@@ -12,8 +12,8 @@ export function NodeArray({
   view,
   style,
   insertItem,
+  insertType,
   baseIndex,
-
   wrap,
   add,
   remove,
@@ -24,7 +24,8 @@ export function NodeArray({
   items ??= container.childBlocks;
 
   style = { display: "flex", flexDirection: "column", ...style };
-  insertItem ??= () => createPlaceholder("expression");
+  insertType ??= "expression";
+  insertItem ??= () => createPlaceholder(insertType);
   view ??= (it: any, ref, onmouseleave, onmousemove) =>
     h(VitrailPane, {
       nodes: [nodeFromItem(it)],
@@ -84,9 +85,11 @@ export function NodeArray({
     items.length > 0
       ? container.childBlocks.indexOf(nodeFromItem(items[0]))
       : 0;
+
   const insert = async (index: number) => {
     const item = await insertItem(baseIndex + index);
-    if (item) container.insert(item, "expression", baseIndex + index);
+    if (item) container.insert(item, insertType, baseIndex + index);
+    console.log(container.sourceString);
   };
 
   return wrap(
@@ -101,7 +104,10 @@ export function NodeArray({
               if (container.childBlocks.length == 1) {
                 container.removeFull();
               } else {
-                while (nodeToDelete.parent.id != container.id) {
+                while (
+                  nodeToDelete.parent &&
+                  nodeToDelete.parent.id != container.id
+                ) {
                   nodeToDelete = nodeToDelete.parent;
                 }
                 nodeToDelete.removeFull();
@@ -150,7 +156,10 @@ function _NodeArrayItem({
       showAddPointTop.value = [rect.left + 9, rect.top - 13];
       showAddPointBottom.value = [rect.left + 9, rect.top + rect.height];
       showAddPointStart.value = [rect.left - 9, rect.bottom - rect.height / 2];
-      showAddPointEnd.value = [rect.right, rect.bottom - rect.height / 2];
+      showAddPointEnd.value = [
+        rect.left + rect.width - 10,
+        rect.bottom - rect.height / 2,
+      ];
       showRemovePoint.value = [rect.left + rect.width - 10, rect.top - 5];
     } else {
       showAddPointTop.value = null;
@@ -171,11 +180,11 @@ function _NodeArrayItem({
   const hoverPadding = 100;
 
   return [
-    buttonPos.includes("top")
+    buttonPos.includes(BUTTON_PLACEMENT.TOP)
       ? showAddPointTop.value &&
         add(showAddPointTop.value, addRefTop, () => onInsert(false), hideHalo)
       : null,
-    buttonPos.includes("bottom")
+    buttonPos.includes(BUTTON_PLACEMENT.BOTTOM)
       ? showAddPointBottom.value &&
         add(
           showAddPointBottom.value,
@@ -184,7 +193,7 @@ function _NodeArrayItem({
           hideHalo,
         )
       : null,
-    buttonPos.includes("start")
+    buttonPos.includes(BUTTON_PLACEMENT.START)
       ? showAddPointStart.value &&
         add(
           showAddPointStart.value,
@@ -193,7 +202,7 @@ function _NodeArrayItem({
           hideHalo,
         )
       : null,
-    buttonPos.includes("end")
+    buttonPos.includes(BUTTON_PLACEMENT.END)
       ? showAddPointEnd.value &&
         add(showAddPointEnd.value, addRefEnd, () => onInsert(true), hideHalo)
       : null,
@@ -228,3 +237,9 @@ function _NodeArrayItem({
     ),
   ];
 }
+export const BUTTON_PLACEMENT = {
+  START: "start",
+  END: "end",
+  TOP: "top",
+  BOTTOM: "bottom",
+};

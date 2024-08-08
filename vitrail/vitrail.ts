@@ -650,6 +650,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   ) {
     if (!augmentation.rerender?.(editBuffer)) return null;
 
+    console.assert(match.matchedNode?.connected);
+
     const props = this.matchAugmentation(match.matchedNode, augmentation);
     if (!props) throw new Error("rerender on non-matching node");
     if (compareReplacementProps(props, match.props, editBuffer)) return false;

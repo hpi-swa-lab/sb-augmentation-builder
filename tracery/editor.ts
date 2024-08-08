@@ -1,3 +1,11 @@
+import { augColor } from "../aug-color-picker.ts";
+import {
+  augBool,
+  augChartsColor,
+  augChartsJS,
+  augChartsType,
+  augTransparentColor,
+} from "../aug-example-charts.ts";
 import { vim, Vim } from "../codemirror6/external/codemirror-vim.mjs";
 import {
   drawSelection,
@@ -85,6 +93,12 @@ function extensionsForPath(path): {
         // uiBuilder(language),
         placeholder(language),
         exploriants(language),
+        augChartsJS(language),
+        augChartsColor(language),
+        augTransparentColor(language),
+        augBool(language),
+        augColor(language),
+        augChartsType(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -97,6 +111,12 @@ function extensionsForPath(path): {
         // uiBuilder(language),
         placeholder(language),
         exploriants(language),
+        augChartsJS(language),
+        augChartsColor(language),
+        augTransparentColor(language),
+        augBool(language),
+        augColor(language),
+        augChartsType(language),
       ],
     };
   return { cmExtensions: [], augmentations: [] };
