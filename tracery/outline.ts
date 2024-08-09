@@ -159,7 +159,7 @@ export function outline(node) {
             },
           ],
         ],
-        [(it) => it.childBlocks, spawnArray(matchTopLevel)],
+        [(it) => it.childNodes, spawnArray(matchTopLevel)],
       ),
       mergeGroups,
       capture("topLevel"),

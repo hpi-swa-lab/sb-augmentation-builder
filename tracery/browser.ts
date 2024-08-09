@@ -34,16 +34,25 @@ function TraceryBrowser({ project, initialSelection, window }) {
   );
   const enabled = useSignal(true);
   const topLevel = useSignal([]);
-  const selectedTopLevel = useSignal(null);
-  const selectedMember = useSignal(null);
-  const selectedNodes =
-    selectedMember?.value?.nodes ?? selectedTopLevel?.value?.nodes;
+  const selectedTopLevelName = useSignal(initialSelection?.topLevel);
+  const selectedMemberName = useSignal(initialSelection?.member);
+  const vitrail = useSignal(null);
 
-  // need to unset these before rendering if we get deleted
-  if (selectedTopLevel.value?.node && !selectedTopLevel.value.node.connected)
-    selectedTopLevel.value = null;
-  if (selectedMember.value?.node && !selectedMember.value.node.connected)
-    selectedMember.value = null;
+  const getModel = () => vitrail.value.defaultModel;
+  const getOutline = () => outline(vitrail.value.getModels().get(getModel()));
+
+  const getSelection = (outline?) => {
+    const selectedTopLevel = (outline ?? topLevel.value).find(
+      (it) => it.name === selectedTopLevelName.value,
+    );
+    const selectedMember = selectedTopLevel?.members?.find(
+      (it) => it.name === selectedMemberName.value,
+    );
+    const selectedNodes = selectedMember?.nodes ?? selectedTopLevel?.nodes;
+    return { selectedTopLevel, selectedMember, selectedNodes };
+  };
+
+  const { selectedTopLevel, selectedMember, selectedNodes } = getSelection();
 
   return enabled.value
     ? h(
@@ -65,29 +74,29 @@ function TraceryBrowser({ project, initialSelection, window }) {
           h(List, {
             style: { flex: 1, maxWidth: "250px" },
             items: topLevel.value,
-            selected: selectedTopLevel.value,
+            selected: selectedTopLevel,
             setSelected: (s) => {
-              selectedTopLevel.value = s;
-              selectedMember.value = null;
+              selectedTopLevelName.value = s.name;
+              selectedMemberName.value = null;
             },
             labelFunc: (it) => it.name,
             height: 200,
             selectionContext: {
               path: selectedFile.value?.path,
-              topLevel: selectedTopLevel.value?.name,
+              topLevel: selectedTopLevel?.name,
             },
           }),
           h(List, {
             style: { flex: 1, maxWidth: "250px" },
-            items: selectedTopLevel?.value?.members ?? emptyList,
-            selected: selectedMember.value,
-            setSelected: (s) => (selectedMember.value = s),
+            items: selectedTopLevel?.members ?? emptyList,
+            selected: selectedMember,
+            setSelected: (s) => (selectedMemberName.value = s.name),
             labelFunc: (it) => it.name,
             height: 200,
             selectionContext: {
               path: selectedFile.value?.path,
-              topLevel: selectedTopLevel.value?.name,
-              member: selectedMember.value?.name,
+              topLevel: selectedTopLevel?.name,
+              member: selectedMember?.name,
             },
           }),
           h(
@@ -110,19 +119,15 @@ function TraceryBrowser({ project, initialSelection, window }) {
         selectedFile.value &&
           h(TraceryEditor, {
             onLoad: (v) => {
-              const node = v.getModels().get(v.defaultModel);
-              topLevel.value = outline(node);
-              selectedTopLevel.value = initialSelection?.topLevel
-                ? topLevel.value.find(
-                    (it) => it.name === initialSelection.topLevel,
-                  )
-                : null;
-              selectedMember.value = initialSelection?.member
-                ? selectedTopLevel.value.members?.find(
-                    (it) => it.name === initialSelection.member,
-                  )
-                : null;
+              vitrail.value = v;
+              topLevel.value = getOutline();
+
+              v.registerValidator(
+                getModel(),
+                () => !!getSelection(getOutline()).selectedTopLevel,
+              );
             },
+            onChange: () => (topLevel.value = getOutline()),
             project,
             path: selectedFile.value.path,
             window,

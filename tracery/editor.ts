@@ -206,7 +206,14 @@ export function TraceryInlineEditor({ source, fileSuffix }) {
   });
 }
 
-export function TraceryEditor({ project, path, nodes, window, onLoad }) {
+export function TraceryEditor({
+  project,
+  path,
+  nodes,
+  window,
+  onLoad,
+  onChange,
+}) {
   const source = useSignal(null);
   const diagnostics = useSignal([]);
   const vitrail: { value: Vitrail<any> } = useSignal(null);
@@ -276,7 +283,10 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
       onshowsenders: () => findReferences("senders"),
       onshowimplementors: () => findReferences("implementors"),
       onwrapwithwatch: () => _wrapWithWatch(),
-      onchange: (e) => project.onChangeFile({ ...e.detail, path }),
+      onchange: (e) => {
+        onChange?.(e);
+        project.onChangeFile({ ...e.detail, path });
+      },
       oncreateaugmentation: () =>
         vitrail.value &&
         openNewAugmentation(

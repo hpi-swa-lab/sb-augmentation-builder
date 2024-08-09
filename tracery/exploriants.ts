@@ -60,9 +60,10 @@ export const exploriants = (model) => ({
                   cursor: "pointer",
                   background: parseInt(index.text) === i ? "#ccc" : "#fff",
                 },
-                onclick: () => index.replaceWith(i.toString()),
+                onclick: () =>
+                  index.replaceWith(i.toString(), { noFocus: true }),
               },
-              [h("div", {}, h(TextArea, name))],
+              h("div", {}, h(TextArea, name)),
             ),
           ),
         ),
