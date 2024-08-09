@@ -284,7 +284,7 @@ export function TraceryEditor({ project, path, nodes, window, onLoad }) {
         // },
       ],
       cmExtensions: [
-        vim(),
+        // vim(),
         ...cmExtensions,
         ...baseCMExtensions,
         drawSelection(),

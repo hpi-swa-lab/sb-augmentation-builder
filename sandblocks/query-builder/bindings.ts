@@ -3,6 +3,7 @@ import { useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
 import { Side, findChange, rangeShift } from "../../utils.js";
 import {
+  mapIndexToGlobal,
   mapIndexToLocal,
   markInputEditableForNode,
   remapIndices,
@@ -58,21 +59,27 @@ export function bindPlainString(node: SBBlock) {
     range,
     indexMap,
     onLocalChange: (change: Change<any>) => {
-      change.from = mapIndexToLocal(indexMap, change.from) + range[0];
-      change.to = mapIndexToLocal(indexMap, change.to) + range[0];
+      change.from = mapIndexToGlobal(indexMap, change.from);
+      change.to = mapIndexToGlobal(indexMap, change.to);
       if (change.insert)
         change.insert = remapIndicesReverse(change.insert, rules)[0];
-      if (change.selectionRange)
+      const [_, newIndexMap] = remapIndices(
+        node.editor.applyStringChange(original, change),
+        rules,
+      );
+      change.from += range[0];
+      change.to += range[0];
+      if (change.selectionRange) {
         change.selectionRange = [
-          mapIndexToLocal(indexMap, change.selectionRange[0]) + range[0],
-          mapIndexToLocal(indexMap, change.selectionRange[1]) + range[0],
+          mapIndexToGlobal(newIndexMap, change.selectionRange[0]) + range[0],
+          mapIndexToGlobal(newIndexMap, change.selectionRange[1]) + range[0],
         ];
+      }
       node.editor.applyChanges([change]);
     },
   };
 }
 
-//add onSlectionChange
 export function TextArea({
   text,
   onLocalChange,

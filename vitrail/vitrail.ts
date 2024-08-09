@@ -287,6 +287,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     this.applyChanges(list);
   }
 
+  applyStringChange(source, { from, to, insert }: Change<T>) {
+    return source.slice(0, from) + (insert ?? "") + source.slice(to);
+  }
+
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
     if (
       changes.length > 0 &&
@@ -317,10 +321,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     const oldSource = this._sourceString;
     let newSource = oldSource;
     const allChanges = [...this._pendingChanges.value, ...changes];
-    for (const { from, to, insert } of allChanges) {
-      newSource =
-        newSource.slice(0, from) + (insert ?? "") + newSource.slice(to);
-    }
+    for (const change of allChanges)
+      newSource = this.applyStringChange(newSource, change);
 
     if (!last(allChanges).selectionRange && last(allChanges).sourcePane) {
       const pane = last(allChanges).sourcePane;

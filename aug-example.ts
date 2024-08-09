@@ -22,11 +22,15 @@ export const augExample = {
         true,
       ),
     ]),
-  view: ({ nodes }) => h("div", {}, "test"),
-  rerender: () =>
-    vary("1va2123fdsa", "param", 0, [
-      ["a", () => true],
-      ["b", () => false],
-    ]),
+  view: ({ nodes }) =>
+    h(
+      "div",
+      {},
+      vary("1va2123fdsa", "param", 0, [
+        ["a", () => true],
+        ["b", () => false],
+      ]),
+    ),
+  rerender: () => true,
   examples: [["const a = { r: 0.3 }", [0, 0]]],
 };
