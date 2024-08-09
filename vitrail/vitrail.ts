@@ -708,6 +708,10 @@ const _VitrailPane = forwardRef(function _VitrailPane(
   // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
   //console.log(nodes);
   const vitrail: Vitrail<any> = nodes[0]?.editor;
+  console.assert(
+    !!vitrail,
+    "Trying to display a node that is not connected to an editor in a Pane",
+  );
   const pane: Pane<any> = useMemo(
     // fetchAugmentations may not change (or rather: we ignore any changes)
     () =>

@@ -188,6 +188,24 @@ export function openNodesInWindow(nodes: SBNode[], props: any = {}) {
   openComponentInWindow(FullDeclarationPaneWindow, { nodes, ...props });
 }
 
+export function TraceryInlineEditor({ source, fileSuffix }) {
+  const { augmentations, cmExtensions } = useMemo(
+    () => extensionsForPath(fileSuffix),
+    [fileSuffix],
+  );
+
+  return h(CodeMirrorWithVitrail, {
+    value: source,
+    augmentations,
+    cmExtensions: [
+      // vim(),
+      ...cmExtensions,
+      ...baseCMExtensions,
+      drawSelection(),
+    ],
+  });
+}
+
 export function TraceryEditor({ project, path, nodes, window, onLoad }) {
   const source = useSignal(null);
   const diagnostics = useSignal([]);

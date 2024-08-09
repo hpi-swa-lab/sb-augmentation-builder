@@ -24,6 +24,9 @@ import { Codicon, div } from "./view/widgets.js";
 import { VitrailPane, VitrailPaneWithWhitespace } from "./vitrail/vitrail.ts";
 import { createPlaceholder } from "./vitrail/placeholder.ts";
 import { Dialog, openComponentInWindow } from "./tracery/window.js";
+import { TraceryEditor, TraceryInlineEditor } from "./tracery/editor.ts";
+import { CodeMirrorWithVitrail } from "./vitrail/codemirror6.ts";
+import { augColor } from "./aug-color-picker.ts";
 
 export const augBool = (model) => ({
   type: "replace" as const,
@@ -549,9 +552,8 @@ function AddKeyValue({ resolve, language }) {
     barThickness: [charts_datatypes.number, charts_datatypes.string],
     borderColor: [charts_datatypes.color],
   };
-  const defaults = new Map([
-    [charts_datatypes.color, language.parseSync('"#000000"').childBlocks[0]],
-  ]);
+  const defaults = new Map([[charts_datatypes.color, '"#ffffff"']]);
+  const source = useSignal(defaults.get(charts_datatypes.color));
 
   return h(Dialog, {
     window,
@@ -587,9 +589,7 @@ function AddKeyValue({ resolve, language }) {
           { display: "flex", flexDirection: "row", width: 200 },
           "value: ",
 
-          h(VitrailPaneWithWhitespace, {
-            nodes: [defaults.get(charts_datatypes.color)],
-          }),
+          h(TraceryInlineEditor, { source, fileSuffix: "ts" }),
         ),
       ),
 
