@@ -20,7 +20,7 @@ import {
 } from "./sandblocks/query-builder/functionQueries.js";
 import { StringEnum } from "./tracery/enum.ts";
 import { BUTTON_PLACEMENT, NodeArray } from "./tracery/node-array.ts";
-import { Codicon } from "./view/widgets.js";
+import { Codicon, div } from "./view/widgets.js";
 import { VitrailPane, VitrailPaneWithWhitespace } from "./vitrail/vitrail.ts";
 import { createPlaceholder } from "./vitrail/placeholder.ts";
 import { Dialog, openComponentInWindow } from "./tracery/window.js";
@@ -429,7 +429,9 @@ export const augChartsJS = (model) => ({
                               nodes: [it.value],
                             }),
                           ),
-                        insertItem: insertKeyValue,
+                        insertItem: () => {
+                          insertKeyValue(it[0].value.language);
+                        },
                         insertType: "pair",
                         buttonPos: [
                           BUTTON_PLACEMENT.TOP,
@@ -526,35 +528,75 @@ export const rgb2hex = (it) =>
     ),
   ]);
 
-async function insertKeyValue() {
+async function insertKeyValue(language) {
   const test = await new Promise((resolve) => {
     openComponentInWindow(
       AddKeyValue,
-      { resolve },
+      { resolve, language },
       { doNotStartAttached: true, initialSize: { x: "auto", y: "auto" } },
     );
   });
   return test;
 }
 
-function AddKeyValue({ resolve }) {
+function AddKeyValue({ resolve, language }) {
   const key = useSignal("");
   const value = useSignal("");
+  const options = {
+    backgroundColor: [charts_datatypes.color],
+    base: [charts_datatypes.number],
+    barPercentage: [charts_datatypes.number],
+    barThickness: [charts_datatypes.number, charts_datatypes.string],
+    borderColor: [charts_datatypes.color],
+  };
+  const defaults = new Map([
+    [charts_datatypes.color, language.parseSync('"#000000"').childBlocks[0]],
+  ]);
+
   return h(Dialog, {
     window,
     body: h(
       "div",
       { style: { display: "flex", flexDirection: "row" } },
       "key: ",
-      h("textarea", {
-        rows: "1",
+      h("input", {
+        list: "atributes",
         onchange: (e) => (key.value = e.target.value),
       }),
-      "value: ",
-      h("textarea", {
-        rows: "1",
-        onchange: (e) => (value.value = e.target.value),
-      }),
+      h(
+        "datalist",
+        { id: "atributes" },
+        Object.keys(options).map((option) =>
+          h("option", { value: `${option}` }),
+        ),
+      ),
+      h(
+        "div",
+        { display: "flex", flexDirection: "column" },
+
+        h(
+          "div",
+          { display: "flex", flexDirection: "row" },
+          "type: ",
+          Object.keys(options).includes(key.value)
+            ? options[key.value].map((type) => charts_datatypes[type])
+            : null,
+        ),
+        h(
+          "div",
+          { display: "flex", flexDirection: "row", width: 200 },
+          "value: ",
+
+          h(VitrailPaneWithWhitespace, {
+            nodes: [defaults.get(charts_datatypes.color)],
+          }),
+        ),
+      ),
+
+      //h("textarea", {
+      //  rows: "1",
+      //  onchange: (e) => (value.value = e.target.value),
+      //}),
     ),
     actions: [
       ["Cancel", () => resolve(null)],
@@ -563,3 +605,13 @@ function AddKeyValue({ resolve }) {
     cancelActionIndex: 0,
   });
 }
+
+const charts_datatypes = {
+  color: "color",
+  number: "number",
+  string: "string",
+  boolean: "boolean",
+  pointStyle: "pointStyle",
+  object: "object",
+  unknown: "unknown",
+};
