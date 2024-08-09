@@ -26,14 +26,16 @@ export const exploriants = (model) => ({
         [
           (it) => it.variations,
           (it) => it.childBlocks,
-          spawnArray((it) =>
-            metaexec(it, (capture) => [
-              query("[$name, () => $variation]"),
-              all(
-                [(it) => it.name, bindPlainString, capture("name")],
-                [(it) => it.variation, capture("variation")],
-              ),
-            ]),
+          spawnArray(
+            (it) =>
+              metaexec(it, (capture) => [
+                query("[$name, () => $variation]"),
+                all(
+                  [(it) => it.name, bindPlainString, capture("name")],
+                  [(it) => it.variation, capture("variation")],
+                ),
+              ]),
+            false,
           ),
           capture("variations"),
         ],

@@ -634,7 +634,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
               );
 
             // if we check this node later anyways, no need to ascend from here
-            if (node && changedNodes.has(node)) break;
+            if (node.parent && changedNodes.has(node.parent)) break;
           }
         }
       }

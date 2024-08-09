@@ -371,7 +371,18 @@ export async function codeMirror6WithVitrail(
         );
       },
       getText: () => host.state.doc.toString(),
-      hasFocus: () => host.hasFocus,
+      hasFocus: () => {
+        if (!host.hasFocus) return false;
+        const range = [
+          host.state.selection.main.head,
+          host.state.selection.main.anchor,
+        ];
+        const visible = host.visibleRanges;
+        for (const index of range)
+          if (!visible.some((r) => r.from <= index && r.to >= index))
+            return false;
+        return true;
+      },
       setText: (text: string, undoable: boolean) =>
         host.dispatch(
           host.state.update({
