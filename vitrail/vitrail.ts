@@ -9,6 +9,7 @@ import {
 } from "../external/preact-hooks.mjs";
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h, render } from "../external/preact.mjs";
+import { SBWhitespaceModel } from "../tracery/whitespace.ts";
 import {
   Side,
   adjustIndex,

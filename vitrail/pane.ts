@@ -27,6 +27,7 @@ import {
   VitrailContext,
   Marker,
   AugmentationMatch,
+  Model,
 } from "./vitrail.ts";
 
 registerReplacementElement();
@@ -164,9 +165,13 @@ export class Pane<T> {
   }
 
   async loadModels(v: Vitrail<T>) {
-    for (const augmentation of this.fetchAugmentations()) {
-      await v._loadModel(augmentation.model);
+    for (const model of this.getRequiredModels()) {
+      await v._loadModel(model);
     }
+  }
+
+  getRequiredModels(): Set<Model> {
+    return new Set(this.fetchAugmentations().map((a) => a.model));
   }
 
   *paneCursorPositions() {
@@ -206,6 +211,21 @@ export class Pane<T> {
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
     for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
+      this.vitrail.updateAugmentations(b, [this], false);
+
+    // asynchronous update
+    this.loadMissingModels(v);
+  }
+
+  async loadMissingModels(v: Vitrail<T>) {
+    const missingModels = this.getRequiredModels();
+    for (const model of v._models.keys()) missingModels.delete(model);
+
+    for (const model of missingModels) await v._loadModel(model);
+
+    for (const b of this._getInitEditBuffersForRoots(
+      [...missingModels].map((m) => v._models.get(m)!),
+    ))
       this.vitrail.updateAugmentations(b, [this], false);
   }
 

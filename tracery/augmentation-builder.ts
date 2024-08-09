@@ -24,6 +24,7 @@ import { useComputed, useSignal } from "../external/preact-signals.mjs";
 import { randomId, rangeSize, replaceRange } from "../utils.js";
 import { useAsyncEffect, useDebouncedEffect } from "../view/widgets.js";
 import { objectToString } from "./query-builder.ts";
+import { removeCommonIndent } from "./whitespace.ts";
 
 export async function openNewAugmentation(
   project: FileProject,
@@ -171,7 +172,17 @@ export const augmentationBuilder = (model) => ({
         {},
 
         h("strong", {}, "View"),
-        h("div", {}, h(VitrailPane, { nodes: [view] })),
+        h(
+          "div",
+          {},
+          h(VitrailPane, {
+            nodes: [view],
+            fetchAugmentations: (p) => [
+              ...p.fetchAugmentations(),
+              removeCommonIndent,
+            ],
+          }),
+        ),
         h("hr"),
 
         h(
