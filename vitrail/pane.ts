@@ -285,6 +285,7 @@ export class Pane<T> {
 
   updateAugmentations() {
     const active: [AugmentationMatch, Augmentation<any>][] = [];
+    const replacedNodes: SBNode[] = [];
     for (const [match, augmentation] of [
       ...this.vitrail._matchedAugmentations.entries(),
     ].sort(
@@ -294,9 +295,10 @@ export class Pane<T> {
     )) {
       if (
         this.containsNode(match.matchedNode, augmentation.type === "mark") &&
-        !active.some(([m]) => match.matchedNode.orHasParent(m.matchedNode))
+        !replacedNodes.some((n) => match.matchedNode.orHasParent(n))
       ) {
         active.push([match, augmentation]);
+        replacedNodes.push(...match.props.nodes);
       }
     }
 
