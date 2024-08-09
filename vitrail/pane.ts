@@ -13,7 +13,10 @@ import {
   withDo,
 } from "../utils.js";
 import { adjacentCursorPosition } from "../view/focus.ts";
-import { VitrailReplacementContainer } from "./replacement-container.ts";
+import {
+  VitrailReplacementContainer,
+  registerReplacementElement,
+} from "./replacement-container.ts";
 import {
   Vitrail,
   AugmentationInstance,
@@ -25,6 +28,8 @@ import {
   Marker,
   AugmentationMatch,
 } from "./vitrail.ts";
+
+registerReplacementElement();
 
 type PaneGetTextFunc = () => string;
 type PaneSetTextFunc = (s: string, undoable: boolean) => void;

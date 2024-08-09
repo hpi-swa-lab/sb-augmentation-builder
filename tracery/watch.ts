@@ -107,6 +107,7 @@ export const watch = (model) => ({
         background: "#333",
         display: "inline-block",
         borderRadius: "4px",
+        margin: "0 0.15rem",
       }}
     >
       <${VitrailPaneWithWhitespace}

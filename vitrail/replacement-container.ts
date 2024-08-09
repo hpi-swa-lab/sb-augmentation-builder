@@ -1,11 +1,11 @@
-import { adjacentCursorPosition } from "../view/focus";
+import { adjacentCursorPosition } from "../view/focus.ts";
 import {
   AugmentationInstance,
   Vitrail,
   DeletionInteraction,
   SelectionInteraction,
   replacementRange,
-} from "./vitrail";
+} from "./vitrail.ts";
 
 export class VitrailReplacementContainer extends HTMLElement {
   augmentationInstance: AugmentationInstance<any>;
@@ -178,7 +178,10 @@ export class VitrailReplacementContainer extends HTMLElement {
     e.preventDefault();
   }
 }
-customElements.define(
-  "vitrail-replacement-container",
-  VitrailReplacementContainer,
-);
+
+export function registerReplacementElement() {
+  customElements.define(
+    "vitrail-replacement-container",
+    VitrailReplacementContainer,
+  );
+}
