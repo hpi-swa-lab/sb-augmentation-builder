@@ -45,11 +45,12 @@ export class FileProject extends Project {
   async open() {
     this.root = await request("openProject", { path: this.path });
 
+    const stored = JSON.parse(localStorage.restoreLanguageClients ?? "[]");
+    if (!Array.isArray(stored)) return;
+
     this.languageClients = (
       await Promise.all(
-        JSON.parse(localStorage.restoreLanguageClients ?? "[]").map((data) =>
-          LanguageClient.restore(this, data),
-        ),
+        stored.map((data) => LanguageClient.restore(this, data)),
       )
     ).filter((server) => server);
   }
