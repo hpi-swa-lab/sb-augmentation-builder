@@ -451,7 +451,9 @@ export class LanguageClient extends EventTarget {
 
   async suspend() {
     await Promise.all(
-      this.textDocumentVersions.entries().map(([file]) => this.didClose(file)),
+      [...this.textDocumentVersions.entries()].map(([file]) =>
+        this.didClose(file),
+      ),
     );
   }
 
