@@ -105,6 +105,10 @@ export class Pane<T> {
 
     let pane = this;
     (this.view as any)._debugPane = this;
+    (this.view as any).handleDelete = () => {
+      // FIXME I think this should just do nothing -- someone is trying to
+      // delete into us.
+    };
     (this.view as any).cursorPositions = function* () {
       yield* pane.paneCursorPositions();
     };
@@ -145,6 +149,7 @@ export class Pane<T> {
 
   unmount() {
     for (const replacement of this.replacements) render(null, replacement.view);
+    this._augmentationInstances.clear();
   }
 
   fetchAugmentations() {
