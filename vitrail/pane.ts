@@ -285,14 +285,17 @@ export class Pane<T> {
 
   updateAugmentations() {
     const active: [AugmentationMatch, Augmentation<any>][] = [];
+    const myAugmentations = this.fetchAugmentations();
     const replacedNodes: SBNode[] = [];
     for (const [match, augmentation] of [
       ...this.vitrail._matchedAugmentations.entries(),
-    ].sort(
-      (a, b) =>
-        b[0].matchedNode.sourceString.length -
-        a[0].matchedNode.sourceString.length,
-    )) {
+    ]
+      .filter(([_, a]) => myAugmentations.includes(a))
+      .sort(
+        (a, b) =>
+          b[0].matchedNode.sourceString.length -
+          a[0].matchedNode.sourceString.length,
+      )) {
       if (
         this.containsNode(match.matchedNode, augmentation.type === "mark") &&
         !replacedNodes.some((n) => match.matchedNode.orHasParent(n))
