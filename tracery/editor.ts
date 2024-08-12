@@ -213,6 +213,7 @@ export function TraceryEditor({
   window,
   onLoad,
   onChange,
+  augmentations: extraAugmentations,
 }) {
   const source = useSignal(null);
   const diagnostics = useSignal([]);
@@ -296,6 +297,7 @@ export function TraceryEditor({
         ),
       augmentations: <Augmentation<any>[]>[
         ...augmentations,
+        ...extraAugmentations,
         singleDeclaration(language),
         // {
         //   type: "mark" as const,

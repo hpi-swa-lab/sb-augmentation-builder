@@ -7,6 +7,7 @@ import {
   also,
   all,
 } from "../sandblocks/query-builder/functionQueries.js";
+import { nodesSourceString } from "../utils.js";
 import {
   DeletionInteraction,
   SelectionInteraction,
@@ -36,7 +37,11 @@ class _SBWhitespaceModel extends SBLanguage {
         do {
           s += text[i];
           i++;
-        } while (text[i + 1] !== "\t" && text[i + 1] !== "\n");
+        } while (
+          text[i + 1] !== "\t" &&
+          text[i + 1] !== "\n" &&
+          i < text.length
+        );
         add("text", s, start, i);
       }
     }
@@ -45,7 +50,7 @@ class _SBWhitespaceModel extends SBLanguage {
 }
 export const SBWhitespaceModel = new _SBWhitespaceModel();
 
-export const removeCommonIndent = (rootNode: SBBlock) => ({
+export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
   type: "replace" as const,
   selectionInteraction: SelectionInteraction.Start,
   deletionInteraction: DeletionInteraction.SelectThenFull,
@@ -53,14 +58,14 @@ export const removeCommonIndent = (rootNode: SBBlock) => ({
   model: SBWhitespaceModel,
   match: (it) =>
     metaexec(it, (capture) => [
-      (it) => consecutiveTabs(it, indentInNode(rootNode)),
+      (it) => consecutiveTabs(it, indentInNodes(rootNodes)),
       capture("nodes"),
     ]),
   view: () => {
     return h(
       "span",
       {
-        style: { opacity: 0.4, display: "inline-block", padding: "0 0.25rem" },
+        style: { opacity: 0.3, display: "inline-block", padding: "0 0.25rem" },
       },
       "⭾",
     );
@@ -83,8 +88,8 @@ function consecutiveTabs(node: SBBlock, count: number) {
   return null;
 }
 
-function indentInNode(node: SBBlock) {
-  const string = node.sourceString;
+function indentInNodes(nodes: SBBlock[]) {
+  const string = nodesSourceString(nodes);
   let minIndent = Infinity;
   for (let i = 0; i < string.length; i++) {
     if (string[i] === "\n") {
@@ -115,39 +120,6 @@ function distanceToNewline(node) {
   return i;
 }
 
-function isWithinIndent(node, indent) {
+function isWithinIndents(node, indent) {
   return node.type === "tab" && distanceToNewline(node) <= indent;
 }
-
-// export const removeIndent = new Extension()
-//   .registerReplacement({
-//     query: new SBShardLocalMatcher(SBWhitespaceModel, (shard) => [
-//       (x) => isWithinIndent(x, shard.minIndent),
-//     ]),
-//     selection: SelectionInteraction.Skip,
-//     deletion: DeletionInteraction.Full,
-//     component: () => h("span", { style: { opacity: 0.2 } }, ""),
-//     name: "remove-indent",
-//   })
-//   .registerShardChanged((shard, string, changes) => {
-//     let minIndent = Infinity;
-//
-//     for (let i = 0; i < string.length; i++) {
-//       if (string[i] === "\n") {
-//         let j = i;
-//         let indent = 0;
-//         while (
-//           (string[j + 1] === " " && string[j + 2] === " ") ||
-//           string[j + 1] === "\t"
-//         ) {
-//           j += string[j + 1] === " " ? 2 : 1;
-//           indent++;
-//         }
-//         j--;
-//         if (indent > 0 && indent < minIndent) {
-//           minIndent = indent;
-//         }
-//       }
-//     }
-//     shard.minIndent = minIndent;
-//   });

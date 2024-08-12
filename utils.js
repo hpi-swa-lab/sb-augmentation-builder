@@ -364,6 +364,14 @@ export function arrayEqual(a, b) {
   return true;
 }
 
+export function nodesSourceString(nodes) {
+  if (nodes.length === 0) return "";
+  return nodes[0].root.sourceString.slice(
+    nodes[0].range[0],
+    last(nodes).range[1],
+  );
+}
+
 export function rangeEqual(a, b) {
   console.assert(Array.isArray(a));
   console.assert(Array.isArray(b));

@@ -6,6 +6,7 @@ import { appendCss } from "../utils.js";
 import { openComponentInWindow } from "./window.js";
 import { TraceryEditor, openNodesInWindow } from "./editor.ts";
 import { outline } from "./outline.ts";
+import { removeCommonIndent } from "./whitespace.ts";
 
 appendCss(`
 .tracery-browser {
@@ -53,6 +54,11 @@ function TraceryBrowser({ project, initialSelection, window }) {
   };
 
   const { selectedTopLevel, selectedMember, selectedNodes } = getSelection();
+
+  const removeIndent = useMemo(
+    () => removeCommonIndent(selectedNodes ?? []),
+    selectedNodes,
+  );
 
   return enabled.value
     ? h(
@@ -131,6 +137,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
             project,
             path: selectedFile.value.path,
             window,
+            augmentations: [removeIndent],
             nodes: selectedNodes,
             style: { width: "100%" },
           }),

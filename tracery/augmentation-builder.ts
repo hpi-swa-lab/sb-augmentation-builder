@@ -139,7 +139,7 @@ export const augmentationBuilder = (model) => ({
     if (debugHistoryAug.value.has(`fin_${debugId}`))
       console.log(debugHistory.value.get(`fin_${debugId}`));
 
-    const removeIndent = useMemo(() => removeCommonIndent(view), [view]);
+    const removeIndent = useMemo(() => removeCommonIndent([view]), [view]);
 
     return h(
       "div",
