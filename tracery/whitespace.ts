@@ -71,6 +71,14 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
     );
   },
   rerender: () => true,
+  checkOnEdit: (editBuffer, check) => {
+    const indent = indentInNodes(rootNodes);
+    for (const node of editBuffer.changedNodes) {
+      const center = node.parent.children.indexOf(node);
+      for (let i = center - indent; i < center + indent; i++)
+        if (node.parent.children[i]) check(node.parent.children[i]);
+    }
+  },
 });
 
 function consecutiveTabs(node: SBBlock, count: number) {

@@ -117,6 +117,7 @@ export interface Augmentation<Props extends ReplacementProps> {
   match: (node: SBNode) => Props | null;
   view: (props: Props) => JSX | Marker;
   rerender?: (editBuffer: EditBuffer) => boolean;
+  checkOnEdit?: (editBuffer: EditBuffer, check: (node: SBNode) => void) => void;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
 }
@@ -562,6 +563,26 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return [...roots].map((root) => new EditBuffer(root.initOps()));
   }
 
+  getAllAugmentations(): Set<Augmentation<any>> {
+    return new Set(this._panes.flatMap((p) => p.fetchAugmentations()));
+  }
+
+  updateAugmentationList() {
+    const allAugmentations = this.getAllAugmentations();
+
+    for (const [match, augmentation] of this._matchedAugmentations) {
+      if (!allAugmentations.has(augmentation))
+        this._matchedAugmentations.delete(match);
+    }
+
+    // see if anything was added and then do a full update
+    for (const augmentation of allAugmentations) {
+      if (!this._augmentationsCheckedTrees.has(augmentation)) {
+        this.updateAllAugmentations();
+      }
+    }
+  }
+
   updateAllAugmentations() {
     const buffers = this.getInitEditBuffersForRoots([...this._models.values()]);
     for (const buffer of buffers)
@@ -588,61 +609,63 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     // check for new augmentations
-    const changedNodes = new Set<SBNode>();
-    for (const op of editBuffer.posBuf) {
-      if (op instanceof UpdateOp || op instanceof AttachOp)
-        changedNodes.add(op.node);
-    }
-    for (const op of editBuffer.negBuf) {
-      if (op instanceof DetachOp && op.oldParent?.connected)
-        changedNodes.add(op.oldParent);
-    }
+    const allAugmentations = this.getAllAugmentations();
 
-    for (const pane of panes) {
-      for (const augmentation of pane.fetchAugmentations()) {
-        if (augmentation.model !== editBuffer.language) continue;
-        let checkedNodes = this._augmentationsCheckedTrees.get(augmentation);
-        if (!checkedNodes) {
-          checkedNodes = new Set();
-          this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
-        }
+    for (const augmentation of allAugmentations) {
+      if (augmentation.model !== editBuffer.language) continue;
+      let checkedNodes = this._augmentationsCheckedTrees.get(augmentation);
+      if (!checkedNodes) {
+        checkedNodes = new Set();
+        this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
+      }
+      const check = (node: SBNode) => {
+        if (checkedNodes.has(node)) return;
 
-        for (const root of changedNodes) {
-          let node: SBNode | null = root;
-          for (
-            let i = 0;
-            i <= augmentation.matcherDepth;
-            i++, node = node?.parent
-          ) {
-            // TODO limit to nodes of current pane
-            if (!node) break;
-            if (checkedNodes.has(node)) continue;
+        checkedNodes.add(node);
 
-            let alreadyMatched = false;
-            for (const [match, aug] of this._matchedAugmentations.entries()) {
-              if (match.matchedNode === node && augmentation === aug) {
-                alreadyMatched = true;
-                break;
-              }
-            }
-            if (alreadyMatched) continue;
-
-            const props = this.matchAugmentation(node, augmentation);
-            if (props)
-              this._matchedAugmentations.set(
-                { props, matchedNode: node },
-                augmentation,
-              );
-
-            // if we check this node later anyways, no need to ascend from here
-            if (node.parent && changedNodes.has(node.parent)) break;
+        // check if we have matched this node already
+        for (const [match, aug] of this._matchedAugmentations.entries()) {
+          if (match.matchedNode === node && augmentation === aug) {
+            return;
           }
         }
-      }
+
+        const props = this.matchAugmentation(node, augmentation);
+        if (props)
+          this._matchedAugmentations.set(
+            { props, matchedNode: node },
+            augmentation,
+          );
+      };
+      if (augmentation.checkOnEdit) augmentation.checkOnEdit(editBuffer, check);
+      else this.defaultCheckOnEdit(augmentation, editBuffer, check);
     }
 
     for (const pane of panes)
       if (pane.nodes[0]?.connected) pane.updateAugmentations();
+  }
+
+  defaultCheckOnEdit(
+    augmentation: Augmentation<any>,
+    editBuffer: EditBuffer,
+    check: (node: SBNode) => void,
+  ) {
+    for (const root of editBuffer.changedNodes) {
+      let node: SBNode | null = root;
+      for (
+        let i = 0;
+        i <= augmentation.matcherDepth;
+        i++, node = node?.parent
+      ) {
+        // FIXME limit to nodes of current pane
+        if (!node) break;
+
+        check(node);
+
+        // if we check this node later anyways, no need to ascend from here
+        if (node.parent && editBuffer.changedNodes.has(node.parent)) break;
+      }
+    }
   }
 
   reRenderAugmentation(
