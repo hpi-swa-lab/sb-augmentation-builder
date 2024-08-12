@@ -465,18 +465,21 @@ export class EditBuffer {
   get changedNodes() {
     if (this._changedNodes) return this._changedNodes;
     this._changedNodes = new Set();
-    for (const op of editBuffer.posBuf) {
+    for (const op of this.posBuf) {
       if (op instanceof UpdateOp || op instanceof AttachOp)
-        changedNodes.add(op.node);
+        this._changedNodes.add(op.node);
     }
-    for (const op of editBuffer.negBuf) {
+    for (const op of this.negBuf) {
       if (op instanceof DetachOp && op.oldParent?.connected)
-        changedNodes.add(op.oldParent);
+        this._changedNodes.add(op.oldParent);
     }
     return this._changedNodes;
   }
   get language() {
     return this.posBuf[0]?.node?.language ?? this.negBuf[0]?.node?.language;
+  }
+  get root() {
+    return this.posBuf[0]?.node?.root ?? this.negBuf[0]?.node?.root;
   }
   get empty() {
     return this.posBuf.length === 0 && this.negBuf.length === 0;

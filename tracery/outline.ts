@@ -25,9 +25,16 @@ function matchClassMember(node) {
       [
         type("field_definition"),
         all(
-          [(it) => it.atField("name")?.text, capture("name")],
+          [(it) => it.atField("property")?.text, capture("name")],
           [(it) => "Field", capture("label")],
           [(it) => "symbol-field", capture("icon")],
+        ),
+      ],
+      [
+        all(
+          [(it) => it.sourceString.slice(0, 25) + "...", capture("name")],
+          [(it) => "Other", capture("label")],
+          [(it) => "symbol-misc", capture("icon")],
         ),
       ],
     ),

@@ -93,10 +93,10 @@ export const baseCMExtensions = [
 export function createJavaScriptCodeMirror(
   text: string,
   parent: HTMLElement,
-  augmentations: Augmentation<any>[],
+  fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
   cmExtensions: any[] = [],
 ) {
-  return createDefaultCodeMirror(text, parent, augmentations, [
+  return createDefaultCodeMirror(text, parent, fetchAugmentations, [
     javascript(),
     ...cmExtensions,
   ]);
@@ -105,7 +105,7 @@ export function createJavaScriptCodeMirror(
 export async function createDefaultCodeMirror(
   text: string,
   parent: HTMLElement,
-  augmentations: Augmentation<any>[],
+  fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
   cmExtensions: any[] = [],
 ) {
   const cm = new EditorView({
@@ -119,7 +119,7 @@ export async function createDefaultCodeMirror(
     parent,
   });
 
-  const vitrail = await codeMirror6WithVitrail(cm, augmentations, [
+  const vitrail = await codeMirror6WithVitrail(cm, fetchAugmentations, [
     ...baseCMExtensions,
     ...cmExtensions,
   ]);
@@ -159,7 +159,7 @@ function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
 }
 export async function codeMirror6WithVitrail(
   cm: EditorView,
-  augmentations: Augmentation<any>[],
+  fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
   extensionsForPane: any[],
 ) {
   function validAugmentationInstance(
@@ -426,7 +426,7 @@ export async function codeMirror6WithVitrail(
       else pendingChangesHint.remove();
     },
   });
-  await v.connectHost(paneFromCM(cm, v, () => augmentations, true));
+  await v.connectHost(paneFromCM(cm, v, fetchAugmentations, true));
 
   buildPendingChangesHint(v, pendingChangesHint);
 
@@ -441,7 +441,7 @@ export const PaneFacet = Facet.define({
 
 export function CodeMirrorWithVitrail({
   value,
-  augmentations,
+  fetchAugmentations,
   cmExtensions,
   props,
   style,
@@ -451,7 +451,7 @@ export function CodeMirrorWithVitrail({
 }: {
   value: { value: string };
   parent: HTMLElement;
-  augmentations: Augmentation<any>[];
+  fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>;
   cmExtensions?: any[];
   props: { [key: string]: any };
   style: any;
@@ -470,11 +470,13 @@ export function CodeMirrorWithVitrail({
       extensions: [history(), highlightActiveLineGutter()],
       parent: parent.current,
     });
-    codeMirror6WithVitrail(cm, augmentations, cmExtensions ?? []).then((v) => {
-      vitrail.value = v;
-      view.value = cm;
-      onLoad?.(v);
-    });
+    codeMirror6WithVitrail(cm, fetchAugmentations, cmExtensions ?? []).then(
+      (v) => {
+        vitrail.value = v;
+        view.value = cm;
+        onLoad?.(v);
+      },
+    );
   }, []);
 
   useSignalEffect(() => {
@@ -505,6 +507,11 @@ export function CodeMirrorWithVitrail({
   useEffect(() => {
     if (vitrail.value) vitrail.value.props.value = props;
   }, [vitrail.value, props]);
+
+  useEffect(() => {
+    if (vitrail.value)
+      vitrail.value._rootPane.fetchAugmentations = fetchAugmentations;
+  }, [vitrail.value, fetchAugmentations]);
 
   useSignalEffect(() => {
     const currentValue = vitrail.value?.sourceString ?? "";

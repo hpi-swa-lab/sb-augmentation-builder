@@ -58,6 +58,7 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
   model: SBWhitespaceModel,
   match: (it) =>
     metaexec(it, (capture) => [
+      (it) => rootNodes[0]?.connected ?? false,
       (it) => consecutiveTabs(it, indentInNodes(rootNodes)),
       capture("nodes"),
     ]),
@@ -65,19 +66,20 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
     return h(
       "span",
       {
-        style: { opacity: 0.3, display: "inline-block", padding: "0 0.25rem" },
+        style: {
+          opacity: 0.3,
+          display: "inline-block",
+          padding: "0 0.25rem",
+          fontSize: "0.7em",
+          verticalAlign: "middle",
+        },
       },
       "⭾",
     );
   },
   rerender: () => true,
   checkOnEdit: (editBuffer, check) => {
-    const indent = indentInNodes(rootNodes);
-    for (const node of editBuffer.changedNodes) {
-      const center = node.parent.children.indexOf(node);
-      for (let i = center - indent; i < center + indent; i++)
-        if (node.parent.children[i]) check(node.parent.children[i]);
-    }
+    for (const c of editBuffer.root.children) check(c);
   },
 });
 
@@ -111,23 +113,10 @@ function indentInNodes(nodes: SBBlock[]) {
         indent++;
       }
       j--;
-      if (indent > 0 && indent < minIndent) {
+      if (indent < minIndent) {
         minIndent = indent;
       }
     }
   }
-  return minIndent;
-}
-
-function distanceToNewline(node) {
-  let i = 0;
-  while (node && node.type !== "newline") {
-    i++;
-    node = node.previousSiblingChild;
-  }
-  return i;
-}
-
-function isWithinIndents(node, indent) {
-  return node.type === "tab" && distanceToNewline(node) <= indent;
+  return minIndent === Infinity ? 0 : minIndent;
 }

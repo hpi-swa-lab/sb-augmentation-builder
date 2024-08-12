@@ -247,13 +247,9 @@ export const augmentationBuilder = (model) => ({
                   "td",
                   {},
                   h(CodeMirrorWithVitrail, {
-                    // FIXME currently destroys and recreates the entire editor.
-                    // can we do it incrementally?
-                    key: augmentation.value,
                     value: { value: e.text },
-                    augmentations: augmentation.value
-                      ? [augmentation.value]
-                      : [],
+                    fetchAugmentations: () =>
+                      augmentation.value ? [augmentation.value] : [],
                   }),
                 ),
               );

@@ -211,7 +211,7 @@ export class Pane<T> {
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
     for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
-      this.vitrail.updateAugmentations(b, [this], false);
+      this.vitrail.updateAugmentations(b, [this]);
 
     // asynchronous update
     this.loadMissingModels(v);
@@ -226,7 +226,7 @@ export class Pane<T> {
     for (const b of this._getInitEditBuffersForRoots(
       [...missingModels].map((m) => v._models.get(m)!),
     ))
-      this.vitrail.updateAugmentations(b, [this], false);
+      this.vitrail.updateAugmentations(b, [this]);
   }
 
   _getInitEditBuffersForRoots(roots: SBNode[]) {

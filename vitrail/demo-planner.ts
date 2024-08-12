@@ -275,8 +275,8 @@ function Planner({ auth, onFailedLogin }) {
 
   return h(CodeMirrorWithVitrail, {
     value,
-    augmentations: [planner],
     cmExtensions: [EditorView.lineWrapping],
+    fetchAugmentations: () => [planner],
     onchange: ({ detail: { sourceString } }) => {
       scheduleUpdate(sourceString);
     },

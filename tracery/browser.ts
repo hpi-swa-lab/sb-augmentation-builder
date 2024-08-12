@@ -57,7 +57,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
 
   const removeIndent = useMemo(
     () => removeCommonIndent(selectedNodes ?? []),
-    selectedNodes,
+    selectedNodes ?? [],
   );
 
   return enabled.value
@@ -134,10 +134,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
               );
             },
             onChange: () => (topLevel.value = getOutline()),
+            augmentations: [removeIndent],
             project,
             path: selectedFile.value.path,
             window,
-            augmentations: [removeIndent],
             nodes: selectedNodes,
             style: { width: "100%" },
           }),

@@ -1,4 +1,4 @@
-import { AttachOp, DetachOp, EditBuffer, UpdateOp } from "../core/diff.js";
+import { EditBuffer } from "../core/diff.js";
 import { EditOptions, ModelEditor } from "../core/matcher.ts";
 import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
 import {
@@ -8,8 +8,7 @@ import {
   useMemo,
 } from "../external/preact-hooks.mjs";
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
-import { createContext, h, render } from "../external/preact.mjs";
-import { SBWhitespaceModel } from "../tracery/whitespace.ts";
+import { createContext, h } from "../external/preact.mjs";
 import {
   Side,
   adjustIndex,
@@ -18,7 +17,6 @@ import {
   rangeEqual,
   rangeShift,
   takeWhile,
-  withDo,
 } from "../utils.js";
 import { cursorPositionsForIndex } from "../view/focus.ts";
 import { forwardRef } from "../view/widgets.js";
@@ -111,6 +109,7 @@ export enum DeletionInteraction {
 }
 
 export interface Augmentation<Props extends ReplacementProps> {
+  name?: string;
   type: "replace" | "mark";
   model: Model;
   matcherDepth: number;
@@ -376,8 +375,9 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     // then, update replacements
+    this._augmentationsCheckedTrees.clear();
     for (const buffer of update.map((u) => u.diff))
-      this.updateAugmentations(buffer, this._panes, true);
+      this.updateAugmentations(buffer, this._panes);
 
     // finally, find a good place for the cursor
     if (!allChanges.some((c) => c.noFocus)) {
@@ -568,34 +568,39 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   }
 
   updateAugmentationList() {
+    let updatedAny = false;
     const allAugmentations = this.getAllAugmentations();
 
-    for (const [match, augmentation] of this._matchedAugmentations) {
-      if (!allAugmentations.has(augmentation))
+    for (const [match, augmentation] of [...this._matchedAugmentations]) {
+      if (!allAugmentations.has(augmentation)) {
         this._matchedAugmentations.delete(match);
+        updatedAny = true;
+      }
     }
 
     // see if anything was added and then do a full update
     for (const augmentation of allAugmentations) {
       if (!this._augmentationsCheckedTrees.has(augmentation)) {
-        this.updateAllAugmentations();
+        this.checkForNewAugmentations(
+          augmentation,
+          this.getInitEditBuffersForRoots([
+            this._models.get(augmentation.model)!,
+          ])[0],
+        );
+        updatedAny = true;
       }
     }
+
+    if (updatedAny) this.displayAugmentations(this._panes);
   }
 
   updateAllAugmentations() {
     const buffers = this.getInitEditBuffersForRoots([...this._models.values()]);
-    for (const buffer of buffers)
-      this.updateAugmentations(buffer, this._panes, true);
+    this._augmentationsCheckedTrees.clear();
+    for (const buffer of buffers) this.updateAugmentations(buffer, this._panes);
   }
 
-  updateAugmentations(
-    editBuffer: EditBuffer,
-    panes: Pane<T>[],
-    clearCache: boolean,
-  ) {
-    if (clearCache) this._augmentationsCheckedTrees.clear();
-
+  updateExistingAugmentations(editBuffer: EditBuffer, panes: Pane<T>[]) {
     // update or remove existing augmentations
     for (const [match, augmentation] of this._matchedAugmentations.entries()) {
       if (
@@ -607,42 +612,55 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
         this.reRenderAugmentation(panes, augmentation, match, editBuffer);
       }
     }
+  }
 
-    // check for new augmentations
-    const allAugmentations = this.getAllAugmentations();
+  // TODO allow limiting to the area shown by the panes
+  updateAugmentations(editBuffer: EditBuffer, panes: Pane<T>[]) {
+    this.updateExistingAugmentations(editBuffer, panes);
 
-    for (const augmentation of allAugmentations) {
-      if (augmentation.model !== editBuffer.language) continue;
-      let checkedNodes = this._augmentationsCheckedTrees.get(augmentation);
-      if (!checkedNodes) {
-        checkedNodes = new Set();
-        this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
-      }
-      const check = (node: SBNode) => {
-        if (checkedNodes.has(node)) return;
-
-        checkedNodes.add(node);
-
-        // check if we have matched this node already
-        for (const [match, aug] of this._matchedAugmentations.entries()) {
-          if (match.matchedNode === node && augmentation === aug) {
-            return;
-          }
-        }
-
-        const props = this.matchAugmentation(node, augmentation);
-        if (props)
-          this._matchedAugmentations.set(
-            { props, matchedNode: node },
-            augmentation,
-          );
-      };
-      if (augmentation.checkOnEdit) augmentation.checkOnEdit(editBuffer, check);
-      else this.defaultCheckOnEdit(augmentation, editBuffer, check);
+    for (const augmentation of this.getAllAugmentations()) {
+      this.checkForNewAugmentations(augmentation, editBuffer);
     }
 
+    this.displayAugmentations(panes);
+  }
+
+  displayAugmentations(panes: Pane<T>[]) {
     for (const pane of panes)
       if (pane.nodes[0]?.connected) pane.updateAugmentations();
+  }
+
+  checkForNewAugmentations(
+    augmentation: Augmentation<any>,
+    editBuffer: EditBuffer,
+  ) {
+    if (augmentation.model !== editBuffer.language) return;
+    let checkedNodes = this._augmentationsCheckedTrees.get(augmentation);
+    if (!checkedNodes) {
+      checkedNodes = new Set();
+      this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
+    }
+    const check = (node: SBNode) => {
+      if (checkedNodes.has(node)) return;
+
+      checkedNodes.add(node);
+
+      // check if we have matched this node already
+      for (const [match, aug] of this._matchedAugmentations.entries()) {
+        if (match.matchedNode === node && augmentation === aug) {
+          return;
+        }
+      }
+
+      const props = this.matchAugmentation(node, augmentation);
+      if (props)
+        this._matchedAugmentations.set(
+          { props, matchedNode: node },
+          augmentation,
+        );
+    };
+    if (augmentation.checkOnEdit) augmentation.checkOnEdit(editBuffer, check);
+    else this.defaultCheckOnEdit(augmentation, editBuffer, check);
   }
 
   defaultCheckOnEdit(

@@ -14,7 +14,7 @@ import {
   javascript,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
-import { SBBaseLanguage, SBBlock, SBNode } from "../core/model.js";
+import { SBBaseLanguage, SBNode } from "../core/model.js";
 import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
@@ -159,6 +159,7 @@ function FullDeclarationPane({ nodes, ...props }) {
 }
 
 const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
+  name: "singleDeclaration",
   type: "replace" as const,
   matcherDepth: 1,
   rerender: () => true,
@@ -195,8 +196,8 @@ export function TraceryInlineEditor({ source, fileSuffix }) {
   );
 
   return h(CodeMirrorWithVitrail, {
+    fetchAugmentations: () => augmentations,
     value: source,
-    augmentations,
     cmExtensions: [
       // vim(),
       ...cmExtensions,
@@ -266,8 +267,16 @@ export function TraceryEditor({
     // FIXME not a good updating mechanism for diagnostics
     // vitrail.value?.updateAllAugmentations();
   });
+  useSignalEffect(() => {
+    // subscribe
+    source.value;
+    // cheap operation when nothing changes, so we can do it on every render
+    vitrail.value?.updateAugmentationList();
+  });
 
   const language = languageForPath(path) ?? SBBaseLanguage;
+  const singleDecl = useMemo(() => singleDeclaration(language), [language]);
+
   return (
     path &&
     source.value !== null &&
@@ -295,24 +304,25 @@ export function TraceryEditor({
           vitrail.value.selectedString() ?? "",
           vitrail.value.selectedNode(),
         ),
-      augmentations: <Augmentation<any>[]>[
-        ...augmentations,
-        ...extraAugmentations,
-        singleDeclaration(language),
-        // {
-        //   type: "mark" as const,
-        //   model: SBBaseLanguage,
-        //   matcherDepth: 1,
-        //   match: (node) =>
-        //     node instanceof SBBlock && node.type === "document" && {},
-        //   view: () =>
-        //     diagnostics.value.map((d) => ({
-        //       attributes: { class: "diagnostic" },
-        //       offset: d.range[0],
-        //       length: d.range[1] - d.range[0],
-        //     })),
-        // },
-      ],
+      fetchAugmentations: () =>
+        <Augmentation<any>[]>[
+          ...augmentations,
+          ...(extraAugmentations ?? []),
+          singleDecl,
+          // {
+          //   type: "mark" as const,
+          //   model: SBBaseLanguage,
+          //   matcherDepth: 1,
+          //   match: (node) =>
+          //     node instanceof SBBlock && node.type === "document" && {},
+          //   view: () =>
+          //     diagnostics.value.map((d) => ({
+          //       attributes: { class: "diagnostic" },
+          //       offset: d.range[0],
+          //       length: d.range[1] - d.range[0],
+          //     })),
+          // },
+        ],
       cmExtensions: [
         // vim(),
         ...cmExtensions,
