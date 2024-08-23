@@ -567,7 +567,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return new Set(this._panes.flatMap((p) => p.fetchAugmentations()));
   }
 
-  updateAugmentationList() {
+  async updateAugmentationList() {
     let updatedAny = false;
     const allAugmentations = this.getAllAugmentations();
 
@@ -581,6 +581,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     // see if anything was added and then do a full update
     for (const augmentation of allAugmentations) {
       if (!this._augmentationsCheckedTrees.has(augmentation)) {
+        if (!this._models.has(augmentation.model)) await this._loadModels();
+
         this.checkForNewAugmentations(
           augmentation,
           this.getInitEditBuffersForRoots([

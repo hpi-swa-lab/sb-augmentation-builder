@@ -447,8 +447,10 @@ export function CodeMirrorWithVitrail({
   style,
   className,
   onLoad,
+  vitrailRef,
   ...other
 }: {
+  ref: { current: Vitrail<EditorView> };
   value: { value: string };
   parent: HTMLElement;
   fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>;
@@ -462,6 +464,8 @@ export function CodeMirrorWithVitrail({
   const vitrail = useSignal(null);
   const view = useSignal(null);
   const parent = useRef();
+
+  if (vitrailRef) vitrailRef.current = vitrail.value;
 
   useEffect(() => {
     const cm = new EditorView({
@@ -481,7 +485,7 @@ export function CodeMirrorWithVitrail({
 
   useSignalEffect(() => {
     const handler = ({ detail: { sourceString } }) => {
-      value.value = sourceString;
+      if (value.value !== sourceString) value.value = sourceString;
     };
     if (vitrail.value) vitrail.value.addEventListener("change", handler);
     return () => {

@@ -1,5 +1,5 @@
 import { SBBlock, SBNode } from "../core/model.js";
-import { useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { useEffect, useMemo, useRef } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   TextArea,
@@ -20,8 +20,12 @@ import { CodeMirrorWithVitrail } from "../vitrail/codemirror6.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 import { openBrowser } from "./browser.ts";
 import { FileProject } from "./project.js";
-import { useComputed, useSignal } from "../external/preact-signals.mjs";
-import { randomId, rangeSize, replaceRange } from "../utils.js";
+import {
+  useComputed,
+  useSignal,
+  useSignalEffect,
+} from "../external/preact-signals.mjs";
+import { randomId, rangeSize, replaceRange, rangeShift } from "../utils.js";
 import { useAsyncEffect, useDebouncedEffect } from "../view/widgets.js";
 import { objectToString } from "./query-builder.ts";
 import { removeCommonIndent } from "./whitespace.ts";
@@ -61,7 +65,7 @@ function getAbsolutePath(node: SBBlock) {
   // full URL is needed since we are using a dynamic import without path
   return replaceRange(
     node.sourceString,
-    path.range,
+    rangeShift(path.range, -node.range[0]) as [number, number],
     path.text.replace(/^\./, "https://localhost:3000"),
   );
 }
@@ -120,6 +124,13 @@ export const augmentationBuilder = (model) => ({
     const debugHistoryAug = useComputed(() =>
       debugHistory.value ? debugHistory.value : new Map(),
     );
+    const vitrailRef = useRef(null);
+    useSignalEffect(() => {
+      // subscribe
+      augmentation.value;
+
+      vitrailRef.current?.updateAugmentationList();
+    });
 
     useDebouncedEffect(
       500,
@@ -202,6 +213,10 @@ export const augmentationBuilder = (model) => ({
             wrap: (it) => it,
             view: (it, ref, onmousemove, onmouseleave) => {
               const e = bindPlainString(it.childBlock(0));
+              const text = useSignal(e.text);
+              useEffect(() => {
+                if (e.text !== text.value) text.value = e.text;
+              }, [e.text]);
               return h(
                 "tr",
                 { ref, onmousemove, onmouseleave },
@@ -247,7 +262,8 @@ export const augmentationBuilder = (model) => ({
                   "td",
                   {},
                   h(CodeMirrorWithVitrail, {
-                    value: { value: e.text },
+                    vitrailRef: vitrailRef,
+                    value: text,
                     fetchAugmentations: () =>
                       augmentation.value ? [augmentation.value] : [],
                   }),
