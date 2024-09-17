@@ -173,7 +173,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   _revertChanges: Change<T>[] = [];
 
   createPane: CreatePaneFunc<T>;
-  _showValidationPending: (show: boolean) => void;
+  _showValidationPending: (show: boolean, sourcePane?: Pane<T>) => void;
 
   // general-purpose way for the outside world to set values
   get props() {
@@ -196,7 +196,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     showValidationPending,
   }: {
     createPane: CreatePaneFunc<T>;
-    showValidationPending: (show: boolean) => void;
+    showValidationPending: (show: boolean, sourcePane?: Pane<T>) => void;
   }) {
     super();
 
@@ -206,7 +206,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     this._pendingChanges = signal([]);
     const hasPending = computed(() => this._pendingChanges.value.length > 0);
     effect(() => {
-      this._showValidationPending(hasPending.value);
+      this._showValidationPending(
+        hasPending.value,
+        last(this._pendingChanges.value)?.sourcePane,
+      );
     });
   }
 

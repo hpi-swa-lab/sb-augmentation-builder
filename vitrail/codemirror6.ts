@@ -145,7 +145,16 @@ class CodeMirrorReplacementWidget extends WidgetType {
 }
 
 function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
-  box.className = "sb-pending-hint";
+  box.style.cssText = `
+    position: absolute;
+    top: -2rem;
+    left: 0px;
+    background: #333;
+    color: #fff;
+    padding: 0.3rem;
+    font-family: sans-serif;
+    border-radius: 4px;`;
+
   render(
     h(
       "span",
@@ -421,8 +430,8 @@ export async function codeMirror6WithVitrail(
         "display: inline-flex !important; background: #fff";
       return paneFromCM(host, v, fetchAugmentations, false, hostOptions);
     },
-    showValidationPending: (show) => {
-      if (show) document.body.appendChild(pendingChangesHint);
+    showValidationPending: (show, sourcePane) => {
+      if (show && sourcePane) sourcePane.view.appendChild(pendingChangesHint);
       else pendingChangesHint.remove();
     },
   });
