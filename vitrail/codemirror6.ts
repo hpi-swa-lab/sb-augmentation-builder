@@ -149,6 +149,7 @@ function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
     position: absolute;
     top: -2rem;
     left: 0px;
+    z-index: 9999;
     background: #333;
     color: #fff;
     padding: 0.3rem;
@@ -431,8 +432,12 @@ export async function codeMirror6WithVitrail(
       return paneFromCM(host, v, fetchAugmentations, false, hostOptions);
     },
     showValidationPending: (show, sourcePane) => {
-      if (show && sourcePane) sourcePane.view.appendChild(pendingChangesHint);
-      else pendingChangesHint.remove();
+      if (show && sourcePane) {
+        const rect = sourcePane.view.getBoundingClientRect();
+        pendingChangesHint.style.top = `calc(${rect.top}px - 2rem)`;
+        pendingChangesHint.style.left = rect.left + "px";
+        document.body.appendChild(pendingChangesHint);
+      } else pendingChangesHint.remove();
     },
   });
   await v.connectHost(paneFromCM(cm, v, fetchAugmentations, true));

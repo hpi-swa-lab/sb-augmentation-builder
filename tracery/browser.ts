@@ -1,12 +1,13 @@
-import { useMemo } from "../external/preact-hooks.mjs";
+import { useMemo, useRef } from "../external/preact-hooks.mjs";
 import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { List } from "../sandblocks/list.js";
-import { appendCss } from "../utils.js";
+import { appendCss, clamp } from "../utils.js";
 import { openComponentInWindow } from "./window.js";
 import { TraceryEditor, openNodesInWindow } from "./editor.ts";
 import { outline } from "./outline.ts";
 import { removeCommonIndent } from "./whitespace.ts";
+import { changesIntendToDeleteNode, useValidator } from "../vitrail/vitrail.ts";
 
 appendCss(`
 .tracery-browser {
@@ -34,30 +35,49 @@ function TraceryBrowser({ project, initialSelection, window }) {
       : files[0],
   );
   const enabled = useSignal(true);
-  const topLevel = useSignal([]);
-  const selectedTopLevelName = useSignal(initialSelection?.topLevel);
-  const selectedMemberName = useSignal(initialSelection?.member);
+  const topLevelEntries = useSignal([]);
+  const selectedTopLevel = useSignal(null);
+  const selectedMember = useSignal(null);
   const vitrail = useSignal(null);
 
+  const selectedIndex = useRef(0);
+
   const getModel = () => vitrail.value.defaultModel;
-  const getOutline = () => outline(vitrail.value.getModels().get(getModel()));
+  const getRoot = () => vitrail.value.getModels().get(getModel());
+  const getOutline = () => outline(getRoot());
 
-  const getSelection = (outline?) => {
-    const selectedTopLevel = (outline ?? topLevel.value).find(
-      (it) => it.name === selectedTopLevelName.value,
-    );
-    const selectedMember = selectedTopLevel?.members?.find(
-      (it) => it.name === selectedMemberName.value,
-    );
-    const selectedNodes = selectedMember?.nodes ?? selectedTopLevel?.nodes;
-    return { selectedTopLevel, selectedMember, selectedNodes };
-  };
+  let selectedNodes = selectedMember.value ?? selectedTopLevel.value;
+  // TODO same for selectedMember
+  if (selectedNodes && !selectedNodes[0].connected) {
+    selectedTopLevel.value = topLevelEntries.value
+      ? topLevelEntries.value[
+          clamp(selectedIndex.value, 0, topLevelEntries.value.length - 1)
+        ]?.nodes
+      : null;
+    selectedNodes = selectedTopLevel.value;
+  }
 
-  const { selectedTopLevel, selectedMember, selectedNodes } = getSelection();
+  const selectedTopLevelItem = topLevelEntries.value?.find(
+    (e) => e.nodes[0] === selectedTopLevel.value[0],
+  );
+  const selectedMemberItem = selectedTopLevelItem?.members?.find(
+    (e) => e.nodes[0] === selectedMember.nodes[0],
+  );
+  selectedIndex.value = topLevelEntries.value.indexOf(selectedTopLevelItem);
 
   const removeIndent = useMemo(
     () => removeCommonIndent(selectedNodes ?? []),
     selectedNodes ?? [],
+  );
+
+  useValidator(
+    vitrail.value && getModel(),
+    (_root, _diff, _changes) => {
+      // const del = changesIntendToDeleteNode(changes, selectedNodes[0]);
+      return !!selectedNodes[0].connected;
+    },
+    [...(selectedNodes ?? [])],
+    vitrail,
   );
 
   return enabled.value
@@ -77,32 +97,59 @@ function TraceryBrowser({ project, initialSelection, window }) {
             height: 200,
             selectionContext: { path: selectedFile.value?.path },
           }),
-          h(List, {
-            style: { flex: 1, maxWidth: "250px" },
-            items: topLevel.value,
-            selected: selectedTopLevel,
-            setSelected: (s) => {
-              selectedTopLevelName.value = s.name;
-              selectedMemberName.value = null;
+          h(
+            "div",
+            {
+              style: {
+                flex: 1,
+                maxWidth: "250px",
+                display: "flex",
+                flexDirection: "column",
+              },
             },
-            labelFunc: (it) => it.name,
-            height: 200,
-            selectionContext: {
-              path: selectedFile.value?.path,
-              topLevel: selectedTopLevel?.name,
-            },
-          }),
+            h(List, {
+              style: { flex: 1 },
+              items: topLevelEntries.value,
+              selected: selectedTopLevelItem,
+              setSelected: (s) => {
+                selectedTopLevel.value = s.nodes;
+                selectedMember.value = null;
+              },
+              labelFunc: (it) => it.name,
+              height: 200,
+              selectionContext: {
+                path: selectedFile.value?.path,
+                topLevel: selectedTopLevelItem?.name,
+              },
+            }),
+            h(
+              "button",
+              {
+                onClick: () => {
+                  const node = getRoot().insert(
+                    "__VI_PLACEHOLDER_statement;",
+                    "statement",
+                    0,
+                  );
+                  selectedTopLevel.value = getOutline().find(({ nodes }) =>
+                    nodes.includes(node),
+                  ).nodes;
+                },
+              },
+              "Add",
+            ),
+          ),
           h(List, {
             style: { flex: 1, maxWidth: "250px" },
             items: selectedTopLevel?.members ?? emptyList,
-            selected: selectedMember,
-            setSelected: (s) => (selectedMemberName.value = s.name),
+            selected: selectedMemberItem,
+            setSelected: (s) => (selectedMember.value = s.nodes),
             labelFunc: (it) => it.name,
             height: 200,
             selectionContext: {
               path: selectedFile.value?.path,
-              topLevel: selectedTopLevel?.name,
-              member: selectedMember?.name,
+              topLevel: selectedTopLevelItem?.name,
+              member: selectedMemberItem?.name,
             },
           }),
           h(
@@ -126,14 +173,15 @@ function TraceryBrowser({ project, initialSelection, window }) {
           h(TraceryEditor, {
             onLoad: (v) => {
               vitrail.value = v;
-              topLevel.value = getOutline();
-
-              v.registerValidator(
-                getModel(),
-                () => !!getSelection(getOutline()).selectedTopLevel,
-              );
+              topLevelEntries.value = getOutline();
+              selectedTopLevel.value = topLevelEntries.value.find(
+                (entry) => entry.name === initialSelection?.topLevel,
+              )?.nodes;
+              selectedMember.value = selectedTopLevel.value?.members?.find(
+                (entry) => entry.name === initialSelection?.member,
+              )?.nodes;
             },
-            onChange: () => (topLevel.value = getOutline()),
+            onChange: () => (topLevelEntries.value = getOutline()),
             augmentations: [removeIndent],
             project,
             path: selectedFile.value.path,

@@ -268,7 +268,14 @@ export class TreeSitterLanguage extends SBLanguage {
 
   separatorContextFor(node) {
     const rule = this._grammarNodeFor(node);
-    return rule.separatorContext?.repeatSeparator;
+    return (
+      rule.separatorContext?.repeatSeparator ??
+      // fallback to a space, if there is a repeater above us
+      withDo(
+        rule.repeaterFor((n) => true),
+        (n) => (n ? " " : null),
+      )
+    );
   }
 
   compatibleType(myType, grammarType) {

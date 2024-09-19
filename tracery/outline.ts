@@ -8,7 +8,7 @@ import {
   spawnArray,
   type,
 } from "../sandblocks/query-builder/functionQueries.js";
-import { withDo } from "../utils.js";
+import { truncateString, withDo } from "../utils.js";
 
 function matchClassMember(node) {
   return metaexec(node, (capture) => [
@@ -32,7 +32,7 @@ function matchClassMember(node) {
       ],
       [
         all(
-          [(it) => it.sourceString.slice(0, 25) + "...", capture("name")],
+          [(it) => truncateString(it.sourceString, 25), capture("name")],
           [(it) => "Other", capture("label")],
           [(it) => "symbol-misc", capture("icon")],
         ),
@@ -109,7 +109,7 @@ function matchTopLevel(node) {
             ],
             [
               all(
-                [(it) => it.sourceString.slice(0, 25) + "...", capture("name")],
+                [(it) => truncateString(it.sourceString, 25), capture("name")],
                 [(it) => "Other", capture("label")],
                 [(it) => "symbol-misc", capture("icon")],
               ),

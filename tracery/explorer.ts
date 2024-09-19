@@ -2,16 +2,11 @@ import { SBBlock, SBText } from "../core/model.js";
 import { useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
-import { appendCss } from "../utils.js";
+import { appendCss, truncateString } from "../utils.js";
 import { openComponentInWindow } from "./window.js";
 
 export function openExplorer(obj, windowProps?) {
   openComponentInWindow(Explorer, { obj }, windowProps);
-}
-
-function truncateString(s, maxLength = 50) {
-  if (s.length > maxLength) return s.slice(0, maxLength - 3) + "...";
-  return s;
 }
 
 function printString(obj, maxLength = 20) {

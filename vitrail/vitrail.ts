@@ -821,14 +821,20 @@ export function useValidator(
   model: Model,
   func: ValidatorFunc<any>,
   deps: any[],
+  vitrailSignal?: { value: Vitrail<any> },
 ) {
   if (deps === undefined)
     throw new Error("no dependencies for useValidator provided");
-  const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+
+  const vitrailContext = useContext(VitrailContext)?.vitrail;
+  const vitrail: Vitrail<any> = vitrailSignal
+    ? vitrailSignal.value
+    : vitrailContext;
+
   useEffect(() => {
     let wasCleanedUp = false;
     let cleanup: (() => void) | null = null;
-    vitrail.registerValidator(model, func).then((unregister) => {
+    vitrail?.registerValidator(model, func).then((unregister) => {
       if (wasCleanedUp) {
         unregister();
       } else {

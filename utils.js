@@ -307,6 +307,11 @@ export function* allChildren(root) {
   }
 }
 
+export function truncateString(s, maxLength = 50) {
+  if (s.length > maxLength) return s.slice(0, maxLength - 3) + "...";
+  return s;
+}
+
 export function mapSeparated(list, item, separator) {
   const result = [];
   for (let i = 0; i < list.length; i++) {
@@ -604,7 +609,10 @@ export function adjustIndex(index, changesList, side, noGrow = false) {
           // FIXME don't think this is quite right yet. What about changes that
           // only intersect?
           (side === Side.Left && index === change.from && index === change.to)
-        : (change.sideAffinity === side && index >= change.from) ||
+        : (change.sideAffinity === side &&
+            index >= change.from &&
+            // special case for index 0: we don't want to move that one unless required
+            index !== 0) ||
           (change.sideAffinity !== side && index > change.from)
     )
       index +=

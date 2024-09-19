@@ -104,7 +104,7 @@ export function List({
       },
       autofocus,
       style: { maxHeight: height, ...(style ?? {}) },
-      onClick: (e) => setSelected(last(visibleItems)),
+      onClick: (e) => last(visibleItems) && setSelected(last(visibleItems)),
       onkeydown: (e) => {
         if (e.key === "ArrowDown") {
           const index = visibleItems.indexOf(selected);

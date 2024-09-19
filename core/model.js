@@ -1,4 +1,11 @@
-import { WeakArray, adjustIndex, exec, last, rangeEqual } from "../utils.js";
+import {
+  WeakArray,
+  adjustIndex,
+  clamp,
+  exec,
+  last,
+  rangeEqual,
+} from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
 export {
   SBMatcher,
@@ -486,18 +493,27 @@ export class SBNode {
     this.editor.insertTextFromCommand(this.range[0], string);
   }
 
-  insert(string, type, index, editOptions) {
-    const list = this.childBlocks.filter(
+  _childrenForInsert(type) {
+    return this.childBlocks.filter(
       (child) =>
         child.compatibleWith(type) && this.language.separatorContextFor(child),
     );
+  }
+
+  _insertedChildAt(type, index) {
+    const list = this._childrenForInsert(type);
+    return list[clamp(index, 0, list.length - 1)];
+  }
+
+  insert(string, type, index, editOptions) {
+    const list = this._childrenForInsert(type);
     // handle empty list by finding any slot that takes the type
     if (list.length === 0) {
       const position = this.language.firstInsertPoint(this, type);
       if (position !== null)
         this.editor.insertTextFromCommand(position, string);
       else throw new Error("no insert point found");
-      return;
+      return this._insertedChildAt(type, index);
     }
 
     const ref = list[Math.min(index, list.length - 1)];
@@ -515,6 +531,7 @@ export class SBNode {
         sep + string,
         editOptions,
       );
+    return this._insertedChildAt(type, index);
   }
 
   insertBefore(string, type) {
