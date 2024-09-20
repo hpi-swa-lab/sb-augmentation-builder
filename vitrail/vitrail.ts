@@ -729,6 +729,7 @@ type VitrailPaneProps = {
   nodes: SBNode[];
   style: any;
   className: string;
+  rangeOffsets: [number, number];
   ref;
   props: { [field: string]: any };
 };
@@ -749,6 +750,7 @@ const _VitrailPane = forwardRef(function _VitrailPane(
     style,
     className,
     props,
+    rangeOffsets,
   }: VitrailPaneProps,
   ref,
 ) {
@@ -768,6 +770,8 @@ const _VitrailPane = forwardRef(function _VitrailPane(
       ),
     [vitrail],
   );
+
+  if (rangeOffsets) pane.rangeOffsets = rangeOffsets;
 
   // trigger this as early as possible, such that the pane is synchronously
   // available as a target during cursor enumeration after a change

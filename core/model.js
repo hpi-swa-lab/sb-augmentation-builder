@@ -420,11 +420,11 @@ export class SBNode {
   }
 
   get previousSiblingChild() {
-    return this.parent.children[this.siblingIndex - 1];
+    return this.parent?.children[this.siblingIndex - 1];
   }
 
   get nextSiblingChild() {
-    return this.parent.children[this.siblingIndex + 1];
+    return this.parent?.children[this.siblingIndex + 1];
   }
 
   get childBlocks() {

@@ -125,6 +125,10 @@ function extensionsForPath(path): {
 function FullDeclarationPane({ nodes, ...props }) {
   useValidateKeepNodes(nodes, nodes[0].language);
 
+  // make sure no changes in our cell would destroy the next node
+  const nextNode = last(nodes).nextSiblingNode;
+  useValidateKeepNodes(nextNode ? [nextNode] : [], nodes[0].language);
+
   const list = nodes[0].isRoot
     ? nodes
     : [
@@ -141,6 +145,8 @@ function FullDeclarationPane({ nodes, ...props }) {
 
   return h(VitrailPane, {
     ...props,
+    // prevent making the trailing newline editable
+    rangeOffsets: last(list).text.endsWith("\n") ? [0, 1] : [0, 0],
     nodes: list,
     className: "pane-full-width",
     hostOptions: {

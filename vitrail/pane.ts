@@ -46,6 +46,7 @@ export class Pane<T> {
   nodes: SBNode[];
   startIndex: number = -1;
   startLineNumber: number = -1;
+  rangeOffsets = [0, 0];
   props = signal(null);
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
@@ -59,10 +60,11 @@ export class Pane<T> {
   syncReplacements: () => void;
 
   get range() {
-    return this.vitrail.adjustRange([
+    const r = this.vitrail.adjustRange([
       this.nodes[0].range[0],
       last(this.nodes).range[1],
     ]);
+    return [r[0] + this.rangeOffsets[0], r[1] - this.rangeOffsets[1]];
   }
 
   get sourceString() {
