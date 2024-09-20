@@ -8,7 +8,7 @@ import {
 import { computed, signal } from "../../external/preact-signals.mjs";
 import { TextArea, bindPlainString } from "./bindings.ts";
 import { languageFor, languageForPath } from "../../core/languages.js";
-import { randomId } from "../../utils.js";
+import { last, randomId, takeWhile } from "../../utils.js";
 
 export const debugHistory = signal(new Map());
 export const evalRange = signal([10, 19]);
@@ -452,6 +452,22 @@ export function getObjectField(obj, fieldName) {
     (it) => it.childBlocks[0].text == fieldName,
   )[0].childBlocks[1];
   return res ? res : "";
+}
+
+export function nodesWithWhitespace(nodes, ignoreLeft = false) {
+  return [
+    ...(ignoreLeft
+      ? []
+      : takeWhile(
+          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+          (c) => c.isWhitespace(),
+        )),
+    ...nodes,
+    ...takeWhile(
+      last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
+      (c) => c.isWhitespace(),
+    ),
+  ];
 }
 
 //TODO: Think about Views in JSX

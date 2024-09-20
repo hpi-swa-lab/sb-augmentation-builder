@@ -794,6 +794,7 @@ const _VitrailPane = forwardRef(function _VitrailPane(
   });
 });
 
+// Deprecated! Use nodesWithWhitespace in your query instead
 export function VitrailPaneWithWhitespace({ nodes, ignoreLeft, ...props }) {
   const list = [
     ...(ignoreLeft

@@ -4,15 +4,14 @@ import {
   all,
   debugIt,
   metaexec,
+  nodesWithWhitespace,
   query,
   replace,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { randomId } from "../utils.js";
 import { html } from "../view/widgets.js";
-import {
-  VitrailPaneWithWhitespace,
-  useValidateKeepReplacement,
-} from "../vitrail/vitrail.ts";
+import { VitrailPane, useValidateKeepReplacement } from "../vitrail/vitrail.ts";
+import { objectToString } from "./query-builder.ts";
 
 // function makeWatchExtension(config) {
 //   return new Extension()
@@ -78,7 +77,7 @@ export const watch = (model) => ({
           (it) => parseInt(it.text, 10),
           capture("watchId"),
         ],
-        [(it) => it.expressions, capture("expressions")],
+        [(it) => it.expressions, nodesWithWhitespace, capture("expressions")],
       ),
     ]),
   matcherDepth: 15,
@@ -93,7 +92,7 @@ export const watch = (model) => ({
 
       replacement.reportValue = (value) => {
         setCount((c) => c + 1);
-        setLastValue(value.toString());
+        setLastValue(objectToString(value));
       };
 
       return () => {
@@ -110,7 +109,7 @@ export const watch = (model) => ({
         margin: "0 0.15rem",
       }}
     >
-      <${VitrailPaneWithWhitespace}
+      <${VitrailPane}
         nodes=${expressions}
         style=${{
           padding: "0.1rem",
