@@ -58,10 +58,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
   }
 
   const selectedTopLevelItem = topLevelEntries.value?.find(
-    (e) => e.nodes[0] === selectedTopLevel.value[0],
+    (e) => e.nodes[0] === selectedTopLevel.value?.[0],
   );
   const selectedMemberItem = selectedTopLevelItem?.members?.find(
-    (e) => e.nodes[0] === selectedMember.nodes[0],
+    (e) => e.nodes[0] === selectedMember.value?.[0],
   );
   selectedIndex.value = topLevelEntries.value.indexOf(selectedTopLevelItem);
 
@@ -139,34 +139,51 @@ function TraceryBrowser({ project, initialSelection, window }) {
               "Add",
             ),
           ),
-          h(List, {
-            style: { flex: 1, maxWidth: "250px" },
-            items: selectedTopLevel?.members ?? emptyList,
-            selected: selectedMemberItem,
-            setSelected: (s) => (selectedMember.value = s.nodes),
-            labelFunc: (it) => it.name,
-            height: 200,
-            selectionContext: {
-              path: selectedFile.value?.path,
-              topLevel: selectedTopLevelItem?.name,
-              member: selectedMemberItem?.name,
+          h(
+            "div",
+            {
+              style: {
+                flex: 1,
+                maxWidth: "250px",
+                display: "flex",
+                flexDirection: "column",
+              },
             },
-          }),
+            h(List, {
+              style: { flex: 1, maxWidth: "250px" },
+              items: selectedTopLevelItem?.members ?? emptyList,
+              selected: selectedMemberItem,
+              setSelected: (s) => (selectedMember.value = s.nodes),
+              labelFunc: (it) => it.name,
+              height: 200,
+              selectionContext: {
+                path: selectedFile.value?.path,
+                topLevel: selectedTopLevelItem?.name,
+                member: selectedMemberItem?.name,
+              },
+            }),
+            h(
+              "button",
+              {
+                onClick: () => {
+                  const node = getRoot().insert(
+                    "__VI_PLACEHOLDER_statement;",
+                    "statement",
+                    0,
+                  );
+                  selectedTopLevel.value = getOutline().find(({ nodes }) =>
+                    nodes.includes(node),
+                  ).nodes;
+                },
+              },
+              "Add",
+            ),
+          ),
           h(
             "div",
             {
               style: { height: "1.5rem" },
             },
-            h(
-              "button",
-              { onClick: () => (enabled.value = !enabled.value) },
-              "Toggle",
-            ),
-            h(
-              "button",
-              { onClick: () => openNodesInWindow(selectedNodes) },
-              "Open",
-            ),
           ),
         ),
         selectedFile.value &&

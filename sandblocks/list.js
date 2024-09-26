@@ -44,6 +44,7 @@ appendCss(`
   color: #fff;
 }
 .search-result {
+  color: #000;
   background-color: #ffe17d;
   outline: 1px solid #ffcc00;
 }`);

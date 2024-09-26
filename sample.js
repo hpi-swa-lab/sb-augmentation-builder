@@ -1,5 +1,15 @@
 class MyCls {
-  test() {
+  numberField = 5;
+
+  constructor() {
+    this.numberField = 10;
+  }
+
+  someMethod() {
+    console.log("a");
+  }
+
+  anotherMethod() {
     console.log("a");
   }
 }

@@ -250,6 +250,7 @@ export class Pane<T> {
       const to = change.to - this.startIndex;
       this.startIndex = adjustIndex(this.startIndex, [change], Side.Left);
 
+      // FIXME need to adjust length?
       if (from >= length || to <= 0) continue;
 
       translated.push({
