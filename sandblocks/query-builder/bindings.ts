@@ -106,7 +106,7 @@ export function bindPlainString(node: SBBlock) {
     text,
     range,
     indexMap,
-    onLocalChange: (change: Change<any>) => {
+    onLocalChange: (change: Change<any>, noFocus = false) => {
       change.from = mapIndexToGlobal(indexMap, change.from);
       change.to = mapIndexToGlobal(indexMap, change.to);
       if (change.insert)
@@ -117,6 +117,7 @@ export function bindPlainString(node: SBBlock) {
       );
       change.from += range[0];
       change.to += range[0];
+      change.noFocus = noFocus;
       if (change.selectionRange) {
         change.selectionRange = [
           mapIndexToGlobal(newIndexMap, change.selectionRange[0]) + range[0],

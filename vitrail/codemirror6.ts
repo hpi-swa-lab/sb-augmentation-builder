@@ -229,7 +229,9 @@ async function codeMirror6WithVitrail(
       },
       provide: (f) => [
         EditorView.decorations.from(f),
-        // EditorView.atomicRanges.of((view) => view.state.field(f) ?? Decoration.none),
+        EditorView.atomicRanges.of(
+          (view) => view.state.field(f) ?? Decoration.none,
+        ),
       ],
     });
 
