@@ -48,6 +48,7 @@ import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
 import { sql } from "./sql.ts";
+import { table } from "./table.ts";
 import { watch, wrapWithWatch } from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
 
@@ -101,6 +102,7 @@ function extensionsForPath(path): {
         augColor(language),
         augChartsType(language),
         sql(language),
+        table(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -119,6 +121,7 @@ function extensionsForPath(path): {
         augBool(language),
         augColor(language),
         augChartsType(language),
+        table(language),
       ],
     };
   return { cmExtensions: [], augmentations: [] };

@@ -31,6 +31,12 @@ function hello(b) {
   const db = pool.connect();
   db.query(sql`SELECT * FROM \`events\` WHERE id = 123`);
 
+  const table = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+  ];
+
   const a = [
     "sbWatch",
     ((e) => (
