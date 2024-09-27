@@ -55,12 +55,20 @@ import {
   arrayEqual,
   withDo,
   rangeContains,
+  appendCss,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { Vim, getCM } from "../codemirror6/external/codemirror-vim.mjs";
 import { Pane } from "./pane.ts";
+
+appendCss(
+  `
+  .no-padding > .cm-editor > .cm-scroller > .cm-content { padding: 0; }
+  .no-padding > .cm-editor > .cm-scroller > .cm-content .cm-line { padding: 0; }
+  `,
+);
 
 const IntentToDelete = StateEffect.define();
 
@@ -167,7 +175,7 @@ function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
     box,
   );
 }
-export async function codeMirror6WithVitrail(
+async function codeMirror6WithVitrail(
   cm: EditorView,
   fetchAugmentations: PaneFetchAugmentationsFunc<EditorView>,
   extensionsForPane: any[],
@@ -244,23 +252,19 @@ export async function codeMirror6WithVitrail(
           {
             key: "ArrowLeft",
             run: () => pane.moveCursor(false),
-            preventDefault: true,
           },
           {
             key: "ArrowRight",
             run: () => pane.moveCursor(true),
-            preventDefault: true,
           },
           {
             key: "Backspace",
             run: () => pane.handleDeleteAtBoundary(false),
-            preventDefault: true,
             stopPropagation: true,
           },
           {
             key: "Delete",
             run: () => pane.handleDeleteAtBoundary(true),
-            preventDefault: true,
             stopPropagation: true,
           },
           {
@@ -347,6 +351,8 @@ export async function codeMirror6WithVitrail(
     isRoot = false,
     hostOptions?,
   ) {
+    host.dom.setAttribute("focusable", "");
+    host.dom.focus = () => host.focus();
     const pane = new Pane<EditorView>({
       vitrail,
       view: host.dom,
@@ -425,8 +431,6 @@ export async function codeMirror6WithVitrail(
         doc: "",
         parent: document.createElement("div"),
       });
-      host.dom.setAttribute("focusable", "");
-      host.dom.focus = () => host.focus();
       host.dom.style.cssText =
         "display: inline-flex !important; background: #fff";
       return paneFromCM(host, v, fetchAugmentations, false, hostOptions);

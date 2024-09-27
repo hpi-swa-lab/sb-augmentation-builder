@@ -18,7 +18,7 @@ import {
   rangeShift,
   takeWhile,
 } from "../utils.js";
-import { cursorPositionsForIndex } from "../view/focus.ts";
+import { cursorPositionsForIndex, getFocusHost } from "../view/focus.ts";
 import { forwardRef } from "../view/widgets.js";
 import { Pane } from "./pane.ts";
 
@@ -43,11 +43,14 @@ function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
   return false;
 }
 
+export function applyStringChange(source, { from, to, insert }: Change<any>) {
+  return source.slice(0, from) + (insert ?? "") + source.slice(to);
+}
+
 // TODO
 // redo needs to be aware of intentToDeleteNodes
 // process replacements in two phases: remove all and buffer, then add all
 // change text just after spawn (while models are still loading)
-// codemirror: nested editors block cursor rendering
 
 (Element.prototype as any).cursorPositions = function* () {
   for (const child of this.children) yield* child.cursorPositions();
@@ -61,6 +64,14 @@ export const useVitrailProps = () =>
   useContext(VitrailContext).vitrail.props.value;
 export const usePaneProps = () =>
   useContext(VitrailContext).pane.props.value ?? {};
+export const useReplacementView = () => useContext(VitrailContext).view;
+export const useOnSelectReplacement = (cb) => {
+  const view = useReplacementView();
+  useEffect(() => {
+    view.addEventListener("focus", cb);
+    return () => view.removeEventListener("focus", cb);
+  }, [view, cb]);
+};
 
 export type ReplacementProps = {
   nodes: SBNode[];
@@ -115,10 +126,11 @@ export interface Augmentation<Props extends ReplacementProps> {
   matcherDepth: number;
   match: (node: SBNode) => Props | null;
   view: (props: Props) => JSX | Marker;
-  rerender?: (editBuffer: EditBuffer) => boolean;
   checkOnEdit?: (editBuffer: EditBuffer, check: (node: SBNode) => void) => void;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
+  // deprecated and no longer used -- only comparing the input props now
+  rerender?: (editBuffer: EditBuffer) => boolean;
 }
 
 export interface Model {
@@ -291,10 +303,6 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     this.applyChanges(list);
   }
 
-  applyStringChange(source, { from, to, insert }: Change<T>) {
-    return source.slice(0, from) + (insert ?? "") + source.slice(to);
-  }
-
   applyChanges(changes: ReversibleChange<T>[], forceApply = false) {
     if (
       changes.length > 0 &&
@@ -326,7 +334,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     let newSource = oldSource;
     const allChanges = [...this._pendingChanges.value, ...changes];
     for (const change of allChanges)
-      newSource = this.applyStringChange(newSource, change);
+      newSource = applyStringChange(newSource, change);
 
     if (!last(allChanges).selectionRange && last(allChanges).sourcePane) {
       const pane = last(allChanges).sourcePane;
@@ -521,12 +529,11 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   // Selection
 
   _cursorRoots() {
+    const myRoot = getFocusHost(this._rootPane.view) ?? this._rootPane.view;
     return [
-      this._rootPane.view,
+      myRoot,
       ...this._panes
-        .filter(
-          (p) => p.view.isConnected && !this._rootPane.view.contains(p.view),
-        )
+        .filter((p) => p.view.isConnected && !myRoot.contains(p.view))
         .map((p) => p.view),
     ];
   }
@@ -697,8 +704,6 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     match: AugmentationMatch,
     editBuffer: EditBuffer,
   ) {
-    if (!augmentation.rerender?.(editBuffer)) return null;
-
     // console.assert(match.matchedNode?.connected);
 
     const props = this.matchAugmentation(match.matchedNode, augmentation);
@@ -754,8 +759,6 @@ const _VitrailPane = forwardRef(function _VitrailPane(
   }: VitrailPaneProps,
   ref,
 ) {
-  // const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
-  //console.log(nodes);
   const vitrail: Vitrail<any> = nodes[0]?.editor;
   console.assert(
     !!vitrail,

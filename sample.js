@@ -28,6 +28,9 @@ let a = 12;
 function hello(b) {
   () => ({ sbExample: "example1", args: [123], self: null });
 
+  const db = pool.connect();
+  db.query(sql`SELECT * FROM \`events\` WHERE id = 123`);
+
   const a = [
     "sbWatch",
     ((e) => (

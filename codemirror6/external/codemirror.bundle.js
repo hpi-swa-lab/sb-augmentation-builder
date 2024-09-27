@@ -4489,8 +4489,8 @@ const noSemi = 312,
   insertSemi = 313,
   spaces = 315,
   newline = 316,
-  LineComment = 5,
-  BlockComment = 6,
+  LineComment$1 = 5,
+  BlockComment$1 = 6,
   Dialect_jsx = 0;
 
 /* Hand-written tokenizers for JavaScript tokens that can't be
@@ -4505,7 +4505,7 @@ const braceR = 125, semicolon = 59, slash = 47, star = 42, plus = 43, minus = 45
 const trackNewline = new ContextTracker({
   start: false,
   shift(context, term) {
-    return term == LineComment || term == BlockComment || term == spaces ? context : term == newline
+    return term == LineComment$1 || term == BlockComment$1 || term == spaces ? context : term == newline
   },
   strict: false
 });
@@ -4636,7 +4636,7 @@ const jsHighlight = styleTags({
 const spec_identifier = {__proto__:null,export:20, as:25, from:33, default:36, async:41, function:42, extends:54, this:58, true:66, false:66, null:78, void:82, typeof:86, super:102, new:136, delete:148, yield:157, await:161, class:166, public:229, private:229, protected:229, readonly:231, instanceof:250, satisfies:253, in:254, const:256, import:290, keyof:345, unique:349, infer:355, is:391, abstract:411, implements:413, type:415, let:418, var:420, using:423, interface:429, enum:433, namespace:439, module:441, declare:445, global:449, for:468, of:477, while:480, with:484, do:488, if:492, else:494, switch:498, case:504, try:510, catch:514, finally:518, return:522, throw:526, break:530, continue:534, debugger:538};
 const spec_word = {__proto__:null,async:123, get:125, set:127, declare:189, public:191, private:191, protected:191, static:193, abstract:195, override:197, readonly:203, accessor:205, new:395};
 const spec_LessThan = {__proto__:null,"<":187};
-const parser = LRParser.deserialize({
+const parser$2 = LRParser.deserialize({
   version: 14,
   states: "$=dO%TQ^OOO%[Q^OOO'_Q`OOP(lOWOOO*zQ?NdO'#CiO+RO!bO'#CjO+aO#tO'#CjO+oO!0LbO'#D^O.QQ^O'#DdO.bQ^O'#DoO%[Q^O'#DwO0fQ^O'#EPOOQ?Mr'#EX'#EXO1PQWO'#EUOOQO'#Em'#EmOOQO'#Ih'#IhO1XQWO'#GpO1dQWO'#ElO1iQWO'#ElO3hQ?NdO'#JmO6[Q?NdO'#JnO6uQWO'#F[O6zQ&jO'#FsOOQ?Mr'#Fe'#FeO7VO,YO'#FeO7eQ7[O'#FzO9RQWO'#FyOOQ?Mr'#Jn'#JnOOQ?Mp'#Jm'#JmO9WQWO'#GtOOQU'#KZ'#KZO9cQWO'#IUO9hQ?MxO'#IVOOQU'#JZ'#JZOOQU'#IZ'#IZQ`Q^OOO`Q^OOO9pQMnO'#DsO9wQ^O'#D{O:OQ^O'#D}O9^QWO'#GpO:VQ7[O'#CoO:eQWO'#EkO:pQWO'#EvO:uQ7[O'#FdO;dQWO'#GpOOQO'#K['#K[O;iQWO'#K[O;wQWO'#GxO;wQWO'#GyO;wQWO'#G{O9^QWO'#HOO<nQWO'#HRO>VQWO'#CeO>gQWO'#H_O>oQWO'#HeO>oQWO'#HgO`Q^O'#HiO>oQWO'#HkO>oQWO'#HnO>tQWO'#HtO>yQ?MyO'#HzO%[Q^O'#H|O?UQ?MyO'#IOO?aQ?MyO'#IQO9hQ?MxO'#ISO?lQ?NdO'#CiO@nQ`O'#DiQOQWOOO%[Q^O'#D}OAUQWO'#EQO:VQ7[O'#EkOAaQWO'#EkOAlQpO'#FdOOQU'#Cg'#CgOOQ?Mp'#Dn'#DnOOQ?Mp'#Jq'#JqO%[Q^O'#JqOOQO'#Jt'#JtOOQO'#Id'#IdOBlQ`O'#EdOOQ?Mp'#Ec'#EcOOQ?Mp'#Jx'#JxOChQ?NQO'#EdOCrQ`O'#ETOOQO'#Js'#JsODWQ`O'#JtOEeQ`O'#ETOCrQ`O'#EdPErO#@ItO'#CbPOOO)CDx)CDxOOOO'#I['#I[OE}O!bO,59UOOQ?Mr,59U,59UOOOO'#I]'#I]OF]O#tO,59UO%[Q^O'#D`OOOO'#I_'#I_OFkO!0LbO,59xOOQ?Mr,59x,59xOFyQ^O'#I`OG^QWO'#JoOI]QrO'#JoO+}Q^O'#JoOIdQWO,5:OOIzQWO'#EmOJXQWO'#KOOJdQWO'#J}OJdQWO'#J}OJlQWO,5;ZOJqQWO'#J|OOQ?Mv,5:Z,5:ZOJxQ^O,5:ZOLvQ?NdO,5:cOMgQWO,5:kONQQ?MxO'#J{ONXQWO'#JzO9WQWO'#JzONmQWO'#JzONuQWO,5;YONzQWO'#JzO!#PQrO'#JnOOQ?Mr'#Ci'#CiO%[Q^O'#EPO!#oQrO,5:pOOQQ'#Ju'#JuOOQO-E<f-E<fO9^QWO,5=[O!$VQWO,5=[O!$[Q^O,5;WO!&_Q7[O'#EhO!'xQWO,5;WO!'}Q^O'#DvO!(XQ`O,5;aO!(aQ`O,5;aO%[Q^O,5;aOOQU'#FS'#FSOOQU'#FU'#FUO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bO%[Q^O,5;bOOQU'#FY'#FYO!(oQ^O,5;sOOQ?Mr,5;x,5;xOOQ?Mr,5;y,5;yOOQ?Mr,5;{,5;{O%[Q^O'#IlO!*rQ?MxO,5<gO!&_Q7[O,5;bO!+aQ7[O,5;bO!-RQ7[O'#EZO%[Q^O,5;vOOQ?Mr,5;z,5;zO!-YQ&jO'#FiO!.VQ&jO'#KSO!-qQ&jO'#KSO!.^Q&jO'#KSOOQO'#KS'#KSO!.rQ&jO,5<ROOOS,5<_,5<_O!/TQ^O'#FuOOOS'#Ik'#IkO7VO,YO,5<PO!/[Q&jO'#FwOOQ?Mr,5<P,5<PO!/{Q!LQO'#CvOOQ?Mr'#Cz'#CzO!0`QWO'#CzO!0eO!0LbO'#DOO!1RQ7[O,5<dO!1YQWO,5<fO!2uQ$ISO'#GVO!3SQWO'#GWO!3XQWO'#GWO!4wQ$ISO'#G[O!5sQ`O'#G`OOQO'#Gk'#GkO!+hQ7[O'#GjOOQO'#Gm'#GmO!+hQ7[O'#GlO!6fQ!LQO'#JgOOQ?Mr'#Jg'#JgO!6pQWO'#JfO!7OQWO'#JeO!7WQWO'#CuOOQ?Mr'#Cx'#CxOOQ?Mr'#DS'#DSOOQ?Mr'#DU'#DUO1SQWO'#DWO!+hQ7[O'#F}O!+hQ7[O'#GPO!7`QWO'#GRO!7eQWO'#GSO!3XQWO'#GYO!+hQ7[O'#G_O!7jQWO'#EnO!8XQWO,5<eOOQ?Mp'#Cr'#CrO!8aQWO'#EoO!9ZQ`O'#EpOOQ?Mp'#J|'#J|O!9bQ?MxO'#K]O9hQ?MxO,5=`O`Q^O,5>pOOQU'#Jc'#JcOOQU,5>q,5>qOOQU-E<X-E<XO!;aQ?NdO,5:_O!9UQ`O,5:]O!=zQ?NdO,5:gO%[Q^O,5:gO!@bQ?NdO,5:iOOQO,5@v,5@vO!ARQ7[O,5=[O!AaQ?MxO'#JdO9RQWO'#JdO!ArQ?MxO,59ZO!A}Q`O,59ZO!BVQ7[O,59ZO:VQ7[O,59ZO!BbQWO,5;WO!BjQWO'#H^O!COQWO'#K`O%[Q^O,5;|O!9UQ`O,5<OO!CWQWO,5=wO!C]QWO,5=wO!CbQWO,5=wO9hQ?MxO,5=wO;wQWO,5=gOOQO'#Cv'#CvO!CpQ`O,5=dO!CxQ7[O,5=eO!DTQWO,5=gO!DYQpO,5=jO!DbQWO'#K[O>tQWO'#HTO9^QWO'#HVO!DgQWO'#HVO:VQ7[O'#HXO!DlQWO'#HXOOQU,5=m,5=mO!DqQWO'#HYO!ESQWO'#CoO!EXQWO,59PO!EcQWO,59PO!GhQ^O,59POOQU,59P,59PO!GxQ?MxO,59PO%[Q^O,59PO!JTQ^O'#HaOOQU'#Hb'#HbOOQU'#Hc'#HcO`Q^O,5=yO!JkQWO,5=yO`Q^O,5>PO`Q^O,5>RO!JpQWO,5>TO`Q^O,5>VO!JuQWO,5>YO!JzQ^O,5>`OOQU,5>f,5>fO%[Q^O,5>fO9hQ?MxO,5>hOOQU,5>j,5>jO# UQWO,5>jOOQU,5>l,5>lO# UQWO,5>lOOQU,5>n,5>nO# rQ`O'#D[O%[Q^O'#JqO# |Q`O'#JqO#!kQ`O'#DjO#!|Q`O'#DjO#%_Q^O'#DjO#%fQWO'#JpO#%nQWO,5:TO#%sQWO'#EqO#&RQWO'#KPO#&ZQWO,5;[O#&`Q`O'#DjO#&mQ`O'#ESOOQ?Mr,5:l,5:lO%[Q^O,5:lO#&tQWO,5:lO>tQWO,5;VO!A}Q`O,5;VO!BVQ7[O,5;VO:VQ7[O,5;VO#&|QWO,5@]O#'RQ(CYO,5:pOOQO-E<b-E<bO#(XQ?NQO,5;OOCrQ`O,5:oO#(cQ`O,5:oOCrQ`O,5;OO!ArQ?MxO,5:oOOQ?Mp'#Eg'#EgOOQO,5;O,5;OO%[Q^O,5;OO#(pQ?MxO,5;OO#({Q?MxO,5;OO!A}Q`O,5:oOOQO,5;U,5;UO#)ZQ?MxO,5;OPOOO'#IY'#IYP#)oO#@ItO,58|POOO,58|,58|OOOO-E<Y-E<YOOQ?Mr1G.p1G.pOOOO-E<Z-E<ZO#)zQpO,59zOOOO-E<]-E<]OOQ?Mr1G/d1G/dO#*PQrO,5>zO+}Q^O,5>zOOQO,5?Q,5?QO#*ZQ^O'#I`OOQO-E<^-E<^O#*hQWO,5@ZO#*pQrO,5@ZO#*wQWO,5@iOOQ?Mr1G/j1G/jO%[Q^O,5@jO#+PQWO'#IfOOQO-E<d-E<dO#*wQWO,5@iOOQ?Mp1G0u1G0uOOQ?Mv1G/u1G/uOOQ?Mv1G0V1G0VO%[Q^O,5@gO#+eQ?MxO,5@gO#+vQ?MxO,5@gO#+}QWO,5@fO9WQWO,5@fO#,VQWO,5@fO#,eQWO'#IiO#+}QWO,5@fOOQ?Mp1G0t1G0tO!(XQ`O,5:rO!(dQ`O,5:rOOQQ,5:t,5:tO#-VQYO,5:tO#-_Q7[O1G2vO9^QWO1G2vOOQ?Mr1G0r1G0rO#-mQ?NdO1G0rO#.rQ?NbO,5;SOOQ?Mr'#GU'#GUO#/`Q?NdO'#JgO!$[Q^O1G0rO#1hQrO'#JrO%[Q^O'#JrO#1rQWO,5:bOOQ?Mr'#D['#D[OOQ?Mr1G0{1G0{O%[Q^O1G0{OOQ?Mr1G1e1G1eO#1wQWO1G0{O#4]Q?NdO1G0|O#4dQ?NdO1G0|O#6zQ?NdO1G0|O#7RQ?NdO1G0|O#9YQ?NdO1G0|O#9pQ?NdO1G0|O#<gQ?NdO1G0|O#<nQ?NdO1G0|O#?OQ?NdO1G0|O#?]Q?NdO1G0|O#AWQ?NdO1G0|O#DWQ07bO'#CiO#FRQ07bO1G1_O#FYQ07bO'#JnO#FmQ?NdO,5?WOOQ?Mp-E<j-E<jO#GaQ?NdO1G0|OOQ?Mr1G0|1G0|O#IiQ7[O'#JwO#IsQWO,5:uO#IxQ?NdO1G1bO#JlQ&jO,5<VO#JtQ&jO,5<WO#J|Q&jO'#FnO#KeQWO'#FmOOQO'#KT'#KTOOQO'#Ij'#IjO#KjQ&jO1G1mOOQ?Mr1G1m1G1mOOOS1G1x1G1xO#K{Q07bO'#JmO#LVQWO,5<aO!(oQ^O,5<aOOOS-E<i-E<iOOQ?Mr1G1k1G1kO#L[Q`O'#KSOOQ?Mr,5<c,5<cO#LdQ`O,5<cOOQ?Mr,59f,59fO!&_Q7[O'#DQOOOO'#I^'#I^O#LiO!0LbO,59jOOQ?Mr,59j,59jO%[Q^O1G2OO!7eQWO'#InO#LtQ7[O,5<xOOQ?Mr,5<u,5<uO!+hQ7[O'#IqO#MdQ7[O,5=UO!+hQ7[O'#IsO#NVQ7[O,5=WO!&_Q7[O,5=YOOQO1G2Q1G2QO#NaQpO'#CrO#NtQ$ISO'#EoO$ sQ`O'#G`O$!aQpO,5<qO$!hQWO'#KWO9WQWO'#KWO$!vQWO,5<sO!+hQ7[O,5<rO$!{QWO'#GXO$#^QWO,5<rO$#cQpO'#GUO$#pQpO'#KXO$#zQWO'#KXO!&_Q7[O'#KXO$$PQWO,5<vO$$UQ`O'#GaO!5nQ`O'#GaO$$gQWO'#GcO$$lQWO'#GeO!3XQWO'#GhO$$qQ?MxO'#IpO$$|Q`O,5<zOOQ?Mv,5<z,5<zO$%TQ`O'#GaO$%cQ`O'#GbO$%kQ`O'#GbO$%pQ7[O,5=UO$&QQ7[O,5=WOOQ?Mr,5=Z,5=ZO!+hQ7[O,5@QO!+hQ7[O,5@QO$&bQWO'#IuO$&mQWO,5@PO$&uQWO,59aO$'iQ!LSO,59rOOQ?Mr'#Jk'#JkO$([Q7[O,5<iO$(}Q7[O,5<kO@fQWO,5<mOOQ?Mr,5<n,5<nO$)XQWO,5<tO$)^Q7[O,5<yO$)nQWO'#JzO!$[Q^O1G2PO$)sQWO1G2PO9WQWO'#J}O9WQWO'#EqO%[Q^O'#EqO9WQWO'#IwO$)xQ?MxO,5@wOOQU1G2z1G2zOOQU1G4[1G4[OOQ?Mr1G/y1G/yOOQ?Mr1G/w1G/wO$+zQ?NdO1G0ROOQU1G2v1G2vO!&_Q7[O1G2vO%[Q^O1G2vO#-bQWO1G2vO$.OQ7[O'#EhOOQ?Mp,5@O,5@OO$.YQ?MxO,5@OOOQU1G.u1G.uO!ArQ?MxO1G.uO!A}Q`O1G.uO!BVQ7[O1G.uO$.kQWO1G0rO$.pQWO'#CiO$.{QWO'#KaO$/TQWO,5=xO$/YQWO'#KaO$/_QWO'#KaO$/mQWO'#I}O$/{QWO,5@zO$0TQrO1G1hOOQ?Mr1G1j1G1jO9^QWO1G3cO@fQWO1G3cO$0[QWO1G3cO$0aQWO1G3cOOQU1G3c1G3cO!DTQWO1G3RO!&_Q7[O1G3OO$0fQWO1G3OOOQU1G3P1G3PO!&_Q7[O1G3PO$0kQWO1G3PO$0sQ`O'#G}OOQU1G3R1G3RO!5nQ`O'#IyO!DYQpO1G3UOOQU1G3U1G3UOOQU,5=o,5=oO$0{Q7[O,5=qO9^QWO,5=qO$$lQWO,5=sO9RQWO,5=sO!A}Q`O,5=sO!BVQ7[O,5=sO:VQ7[O,5=sO$1ZQWO'#K_O$1fQWO,5=tOOQU1G.k1G.kO$1kQ?MxO1G.kO@fQWO1G.kO$1vQWO1G.kO9hQ?MxO1G.kO$4OQrO,5@|O$4]QWO,5@|O9WQWO,5@|O$4hQ^O,5={O$4oQWO,5={OOQU1G3e1G3eO`Q^O1G3eOOQU1G3k1G3kOOQU1G3m1G3mO>oQWO1G3oO$4tQ^O1G3qO$8xQ^O'#HpOOQU1G3t1G3tO$9VQWO'#HvO>tQWO'#HxOOQU1G3z1G3zO$9_Q^O1G3zO9hQ?MxO1G4QOOQU1G4S1G4SOOQ?Mp'#G]'#G]O9hQ?MxO1G4UO9hQ?MxO1G4WO$=fQWO,5@]O!(oQ^O,5;]O9WQWO,5;]O>tQWO,5:UO!(oQ^O,5:UO!A}Q`O,5:UO$=kQ07bO,5:UOOQO,5;],5;]O$=uQ`O'#IaO$>]QWO,5@[OOQ?Mr1G/o1G/oO$>eQ`O'#IgO$>oQWO,5@kOOQ?Mp1G0v1G0vO#!|Q`O,5:UOOQO'#Ic'#IcO$>wQ`O,5:nOOQ?Mv,5:n,5:nO#&wQWO1G0WOOQ?Mr1G0W1G0WO%[Q^O1G0WOOQ?Mr1G0q1G0qO>tQWO1G0qO!A}Q`O1G0qO!BVQ7[O1G0qOOQ?Mp1G5w1G5wO!ArQ?MxO1G0ZOOQO1G0j1G0jO%[Q^O1G0jO$?OQ?MxO1G0jO$?ZQ?MxO1G0jO!A}Q`O1G0ZOCrQ`O1G0ZO$?iQ?MxO1G0jOOQO1G0Z1G0ZO$?}Q?NdO1G0jPOOO-E<W-E<WPOOO1G.h1G.hOOOO1G/f1G/fO$@XQpO,5<gO$@aQrO1G4fOOQO1G4l1G4lO%[Q^O,5>zO$@kQWO1G5uO$@sQWO1G6TO$@{QrO1G6UO9WQWO,5?QO$AVQ?NdO1G6RO%[Q^O1G6RO$AgQ?MxO1G6RO$AxQWO1G6QO$AxQWO1G6QO9WQWO1G6QO$BQQWO,5?TO9WQWO,5?TOOQO,5?T,5?TO$BfQWO,5?TO$)nQWO,5?TOOQO-E<g-E<gOOQQ1G0^1G0^OOQQ1G0`1G0`O#-YQWO1G0`OOQU7+(b7+(bO!&_Q7[O7+(bO%[Q^O7+(bO$BtQWO7+(bO$CPQ7[O7+(bO$C_Q?NdO,5=UO$EgQ?NdO,5=WO$GoQ?NdO,5=UO$I}Q?NdO,5=WO$L]Q?NdO,59rO$NbQ?NdO,5<iO%!jQ?NdO,5<kO%$rQ?NdO,5<yOOQ?Mr7+&^7+&^O%'QQ?NdO7+&^O%'tQ^O'#IbO%(RQWO,5@^O%(ZQrO,5@^OOQ?Mr1G/|1G/|O%(eQWO7+&gOOQ?Mr7+&g7+&gO%(jQ07bO,5:cO%[Q^O7+&yO%(tQ07bO,5:_O%)RQ07bO,5:gO%)]Q07bO,5:iO%)gQ7[O'#IeO%)qQWO,5@cOOQ?Mr1G0a1G0aOOQO1G1q1G1qOOQO1G1r1G1rO%)yQtO,5<YO!(oQ^O,5<XOOQO-E<h-E<hOOQ?Mr7+'X7+'XOOOS7+'d7+'dOOOS1G1{1G1{O%*UQWO1G1{OOQ?Mr1G1}1G1}O%*ZQpO,59lOOOO-E<[-E<[OOQ?Mr1G/U1G/UO%*bQ?NdO7+'jOOQ?Mr,5?Y,5?YO%+UQpO,5?YOOQ?Mr1G2d1G2dP!&_Q7[O'#InPOQ?Mr-E<l-E<lO%+tQ7[O,5?]OOQ?Mr-E<o-E<oO%,gQ7[O,5?_OOQ?Mr-E<q-E<qO%,qQpO1G2tO%,xQpO'#CrO%-`Q7[O'#J}O%-gQ^O'#EqOOQ?Mr1G2]1G2]O%-qQWO'#ImO%.VQWO,5@rO%.VQWO,5@rO%._QWO,5@rO%.jQWO,5@rOOQO1G2_1G2_O%.xQ7[O1G2^O!+hQ7[O1G2^O%/YQ$ISO'#IoO%/gQWO,5@sO!&_Q7[O,5@sO%/oQpO,5@sOOQ?Mr1G2b1G2bOOQ?Mp,5<{,5<{OOQ?Mp,5<|,5<|O$)nQWO,5<|OCcQWO,5<|O!A}Q`O,5<{OOQO'#Gd'#GdO%/yQWO,5<}OOQ?Mp,5=P,5=PO$)nQWO,5=SOOQO,5?[,5?[OOQO-E<n-E<nOOQ?Mv1G2f1G2fO!5nQ`O,5<{O%0RQWO,5<|O$$gQWO,5<}O!5nQ`O,5<|O!+hQ7[O'#IqO%0uQ7[O1G2pO!+hQ7[O'#IsO%1hQ7[O1G2rO%1rQ7[O1G5lO%1|Q7[O1G5lOOQO,5?a,5?aOOQO-E<s-E<sOOQO1G.{1G.{O!9UQ`O,59tO%[Q^O,59tOOQ?Mr,5<h,5<hO%2ZQWO1G2XO!+hQ7[O1G2`O%2`Q?NdO7+'kOOQ?Mr7+'k7+'kO!$[Q^O7+'kO%3SQWO,5;]OOQ?Mp,5?c,5?cOOQ?Mp-E<u-E<uO%3XQpO'#KYO#&wQWO7+(bO4UQrO7+(bO$BwQWO7+(bO%3cQ?NbO'#CiO%3vQ?NbO,5=QO%4hQWO,5=QOOQ?Mp1G5j1G5jOOQU7+$a7+$aO!ArQ?MxO7+$aO!A}Q`O7+$aO!$[Q^O7+&^O%4mQWO'#I|O%5UQWO,5@{OOQO1G3d1G3dO9^QWO,5@{O%5UQWO,5@{O%5^QWO,5@{OOQO,5?i,5?iOOQO-E<{-E<{OOQ?Mr7+'S7+'SO%5cQWO7+(}O9hQ?MxO7+(}O9^QWO7+(}O@fQWO7+(}OOQU7+(m7+(mO%5hQ?NbO7+(jO!&_Q7[O7+(jO%5rQpO7+(kOOQU7+(k7+(kO!&_Q7[O7+(kO%5yQWO'#K^O%6UQWO,5=iOOQO,5?e,5?eOOQO-E<w-E<wOOQU7+(p7+(pO%7eQ`O'#HWOOQU1G3]1G3]O!&_Q7[O1G3]O%[Q^O1G3]O%7lQWO1G3]O%7wQ7[O1G3]O9hQ?MxO1G3_O$$lQWO1G3_O9RQWO1G3_O!A}Q`O1G3_O!BVQ7[O1G3_O%8VQWO'#I{O%8kQWO,5@yO%8sQ`O,5@yOOQ?Mp1G3`1G3`OOQU7+$V7+$VO@fQWO7+$VO9hQ?MxO7+$VO%9OQWO7+$VO%[Q^O1G6hO%[Q^O1G6iO%9TQ?MxO1G6hO%9_Q^O1G3gO%9fQWO1G3gO%9kQ^O1G3gOOQU7+)P7+)PO9hQ?MxO7+)ZO`Q^O7+)]OOQU'#Kd'#KdOOQU'#JO'#JOO%9rQ^O,5>[OOQU,5>[,5>[O%[Q^O'#HqO%:PQWO'#HsOOQU,5>b,5>bO9WQWO,5>bOOQU,5>d,5>dOOQU7+)f7+)fOOQU7+)l7+)lOOQU7+)p7+)pOOQU7+)r7+)rO%:UQ`O1G5wO%:jQ07bO1G0wO%:tQWO1G0wOOQO1G/p1G/pO%;PQ07bO1G/pO>tQWO1G/pO!(oQ^O'#DjOOQO,5>{,5>{OOQO-E<_-E<_OOQO,5?R,5?ROOQO-E<e-E<eO!A}Q`O1G/pOOQO-E<a-E<aOOQ?Mv1G0Y1G0YOOQ?Mr7+%r7+%rO#&wQWO7+%rOOQ?Mr7+&]7+&]O>tQWO7+&]O!A}Q`O7+&]OOQO7+%u7+%uO$?}Q?NdO7+&UOOQO7+&U7+&UO%[Q^O7+&UO%;ZQ?MxO7+&UO!ArQ?MxO7+%uO!A}Q`O7+%uO%;fQ?MxO7+&UO%;tQ?NdO7++mO%[Q^O7++mO%<UQWO7++lO%<UQWO7++lOOQO1G4o1G4oO9WQWO1G4oO%<^QWO1G4oOOQQ7+%z7+%zO#&wQWO<<K|O4UQrO<<K|O%<lQWO<<K|OOQU<<K|<<K|O!&_Q7[O<<K|O%[Q^O<<K|O%<tQWO<<K|O%=PQ?NdO,5?]O%?XQ?NdO,5?_O%AaQ?NdO1G2^O%CoQ?NdO1G2pO%EwQ?NdO1G2rO%HPQrO,5>|O%[Q^O,5>|OOQO-E<`-E<`O%HZQWO1G5xOOQ?Mr<<JR<<JRO%HcQ07bO1G0rO%JjQ07bO1G0|O%JqQ07bO1G0|O%LrQ07bO1G0|O%LyQ07bO1G0|O%NkQ07bO1G0|O& RQ07bO1G0|O&#cQ07bO1G0|O&#jQ07bO1G0|O&%eQ07bO1G0|O&%rQ07bO1G0|O&'mQ07bO1G0|O&(QQ?NdO<<JeO&)VQ07bO1G0|O&*xQ07bO'#JgO&,{Q07bO1G1bO&-YQ07bO1G0RO&-dQ7[O,5?POOQO-E<c-E<cO!(oQ^O'#FpOOQO'#KU'#KUOOQO1G1t1G1tO&-nQWO1G1sO&-sQ07bO,5?WOOOS7+'g7+'gOOOO1G/W1G/WOOQ?Mr1G4t1G4tO!+hQ7[O7+(`O&0TQrO'#CiO&0_QWO,5?XO9WQWO,5?XOOQO-E<k-E<kO&0mQWO1G6^O&0mQWO1G6^O&0uQWO1G6^O&1QQ7[O7+'xO&1bQpO,5?ZO&1lQWO,5?ZO!&_Q7[O,5?ZOOQO-E<m-E<mO&1qQpO1G6_O&1{QWO1G6_OOQ?Mp1G2h1G2hO$)nQWO1G2hOOQ?Mp1G2g1G2gO&2TQWO1G2iO!&_Q7[O1G2iOOQ?Mp1G2n1G2nO!A}Q`O1G2gOCcQWO1G2hO&2YQWO1G2iO&2bQWO1G2hO&3UQ7[O,5?]OOQ?Mr-E<p-E<pO&3wQ7[O,5?_OOQ?Mr-E<r-E<rO!+hQ7[O7++WOOQ?Mr1G/`1G/`O&4RQWO1G/`OOQ?Mr7+'s7+'sO&4WQ7[O7+'zO&4hQ?NdO<<KVOOQ?Mr<<KV<<KVO&5[QWO1G0wO!&_Q7[O'#IvO&5aQWO,5@tO&7cQrO<<K|O!&_Q7[O1G2lOOQU<<G{<<G{O!ArQ?MxO<<G{O&7jQ?NdO<<IxOOQ?Mr<<Ix<<IxOOQO,5?h,5?hO&8^QWO,5?hO&8cQWO,5?hOOQO-E<z-E<zO&8qQWO1G6gO&8qQWO1G6gO9^QWO1G6gO@fQWO<<LiOOQU<<Li<<LiO&8yQWO<<LiO9hQ?MxO<<LiOOQU<<LU<<LUO%5hQ?NbO<<LUOOQU<<LV<<LVO%5rQpO<<LVO&9OQ`O'#IxO&9ZQWO,5@xO!(oQ^O,5@xOOQU1G3T1G3TO%-gQ^O'#JqOOQO'#Iz'#IzO9hQ?MxO'#IzO&9cQ`O,5=rOOQU,5=r,5=rO&9jQ`O'#EdO&:OQWO7+(wO&:TQWO7+(wOOQU7+(w7+(wO!&_Q7[O7+(wO%[Q^O7+(wO&:]QWO7+(wOOQU7+(y7+(yO9hQ?MxO7+(yO$$lQWO7+(yO9RQWO7+(yO!A}Q`O7+(yO&:hQWO,5?gOOQO-E<y-E<yOOQO'#HZ'#HZO&:sQWO1G6eO9hQ?MxO<<GqOOQU<<Gq<<GqO@fQWO<<GqO&:{QWO7+,SO&;QQWO7+,TO%[Q^O7+,SO%[Q^O7+,TOOQU7+)R7+)RO&;VQWO7+)RO&;[Q^O7+)RO&;cQWO7+)ROOQU<<Lu<<LuOOQU<<Lw<<LwOOQU-E<|-E<|OOQU1G3v1G3vO&;hQWO,5>]OOQU,5>_,5>_O&;mQWO1G3|O9WQWO7+&cO!(oQ^O7+&cOOQO7+%[7+%[O&;rQ07bO1G6UO>tQWO7+%[OOQ?Mr<<I^<<I^OOQ?Mr<<Iw<<IwO>tQWO<<IwOOQO<<Ip<<IpO$?}Q?NdO<<IpO%[Q^O<<IpOOQO<<Ia<<IaO!ArQ?MxO<<IaO&;|Q?MxO<<IpO&<XQ?NdO<= XO&<iQWO<= WOOQO7+*Z7+*ZO9WQWO7+*ZOOQUANAhANAhO&<qQrOANAhO!&_Q7[OANAhO#&wQWOANAhO4UQrOANAhO&<xQWOANAhO%[Q^OANAhO&=QQ?NdO7+'xO&?`Q?NdO,5?]O&AhQ?NdO,5?_O&CpQ?NdO7+'zO&FOQrO1G4hO&FYQ07bO7+&^O&HZQ07bO,5=UO&J_Q07bO,5=WO&JoQ07bO,5=UO&KPQ07bO,5=WO&KaQ07bO,59rO&MdQ07bO,5<iO' dQ07bO,5<kO'#dQ07bO,5<yO'%VQ07bO7+'jO'%dQ07bO7+'kO'%qQWO,5<[OOQO7+'_7+'_O'%vQ7[O<<KzOOQO1G4s1G4sO'%}QWO1G4sO'&YQWO1G4sO'&hQWO7++xO'&hQWO7++xO!&_Q7[O1G4uO'&pQpO1G4uO'&zQWO7++yOOQ?Mp7+(S7+(SO$)nQWO7+(TO''SQpO7+(TOOQ?Mp7+(R7+(RO$)nQWO7+(SO''ZQWO7+(TO!&_Q7[O7+(TOCcQWO7+(SO''`Q7[O<<NrOOQ?Mr7+$z7+$zO''jQpO,5?bOOQO-E<t-E<tO''tQ?NbO7+(WOOQUAN=gAN=gO9^QWO1G5SOOQO1G5S1G5SO'(UQWO1G5SO'(ZQWO7+,RO'(ZQWO7+,RO9hQ?MxOANBTO@fQWOANBTOOQUANBTANBTOOQUANApANApOOQUANAqANAqO'(cQWO,5?dOOQO-E<v-E<vO'(nQ07bO1G6dOOQO,5?f,5?fOOQO-E<x-E<xOOQU1G3^1G3^O%-gQ^O,5<}OOQU<<Lc<<LcO!&_Q7[O<<LcO&:OQWO<<LcO'(xQWO<<LcO%[Q^O<<LcOOQU<<Le<<LeO9hQ?MxO<<LeO$$lQWO<<LeO9RQWO<<LeO')QQ`O1G5RO')]QWO7+,POOQUAN=]AN=]O9hQ?MxOAN=]OOQU<= n<= nOOQU<= o<= oO')eQWO<= nO')jQWO<= oOOQU<<Lm<<LmO')oQWO<<LmO')tQ^O<<LmOOQU1G3w1G3wO>tQWO7+)hO'){QWO<<I}O'*WQ07bO<<I}OOQO<<Hv<<HvOOQ?MrAN?cAN?cOOQOAN?[AN?[O$?}Q?NdOAN?[OOQOAN>{AN>{O%[Q^OAN?[OOQO<<Mu<<MuOOQUG27SG27SO!&_Q7[OG27SO#&wQWOG27SO'*bQrOG27SO4UQrOG27SO'*iQWOG27SO'*qQ07bO<<JeO'+OQ07bO1G2^O',qQ07bO,5?]O'.qQ07bO,5?_O'0qQ07bO1G2pO'2qQ07bO1G2rO'4qQ07bO<<KVO'5OQ07bO<<IxOOQO1G1v1G1vO!+hQ7[OANAfOOQO7+*_7+*_O'5]QWO7+*_O'5hQWO<= dO'5pQpO7+*aOOQ?Mp<<Ko<<KoO$)nQWO<<KoOOQ?Mp<<Kn<<KnO'5zQpO<<KoO$)nQWO<<KnOOQO7+*n7+*nO9^QWO7+*nO'6RQWO<= mOOQUG27oG27oO9hQ?MxOG27oO!(oQ^O1G5OO'6ZQWO7+,OO&:OQWOANA}OOQUANA}ANA}O!&_Q7[OANA}O'6cQWOANA}OOQUANBPANBPO9hQ?MxOANBPO$$lQWOANBPOOQO'#H['#H[OOQO7+*m7+*mOOQUG22wG22wOOQUANEYANEYOOQUANEZANEZOOQUANBXANBXO'6kQWOANBXOOQU<<MS<<MSO!(oQ^OAN?iOOQOG24vG24vO$?}Q?NdOG24vO#&wQWOLD,nOOQULD,nLD,nO!&_Q7[OLD,nO'6pQrOLD,nO'6wQ07bO7+'xO'8jQ07bO,5?]O':jQ07bO,5?_O'<jQ07bO7+'zO'>]Q7[OG27QOOQO<<My<<MyOOQ?MpANAZANAZO$)nQWOANAZOOQ?MpANAYANAYOOQO<<NY<<NYOOQULD-ZLD-ZO'>mQ07bO7+*jOOQUG27iG27iO&:OQWOG27iO!&_Q7[OG27iOOQUG27kG27kO9hQ?MxOG27kOOQUG27sG27sO'>wQ07bOG25TOOQOLD*bLD*bOOQU!$(!Y!$(!YO#&wQWO!$(!YO!&_Q7[O!$(!YO'?RQ?NdOG27QOOQ?MpG26uG26uOOQULD-TLD-TO&:OQWOLD-TOOQULD-VLD-VOOQU!)9Et!)9EtO#&wQWO!)9EtOOQU!$(!o!$(!oOOQU!.K;`!.K;`O'AaQ07bOG27QO!(oQ^O'#DwO1PQWO'#EUO'CSQrO'#JmO'CZQMnO'#DsO'CbQ^O'#D{O'CiQrO'#CiO'FPQrO'#CiO!(oQ^O'#D}O'FaQ^O,5;WO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O,5;bO!(oQ^O'#IlO'HdQWO,5<gO'HlQ7[O,5;bO'JVQ7[O,5;bO!(oQ^O,5;vO!&_Q7[O'#GjO'HlQ7[O'#GjO!&_Q7[O'#GlO'HlQ7[O'#GlO1SQWO'#DWO1SQWO'#DWO!&_Q7[O'#F}O'HlQ7[O'#F}O!&_Q7[O'#GPO'HlQ7[O'#GPO!&_Q7[O'#G_O'HlQ7[O'#G_O!(oQ^O,5:gO'J^Q`O'#D[O!(oQ^O,5@jO'FaQ^O1G0rO'JhQ07bO'#CiO!(oQ^O1G2OO!&_Q7[O'#IqO'HlQ7[O'#IqO!&_Q7[O'#IsO'HlQ7[O'#IsO'JrQpO'#CrO!&_Q7[O,5<rO'HlQ7[O,5<rO'FaQ^O1G2PO!(oQ^O7+&yO!&_Q7[O1G2^O'HlQ7[O1G2^O!&_Q7[O'#IqO'HlQ7[O'#IqO!&_Q7[O'#IsO'HlQ7[O'#IsO!&_Q7[O1G2`O'HlQ7[O1G2`O'FaQ^O7+'kO'FaQ^O7+&^O!&_Q7[OANAfO'HlQ7[OANAfO'KVQWO'#ElO'K[QWO'#ElO'KdQWO'#F[O'KiQWO'#EvO'KnQWO'#KOO'KyQWO'#J|O'LUQWO,5;WO'LZQ7[O,5<dO'LbQWO'#GWO'LgQWO'#GWO'LlQWO,5<eO'LtQWO,5;WO'L|Q07bO1G1_O'MTQWO,5<rO'MYQWO,5<rO'M_QWO,5<tO'MdQWO,5<tO'MiQWO1G2PO'MnQWO1G0rO'MsQ7[O<<KzO'MzQ7[O<<KzO7eQ7[O'#FzO9RQWO'#FyOAaQWO'#EkO!(oQ^O,5;sO!3XQWO'#GWO!3XQWO'#GWO!3XQWO'#GYO!3XQWO'#GYO!+hQ7[O7+(`O!+hQ7[O7+(`O%,qQpO1G2tO%,qQpO1G2tO!&_Q7[O,5=YO!&_Q7[O,5=Y",
   stateData: "( O~O'wOS'xOSTOS'yRQ~OPYOQYOSfOY!VOaqOdzOeyOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![XO!fuO!iZO!lYO!mYO!nYO!pvO!rwO!uxO!y]O#t!PO$V|O%e}O%g!QO%i!OO%j!OO%k!OO%n!RO%p!SO%s!TO%t!TO%v!UO&S!WO&Y!XO&[!YO&^!ZO&`![O&c!]O&i!^O&o!_O&q!`O&s!aO&u!bO&w!cO(OSO(QTO(TUO([VO(j[O(yiO~OWtO~P`OPYOQYOSfOd!jOe!iOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![!eO!fuO!iZO!lYO!mYO!nYO!pvO!r!gO!u!hO$V!kO(O!dO(QTO(TUO([VO(j[O(yiO~Oa!wOp!nO!P!oO!_!yO!`!vO!a!vO!y:lO#Q!pO#R!pO#S!xO#T!pO#U!pO#X!zO#Y!zO(P!lO(QTO(TUO(`!mO(j!sO~O'y!{O~OP]XR]X[]Xa]Xo]X}]X!P]X!Y]X!i]X!m]X#O]X#P]X#]]X#hfX#k]X#l]X#m]X#n]X#o]X#p]X#q]X#r]X#s]X#u]X#w]X#y]X#z]X$P]X'u]X([]X(m]X(t]X(u]X~O!d%PX~P(qO_!}O(Q#PO(R!}O(S#PO~O_#QO(S#PO(T#PO(U#QO~Ou#SO!R#TO(]#TO(^#VO~OPYOQYOSfOd!jOe!iOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![!eO!fuO!iZO!lYO!mYO!nYO!pvO!r!gO!u!hO$V!kO(O:pO(QTO(TUO([VO(j[O(yiO~O!X#ZO!Y#WO!V(cP!V(qP~P+}O!Z#cO~P`OPYOQYOSfOd!jOe!iOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![!eO!fuO!iZO!lYO!mYO!nYO!pvO!r!gO!u!hO$V!kO(QTO(TUO([VO(j[O(yiO~Om#mO!X#iO!y]O#f#lO#g#iO(O:qO!h(nP~P.iO!i#oO(O#nO~O!u#sO!y]O%e#tO~O#h#uO~O!d#vO#h#uO~OP$]OR#zO[$cOo$QO}#yO!P#{O!Y$`O!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO#w$VO#y$XO#z$YO([VO(m$ZO(t#|O(u#}O~Oa(aX'u(aX's(aX!h(aX!V(aX![(aX%f(aX!d(aX~P1qO#P$dO#]$eO$P$eOP(bXR(bX[(bXo(bX}(bX!P(bX!Y(bX!i(bX!m(bX#O(bX#k(bX#l(bX#m(bX#n(bX#o(bX#p(bX#q(bX#r(bX#s(bX#u(bX#w(bX#y(bX#z(bX([(bX(m(bX(t(bX(u(bX![(bX%f(bX~Oa(bX'u(bX's(bX!V(bX!h(bXs(bX!d(bX~P4UO#]$eO~O$[$hO$^$gO$e$mO~OSfO![$nO$h$oO$j$qO~Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{%[O!P$|O![$}O!f%aO!i$yO#g%bO$V%_O$r%]O$t%^O$w%`O(O$sO(QTO(TUO([$vO(t%OO(u%QOg(XP~O!i%cO~O!P%fO![%gO(O%eO~O!d%kO~Oa%lO'u%lO~O}%pO~P%[O(P!lO~P%[O%k%tO~P%[Oh%WO!i%cO(O%eO(P!lO~Oe%{O!i%cO(O%eO~O#s$SO~O}&QO![%}O!i&PO%g&TO(O%eO(P!lO(QTO(TUO`)SP~O!u#sO~O%p&VO!P)OX![)OX(O)OX~O(O&WO~O!r&]O#t!PO%g!QO%i!OO%j!OO%k!OO%n!RO%p!SO%s!TO%t!TO~Od&bOe&aO!u&_O%e&`O%x&^O~P;|Od&eOeyO![&dO!r&]O!uxO!y]O#t!PO%e}O%i!OO%j!OO%k!OO%n!RO%p!SO%s!TO%t!TO%v!UO~Ob&hO#]&kO%g&fO(P!lO~P=RO!i&lO!r&pO~O!i#oO~O![XO~Oa%lO't&xO'u%lO~Oa%lO't&{O'u%lO~Oa%lO't&}O'u%lO~O's]X!V]Xs]X!h]X&W]X![]X%f]X!d]X~P(qO!_'[O!`'TO!a'TO(P!lO(QTO(TUO~Op'RO!P'QO!X'UO(`'PO!Z(dP!Z(sP~P@YOk'_O![']O(O%eO~Oe'dO!i%cO(O%eO~O}&QO!i&PO~Op!nO!P!oO!y:lO#Q!pO#R!pO#T!pO#U!pO(P!lO(QTO(TUO(`!mO(j!sO~O!_'jO!`'iO!a'iO#S!pO#X'kO#Y'kO~PAtOa%lOh%WO!d#vO!i%cO'u%lO(m'mO~O!m'qO#]'oO~PCSOp!nO!P!oO(QTO(TUO(`!mO(j!sO~O![XOp(hX!P(hX!_(hX!`(hX!a(hX!y(hX#Q(hX#R(hX#S(hX#T(hX#U(hX#X(hX#Y(hX(P(hX(Q(hX(T(hX(`(hX(j(hX~O!`'iO!a'iO(P!lO~PCrO'z'uO'{'uO'|'wO~O_!}O(Q'yO(R!}O(S'yO~O_#QO(S'yO(T'yO(U#QO~Ou#SO!R#TO(]#TO(^'}O~O!X(PO!V'SX!V'YX!Y'SX!Y'YX~P+}O!Y(RO!V(cX~OP$]OR#zO[$cOo$QO}#yO!P#{O!Y(RO!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO#w$VO#y$XO#z$YO([VO(m$ZO(t#|O(u#}O~O!V(cX~PGfO!V(WO~O!V(pX!Y(pX!d(pX!h(pX(m(pX~O#](pX#h#aX!Z(pX~PIiO#](XO!V(rX!Y(rX~O!Y(YO!V(qX~O!V(]O~O#]$eO~PIiO!Z(^O~P`OR#zO}#yO!P#{O!i#xO([VOP!ka[!kao!ka!Y!ka!m!ka#O!ka#k!ka#l!ka#m!ka#n!ka#o!ka#p!ka#q!ka#r!ka#s!ka#u!ka#w!ka#y!ka#z!ka(m!ka(t!ka(u!ka~Oa!ka'u!ka's!ka!V!ka!h!kas!ka![!ka%f!ka!d!ka~PKPO!h(_O~O!d#vO#](`O(m'mO!Y(oXa(oX'u(oX~O!h(oX~PMlO!P%fO![%gO!y]O#f(eO#g(dO(O%eO~O!Y(fO!h(nX~O!h(hO~O!P%fO![%gO#g(dO(O%eO~OP(bXR(bX[(bXo(bX}(bX!P(bX!Y(bX!i(bX!m(bX#O(bX#k(bX#l(bX#m(bX#n(bX#o(bX#p(bX#q(bX#r(bX#s(bX#u(bX#w(bX#y(bX#z(bX([(bX(m(bX(t(bX(u(bX~O!d#vO!h(bX~P! YOR(jO}(iO!i#xO#P$dO!y!xa!P!xa~O!u!xa%e!xa![!xa#f!xa#g!xa(O!xa~P!#ZO!u(nO~OPYOQYOSfOd!jOe!iOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![XO!fuO!iZO!lYO!mYO!nYO!pvO!r!gO!u!hO$V!kO(O!dO(QTO(TUO([VO(j[O(yiO~Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{;YO!P$|O![$}O!f<jO!i$yO#g;`O$V%_O$r;[O$t;^O$w%`O(O(rO(QTO(TUO([$vO(t%OO(u%QO~O#h(tO~O!X(vO!h(fP~P%[O(`(xO(j[O~O!P(zO!i#xO(`(xO(j[O~OP:kOQ:kOSfOd<fOe!iOmkOo:kOpkOqkOwkOy:kO{:kO!PWO!TkO!UkO![!eO!f:nO!iZO!l:kO!m:kO!n:kO!p:oO!r:rO!u!hO$V!kO(O)YO(QTO(TUO([VO(j[O(y<dO~O!Y$`Oa$oa'u$oa's$oa!h$oa!V$oa![$oa%f$oa!d$oa~O#t)`O~P!&_Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{%[O!P$|O![$}O!f%aO!i$yO#g%bO$V%_O$r%]O$t%^O$w%`O(O(rO(QTO(TUO([$vO(t%OO(u%QO~Og(kP~P!+hO})eO!d)dO![$]X$Y$]X$[$]X$^$]X$e$]X~O!d)dO![(vX$Y(vX$[(vX$^(vX$e(vX~O})eO~P!-qO})eO![(vX$Y(vX$[(vX$^(vX$e(vX~O![)gO$Y)kO$[)fO$^)fO$e)lO~O!X)oO~P!(oO$[$hO$^$gO$e)sO~Ok$xX}$xX!P$xX#P$xX(t$xX(u$xX~OgjXg$xXkjX!YjX#]jX~P!/gOp)uO~Ou)vO(])wO(^)yO~Ok*SO}){O!P)|O(t%OO(u%QO~Og)zO~P!0pOg*TO~Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{;YO!P*VO![*WO!f<jO!i$yO#g;`O$V%_O$r;[O$t;^O$w%`O(QTO(TUO([$vO(t%OO(u%QO~O!X*ZO(O*UO!h(zP~P!1_O#h*]O~O!i*^O~Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{;YO!P$|O![$}O!f<jO!i$yO#g;`O$V%_O$r;[O$t;^O$w%`O(O*`O(QTO(TUO([$vO(t%OO(u%QO~O!X*cO!V({P~P!3^Oo*oO!P*gO!_*mO!`*fO!a*fO!i*^O#X*nO%]*iO(P!lO(`!mO~O!Z*lO~P!5RO#P$dOk(ZX}(ZX!P(ZX(t(ZX(u(ZX!Y(ZX#](ZX~Og(ZX#}(ZX~P!5zOk*tO#]*sOg(YX!Y(YX~O!Y*uOg(XX~O(O&WOg(XP~O!i*|O~O(O(rO~Om+QO!P%fO!X#iO![%gO!y]O#f#lO#g#iO(O%eO!h(nP~O!d#vO#h+RO~O!P%fO!X+TO!Y(YO![%gO(O%eO!V(qP~Op'XO!P+VO!X+UO(QTO(TUO(`(xO~O!Z(sP~P!8uO!Y+WOa)PX'u)PX~OP$]OR#zO[$cOo$QO}#yO!P#{O!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO#w$VO#y$XO#z$YO([VO(m$ZO(t#|O(u#}O~Oa!ga!Y!ga'u!ga's!ga!V!ga!h!gas!ga![!ga%f!ga!d!ga~P!9mOR#zO}#yO!P#{O!i#xO([VOP!oa[!oao!oa!Y!oa!m!oa#O!oa#k!oa#l!oa#m!oa#n!oa#o!oa#p!oa#q!oa#r!oa#s!oa#u!oa#w!oa#y!oa#z!oa(m!oa(t!oa(u!oa~Oa!oa'u!oa's!oa!V!oa!h!oas!oa![!oa%f!oa!d!oa~P!<TOR#zO}#yO!P#{O!i#xO([VOP!qa[!qao!qa!Y!qa!m!qa#O!qa#k!qa#l!qa#m!qa#n!qa#o!qa#p!qa#q!qa#r!qa#s!qa#u!qa#w!qa#y!qa#z!qa(m!qa(t!qa(u!qa~Oa!qa'u!qa's!qa!V!qa!h!qas!qa![!qa%f!qa!d!qa~P!>kOh%WOk+aO![']O%f+`O~O!d+cOa(WX![(WX'u(WX!Y(WX~Oa%lO![XO'u%lO~Oh%WO!i%cO~Oh%WO!i%cO(O%eO~O!d#vO#h(tO~Ob+nO%g+oO(O+kO(QTO(TUO!Z)TP~O!Y+pO`)SX~O[+tO~O`+uO~O![%}O(O%eO(P!lO`)SP~Oh%WO#]+zO~Oh%WOk+}O![$}O~O![,PO~O},RO![XO~O%k%tO~O!u,WO~Oe,]O~Ob,^O(O#nO(QTO(TUO!Z)RP~Oe%{O~O%g!QO(O&WO~P=RO[,cO`,bO~OPYOQYOSfOdzOeyOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO!fuO!iZO!lYO!mYO!nYO!pvO!uxO!y]O%e}O(QTO(TUO([VO(j[O(yiO~O![!eO!r!gO$V!kO(O!dO~P!EkO`,bOa%lO'u%lO~OPYOQYOSfOd!jOe!iOmkOoYOpkOqkOwkOyYO{YO!PWO!TkO!UkO![!eO!fuO!iZO!lYO!mYO!nYO!pvO!u!hO$V!kO(O!dO(QTO(TUO([VO(j[O(yiO~Oa,hO!rwO#t!OO%i!OO%j!OO%k!OO~P!HTO!i&lO~O&Y,nO~O![,pO~O&k,rO&m,sOP&haQ&haS&haY&haa&had&hae&ham&hao&hap&haq&haw&hay&ha{&ha!P&ha!T&ha!U&ha![&ha!f&ha!i&ha!l&ha!m&ha!n&ha!p&ha!r&ha!u&ha!y&ha#t&ha$V&ha%e&ha%g&ha%i&ha%j&ha%k&ha%n&ha%p&ha%s&ha%t&ha%v&ha&S&ha&Y&ha&[&ha&^&ha&`&ha&c&ha&i&ha&o&ha&q&ha&s&ha&u&ha&w&ha's&ha(O&ha(Q&ha(T&ha([&ha(j&ha(y&ha!Z&ha&a&hab&ha&f&ha~O(O,xO~Oh!bX!Y!OX!Z!OX!d!OX!d!bX!i!bX#]!OX~O!Y!bX!Z!bX~P# ZO!d,}O#],|Oh(eX!Y#eX!Y(eX!Z#eX!Z(eX!d(eX!i(eX~Oh%WO!d-PO!i%cO!Y!^X!Z!^X~Op!nO!P!oO(QTO(TUO(`!mO~OP:kOQ:kOSfOd<fOe!iOmkOo:kOpkOqkOwkOy:kO{:kO!PWO!TkO!UkO![!eO!f:nO!iZO!l:kO!m:kO!n:kO!p:oO!r:rO!u!hO$V!kO(QTO(TUO([VO(j[O(y<dO~O(O;fO~P##_O!Y-TO!Z(dX~O!Z-VO~O!d,}O#],|O!Y#eX!Z#eX~O!Y-WO!Z(sX~O!Z-YO~O!`-ZO!a-ZO(P!lO~P#!|O!Z-^O~P'_Ok-aO![']O~O!V-fO~Op!xa!_!xa!`!xa!a!xa#Q!xa#R!xa#S!xa#T!xa#U!xa#X!xa#Y!xa(P!xa(Q!xa(T!xa(`!xa(j!xa~P!#ZO!m-kO#]-iO~PCSO!`-mO!a-mO(P!lO~PCrOa%lO#]-iO'u%lO~Oa%lO!d#vO#]-iO'u%lO~Oa%lO!d#vO!m-kO#]-iO'u%lO(m'mO~O'z'uO'{'uO'|-rO~Os-sO~O!V'Sa!Y'Sa~P!9mO!X-wO!V'SX!Y'SX~P%[O!Y(RO!V(ca~O!V(ca~PGfO!Y(YO!V(qa~O!P%fO!X-{O![%gO(O%eO!V'YX!Y'YX~O#]-}O!Y(oa!h(oaa(oa'u(oa~O!d#vO~P#+eO!Y(fO!h(na~O!P%fO![%gO#g.RO(O%eO~Om.WO!P%fO!X.TO![%gO!y]O#f.VO#g.TO(O%eO!Y']X!h']X~OR.[O!i#xO~Oh%WOk._O![']O%f.^O~Oa#`i!Y#`i'u#`i's#`i!V#`i!h#`is#`i![#`i%f#`i!d#`i~P!9mOk<pO}){O!P)|O(t%OO(u%QO~O#h#[aa#[a#]#[a'u#[a!Y#[a!h#[a![#[a!V#[a~P#.aO#h(ZXP(ZXR(ZX[(ZXa(ZXo(ZX!i(ZX!m(ZX#O(ZX#k(ZX#l(ZX#m(ZX#n(ZX#o(ZX#p(ZX#q(ZX#r(ZX#s(ZX#u(ZX#w(ZX#y(ZX#z(ZX'u(ZX([(ZX(m(ZX!h(ZX!V(ZX's(ZXs(ZX![(ZX%f(ZX!d(ZX~P!5zO!Y.lO!h(fX~P!9mO!h.oO~O!V.qO~OP$]OR#zO}#yO!P#{O!i#xO!m$]O([VO[#jia#jio#ji!Y#ji#O#ji#l#ji#m#ji#n#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji'u#ji(m#ji(t#ji(u#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~O#k#ji~P#1|O#k$OO~P#1|OP$]OR#zO}#yO!P#{O!i#xO!m$]O#k$OO#l$PO#m$PO#n$PO([VO[#jia#ji!Y#ji#O#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji'u#ji(m#ji(t#ji(u#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~Oo#ji~P#4kOo$QO~P#4kOP$]OR#zOo$QO}#yO!P#{O!i#xO!m$]O#k$OO#l$PO#m$PO#n$PO#o$RO([VOa#ji!Y#ji#u#ji#w#ji#y#ji#z#ji'u#ji(m#ji(t#ji(u#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~O[#ji#O#ji#p#ji#q#ji#r#ji#s#ji~P#7YO[$cO#O$SO#p$SO#q$SO#r$bO#s$SO~P#7YOP$]OR#zO[$cOo$QO}#yO!P#{O!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO([VO(u#}Oa#ji!Y#ji#y#ji#z#ji'u#ji(m#ji(t#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~O#w$VO~P#:WO#w#ji~P#:WOP$]OR#zO[$cOo$QO}#yO!P#{O!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO([VOa#ji!Y#ji#y#ji#z#ji'u#ji(m#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~O#w#ji(t#ji(u#ji~P#<uO#w$VO(t#|O(u#}O~P#<uOP$]OR#zO[$cOo$QO}#yO!P#{O!i#xO!m$]O#O$SO#k$OO#l$PO#m$PO#n$PO#o$RO#p$SO#q$SO#r$bO#s$SO#u$TO#w$VO#y$XO([VO(t#|O(u#}O~Oa#ji!Y#ji#z#ji'u#ji(m#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~P#?jOP]XR]X[]Xo]X}]X!P]X!i]X!m]X#O]X#P]X#]]X#hfX#k]X#l]X#m]X#n]X#o]X#p]X#q]X#r]X#s]X#u]X#w]X#y]X#z]X$P]X([]X(m]X(t]X(u]X!Y]X!Z]X~O#}]X~P#BQOP$]OR#zO[;SOo:vO}#yO!P#{O!i#xO!m$]O#O:xO#k:tO#l:uO#m:uO#n:uO#o:wO#p:xO#q:xO#r;RO#s:xO#u:yO#w:{O#y:}O#z;OO([VO(m$ZO(t#|O(u#}O~O#}.sO~P#D_O#P$dO#];TO$P;TO#}(bX!Z(bX~P! YOa'`a!Y'`a'u'`a's'`a!h'`a!V'`as'`a!['`a%f'`a!d'`a~P!9mOP#jiR#ji[#jia#jio#ji!Y#ji!i#ji!m#ji#O#ji#k#ji#l#ji#m#ji#n#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji'u#ji([#ji(m#ji's#ji!V#ji!h#jis#ji![#ji%f#ji!d#ji~P#.aO!Y.wOg(kX~P!0pOg.yO~Oa$Oi!Y$Oi'u$Oi's$Oi!V$Oi!h$Ois$Oi![$Oi%f$Oi!d$Oi~P!9mO$[.zO$^.zO~O$[.{O$^.{O~O!d)dO#].|O![$bX$Y$bX$[$bX$^$bX$e$bX~O!X.}O~O![)gO$Y/PO$[)fO$^)fO$e/QO~O!Y;PO!Z(aX~P#D_O!Z/RO~O!d)dO$e(vX~O$e/TO~Ou)vO(])wO(^/WO~O!V/[O~P!&_O(t%OOk%^a}%^a!P%^a(u%^a!Y%^a#]%^a~Og%^a#}%^a~P#L{O(u%QOk%`a}%`a!P%`a(t%`a!Y%`a#]%`a~Og%`a#}%`a~P#MnO!YfX!dfX!hfX!h$xX(mfX~P!/gO!X/eO!Y(YO(O/dO!V(qP!V({P~P!1_Oo*oO!_*mO!`*fO!a*fO!i*^O#X*nO%]*iO(P!lO~Op'XO!P/fO!X+UO!Z*lO(QTO(TUO(`;cO!Z(sP~P$ XO!h/gO~P#.aO!Y/hO!d#vO(m'mO!h(zX~O!h/mO~O!P%fO!X*ZO![%gO(O%eO!h(zP~O#h/oO~O!V$xX!Y$xX!d%PX~P!/gO!Y/pO!V({X~P#.aO!d/rO~O!V/tO~Oh%WOo/xO!d#vO!i%cO(m'mO~O(O/zO~O!d+cO~Oa%lO!Y0OO'u%lO~O!Z0QO~P!5RO!`0RO!a0RO(P!lO(`!mO~O!P0TO(`!mO~O#X0UO~Og%^a!Y%^a#]%^a#}%^a~P!0pOg%`a!Y%`a#]%`a#}%`a~P!0pO(O&WOg'iX!Y'iX~O!Y*uOg(Xa~Og0_O~OR0`O}0`O!P0aO#P$dOkza(tza(uza!Yza#]za~Ogza#}za~P$&zO}){O!P)|Ok$qa(t$qa(u$qa!Y$qa#]$qa~Og$qa#}$qa~P$'sO}){O!P)|Ok$sa(t$sa(u$sa!Y$sa#]$sa~Og$sa#}$sa~P$(fO#h0dO~Og%Ra!Y%Ra#]%Ra#}%Ra~P!0pO!d#vO~O#h0gO~O!Y+WOa)Pa'u)Pa~OR#zO}#yO!P#{O!i#xO([VOP!oi[!oio!oi!Y!oi!m!oi#O!oi#k!oi#l!oi#m!oi#n!oi#o!oi#p!oi#q!oi#r!oi#s!oi#u!oi#w!oi#y!oi#z!oi(m!oi(t!oi(u!oi~Oa!oi'u!oi's!oi!V!oi!h!ois!oi![!oi%f!oi!d!oi~P$*TOh%WOo$uOp$tOq$tOw%YOy%ZO{;YO!P$|O![$}O!f<jO!i$yO#g;`O$V%_O$r;[O$t;^O$w%`O(QTO(TUO([$vO(t%OO(u%QO~Om0pO(O0oO~P$,kO!d+cOa(Wa![(Wa'u(Wa!Y(Wa~O#h0vO~O[]X!YfX!ZfX~O!Y0wO!Z)TX~O!Z0yO~O[0zO~Ob0|O(O+kO(QTO(TUO~O![%}O(O%eO`'qX!Y'qX~O!Y+pO`)Sa~O!h1PO~P!9mO[1SO~O`1TO~O#]1WO~Ok1ZO![$}O~O(`(xO!Z)QP~Oh%WOk1dO![1aO%f1cO~O[1nO!Y1lO!Z)RX~O!Z1oO~O`1qOa%lO'u%lO~O(O#nO(QTO(TUO~O#P$dO#]$eO$P$eOP(bXR(bX[(bXo(bX}(bX!P(bX!Y(bX!i(bX!m(bX#O(bX#k(bX#l(bX#m(bX#n(bX#o(bX#p(bX#q(bX#r(bX#u(bX#w(bX#y(bX#z(bX([(bX(m(bX(t(bX(u(bX~O#s1tO&W1uOa(bX~P$2RO#]$eO#s1tO&W1uO~Oa1wO~P%[Oa1yO~O&a1|OP&_iQ&_iS&_iY&_ia&_id&_ie&_im&_io&_ip&_iq&_iw&_iy&_i{&_i!P&_i!T&_i!U&_i![&_i!f&_i!i&_i!l&_i!m&_i!n&_i!p&_i!r&_i!u&_i!y&_i#t&_i$V&_i%e&_i%g&_i%i&_i%j&_i%k&_i%n&_i%p&_i%s&_i%t&_i%v&_i&S&_i&Y&_i&[&_i&^&_i&`&_i&c&_i&i&_i&o&_i&q&_i&s&_i&u&_i&w&_i's&_i(O&_i(Q&_i(T&_i([&_i(j&_i(y&_i!Z&_ib&_i&f&_i~Ob2SO!Z2QO&f2RO~P`O![XO!i2UO~O&m,sOP&hiQ&hiS&hiY&hia&hid&hie&him&hio&hip&hiq&hiw&hiy&hi{&hi!P&hi!T&hi!U&hi![&hi!f&hi!i&hi!l&hi!m&hi!n&hi!p&hi!r&hi!u&hi!y&hi#t&hi$V&hi%e&hi%g&hi%i&hi%j&hi%k&hi%n&hi%p&hi%s&hi%t&hi%v&hi&S&hi&Y&hi&[&hi&^&hi&`&hi&c&hi&i&hi&o&hi&q&hi&s&hi&u&hi&w&hi's&hi(O&hi(Q&hi(T&hi([&hi(j&hi(y&hi!Z&hi&a&hib&hi&f&hi~O!V2[O~O!Y!^a!Z!^a~P#D_Op!nO!P!oO!X2bO(`!mO!Y'TX!Z'TX~P@YO!Y-TO!Z(da~O!Y'ZX!Z'ZX~P!8uO!Y-WO!Z(sa~O!Z2iO~P'_Oa%lO#]2rO'u%lO~Oa%lO!d#vO#]2rO'u%lO~Oa%lO!d#vO!m2vO#]2rO'u%lO(m'mO~Oa%lO'u%lO~P!9mO!Y$`Os$oa~O!V'Si!Y'Si~P!9mO!Y(RO!V(ci~O!Y(YO!V(qi~O!V(ri!Y(ri~P!9mO!Y(oi!h(oia(oi'u(oi~P!9mO#]2xO!Y(oi!h(oia(oi'u(oi~O!Y(fO!h(ni~O!P%fO![%gO!y]O#f2}O#g2|O(O%eO~O!P%fO![%gO#g2|O(O%eO~Ok3UO![']O%f3TO~Oh%WOk3UO![']O%f3TO~O#h%^aP%^aR%^a[%^aa%^ao%^a!i%^a!m%^a#O%^a#k%^a#l%^a#m%^a#n%^a#o%^a#p%^a#q%^a#r%^a#s%^a#u%^a#w%^a#y%^a#z%^a'u%^a([%^a(m%^a!h%^a!V%^a's%^as%^a![%^a%f%^a!d%^a~P#L{O#h%`aP%`aR%`a[%`aa%`ao%`a!i%`a!m%`a#O%`a#k%`a#l%`a#m%`a#n%`a#o%`a#p%`a#q%`a#r%`a#s%`a#u%`a#w%`a#y%`a#z%`a'u%`a([%`a(m%`a!h%`a!V%`a's%`as%`a![%`a%f%`a!d%`a~P#MnO#h%^aP%^aR%^a[%^aa%^ao%^a!Y%^a!i%^a!m%^a#O%^a#k%^a#l%^a#m%^a#n%^a#o%^a#p%^a#q%^a#r%^a#s%^a#u%^a#w%^a#y%^a#z%^a'u%^a([%^a(m%^a!h%^a!V%^a's%^a#]%^as%^a![%^a%f%^a!d%^a~P#.aO#h%`aP%`aR%`a[%`aa%`ao%`a!Y%`a!i%`a!m%`a#O%`a#k%`a#l%`a#m%`a#n%`a#o%`a#p%`a#q%`a#r%`a#s%`a#u%`a#w%`a#y%`a#z%`a'u%`a([%`a(m%`a!h%`a!V%`a's%`a#]%`as%`a![%`a%f%`a!d%`a~P#.aO#hzaPza[zaazaoza!iza!mza#Oza#kza#lza#mza#nza#oza#pza#qza#rza#sza#uza#wza#yza#zza'uza([za(mza!hza!Vza'szasza![za%fza!dza~P$&zO#h$qaP$qaR$qa[$qaa$qao$qa!i$qa!m$qa#O$qa#k$qa#l$qa#m$qa#n$qa#o$qa#p$qa#q$qa#r$qa#s$qa#u$qa#w$qa#y$qa#z$qa'u$qa([$qa(m$qa!h$qa!V$qa's$qas$qa![$qa%f$qa!d$qa~P$'sO#h$saP$saR$sa[$saa$sao$sa!i$sa!m$sa#O$sa#k$sa#l$sa#m$sa#n$sa#o$sa#p$sa#q$sa#r$sa#s$sa#u$sa#w$sa#y$sa#z$sa'u$sa([$sa(m$sa!h$sa!V$sa's$sas$sa![$sa%f$sa!d$sa~P$(fO#h%RaP%RaR%Ra[%Raa%Rao%Ra!Y%Ra!i%Ra!m%Ra#O%Ra#k%Ra#l%Ra#m%Ra#n%Ra#o%Ra#p%Ra#q%Ra#r%Ra#s%Ra#u%Ra#w%Ra#y%Ra#z%Ra'u%Ra([%Ra(m%Ra!h%Ra!V%Ra's%Ra#]%Ras%Ra![%Ra%f%Ra!d%Ra~P#.aOa#`q!Y#`q'u#`q's#`q!V#`q!h#`qs#`q![#`q%f#`q!d#`q~P!9mO!X3^O!Y'UX!h'UX~P%[O!Y.lO!h(fa~O!Y.lO!h(fa~P!9mO!V3aO~O#}!ka!Z!ka~PKPO#}!ga!Y!ga!Z!ga~P#D_O#}!oa!Z!oa~P!<TO#}!qa!Z!qa~P!>kOg'XX!Y'XX~P!+hO!Y.wOg(ka~OSfO![3uO$c3vO~O!Z3zO~Os3{O~P#.aOa$lq!Y$lq'u$lq's$lq!V$lq!h$lqs$lq![$lq%f$lq!d$lq~P!9mO!V3|O~P#.aO}){O!P)|O(u%QOk'ea(t'ea!Y'ea#]'ea~Og'ea#}'ea~P%+]O}){O!P)|Ok'ga(t'ga(u'ga!Y'ga#]'ga~Og'ga#}'ga~P%,OO(m$ZO~P#.aO!VfX!V$xX!YfX!Y$xX!d%PX#]fX~P!/gO(O;lO~P!1_OmkO(O4OO~P.iO!P%fO!X4QO![%gO(O%eO!Y'aX!h'aX~O!Y/hO!h(za~O!Y/hO!d#vO!h(za~O!Y/hO!d#vO(m'mO!h(za~Og$zi!Y$zi#]$zi#}$zi~P!0pO!X4YO!V'cX!Y'cX~P!3^O!Y/pO!V({a~O!Y/pO!V({a~P#.aO!d#vO#s4bO~Oo4eO!d#vO(m'mO~O(t%OOk%^i}%^i!P%^i(u%^i!Y%^i#]%^i~Og%^i#}%^i~P%0^O(u%QOk%`i}%`i!P%`i(t%`i!Y%`i#]%`i~Og%`i#}%`i~P%1POg(Yi!Y(Yi~P!0pO#]4lOg(Yi!Y(Yi~P!0pO!h4oO~Oa$mq!Y$mq'u$mq's$mq!V$mq!h$mqs$mq![$mq%f$mq!d$mq~P!9mO!V4sO~O!Y4tO![(|X~P#.aOa$xX![$xX%Z]X'u$xX!Y$xX~P!/gO%Z4wOalXklX}lX!PlX![lX'ulX(tlX(ulX!YlX~O%Z4wO~Ob4}O%g5OO(O+kO(QTO(TUO!Y'pX!Z'pX~O!Y0wO!Z)Ta~O[5SO~O`5TO~Oa%lO'u%lO~P#.aO![$}O~P#.aO!Y5]O#]5_O!Z)QX~O!Z5`O~Op!nO!P5aO!_!yO!`!vO!a!vO!y:lO#Q!pO#R!pO#S!pO#T!pO#U!pO#X5fO#Y!zO(P!lO(QTO(TUO(`!mO(j!sO~O!Z5eO~P%6ZOk5kO![1aO%f5jO~Oh%WOk5kO![1aO%f5jO~Ob5rO(O#nO(QTO(TUO!Y'oX!Z'oX~O!Y1lO!Z)Ra~O(QTO(TUO(`5tO~O`5xO~O#s5{O&W5|O~PMlO!h5}O~P%[Oa6PO~Oa6PO~P%[Ob2SO!Z6UO&f2RO~P`O!d6WO~O!d6YOh(ei!Y(ei!Z(ei!d(ei!i(ei~O!Y#ei!Z#ei~P#D_O#]6ZO!Y#ei!Z#ei~O!Y!^i!Z!^i~P#D_Oa%lO#]6dO'u%lO~Oa%lO!d#vO#]6dO'u%lO~O!Y(oq!h(oqa(oq'u(oq~P!9mO!Y(fO!h(nq~O!P%fO![%gO#g6kO(O%eO~O![']O%f6nO~Ok6rO![']O%f6nO~O#h'eaP'eaR'ea['eaa'eao'ea!i'ea!m'ea#O'ea#k'ea#l'ea#m'ea#n'ea#o'ea#p'ea#q'ea#r'ea#s'ea#u'ea#w'ea#y'ea#z'ea'u'ea(['ea(m'ea!h'ea!V'ea's'eas'ea!['ea%f'ea!d'ea~P%+]O#h'gaP'gaR'ga['gaa'gao'ga!i'ga!m'ga#O'ga#k'ga#l'ga#m'ga#n'ga#o'ga#p'ga#q'ga#r'ga#s'ga#u'ga#w'ga#y'ga#z'ga'u'ga(['ga(m'ga!h'ga!V'ga's'gas'ga!['ga%f'ga!d'ga~P%,OO#h$ziP$ziR$zi[$zia$zio$zi!Y$zi!i$zi!m$zi#O$zi#k$zi#l$zi#m$zi#n$zi#o$zi#p$zi#q$zi#r$zi#s$zi#u$zi#w$zi#y$zi#z$zi'u$zi([$zi(m$zi!h$zi!V$zi's$zi#]$zis$zi![$zi%f$zi!d$zi~P#.aO#h%^iP%^iR%^i[%^ia%^io%^i!i%^i!m%^i#O%^i#k%^i#l%^i#m%^i#n%^i#o%^i#p%^i#q%^i#r%^i#s%^i#u%^i#w%^i#y%^i#z%^i'u%^i([%^i(m%^i!h%^i!V%^i's%^is%^i![%^i%f%^i!d%^i~P%0^O#h%`iP%`iR%`i[%`ia%`io%`i!i%`i!m%`i#O%`i#k%`i#l%`i#m%`i#n%`i#o%`i#p%`i#q%`i#r%`i#s%`i#u%`i#w%`i#y%`i#z%`i'u%`i([%`i(m%`i!h%`i!V%`i's%`is%`i![%`i%f%`i!d%`i~P%1PO!Y'Ua!h'Ua~P!9mO!Y.lO!h(fi~O#}#`i!Y#`i!Z#`i~P#D_OP$]OR#zO}#yO!P#{O!i#xO!m$]O([VO[#jio#ji#O#ji#l#ji#m#ji#n#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji#}#ji(m#ji(t#ji(u#ji!Y#ji!Z#ji~O#k#ji~P%HpO#k:tO~P%HpOP$]OR#zO}#yO!P#{O!i#xO!m$]O#k:tO#l:uO#m:uO#n:uO([VO[#ji#O#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji#}#ji(m#ji(t#ji(u#ji!Y#ji!Z#ji~Oo#ji~P%JxOo:vO~P%JxOP$]OR#zOo:vO}#yO!P#{O!i#xO!m$]O#k:tO#l:uO#m:uO#n:uO#o:wO([VO#u#ji#w#ji#y#ji#z#ji#}#ji(m#ji(t#ji(u#ji!Y#ji!Z#ji~O[#ji#O#ji#p#ji#q#ji#r#ji#s#ji~P%MQO[;SO#O:xO#p:xO#q:xO#r;RO#s:xO~P%MQOP$]OR#zO[;SOo:vO}#yO!P#{O!i#xO!m$]O#O:xO#k:tO#l:uO#m:uO#n:uO#o:wO#p:xO#q:xO#r;RO#s:xO#u:yO([VO(u#}O#y#ji#z#ji#}#ji(m#ji(t#ji!Y#ji!Z#ji~O#w:{O~P& iO#w#ji~P& iOP$]OR#zO[;SOo:vO}#yO!P#{O!i#xO!m$]O#O:xO#k:tO#l:uO#m:uO#n:uO#o:wO#p:xO#q:xO#r;RO#s:xO#u:yO([VO#y#ji#z#ji#}#ji(m#ji!Y#ji!Z#ji~O#w#ji(t#ji(u#ji~P&#qO#w:{O(t#|O(u#}O~P&#qOP$]OR#zO[;SOo:vO}#yO!P#{O!i#xO!m$]O#O:xO#k:tO#l:uO#m:uO#n:uO#o:wO#p:xO#q:xO#r;RO#s:xO#u:yO#w:{O#y:}O([VO(t#|O(u#}O~O#z#ji#}#ji(m#ji!Y#ji!Z#ji~P&&POa#{y!Y#{y'u#{y's#{y!V#{y!h#{ys#{y![#{y%f#{y!d#{y~P!9mOk<qO}){O!P)|O(t%OO(u%QO~OP#jiR#ji[#jio#ji!i#ji!m#ji#O#ji#k#ji#l#ji#m#ji#n#ji#o#ji#p#ji#q#ji#r#ji#s#ji#u#ji#w#ji#y#ji#z#ji#}#ji([#ji(m#ji!Y#ji!Z#ji~P&(tO#P$dOP(ZXR(ZX[(ZXk(ZXo(ZX}(ZX!P(ZX!i(ZX!m(ZX#O(ZX#k(ZX#l(ZX#m(ZX#n(ZX#o(ZX#p(ZX#q(ZX#r(ZX#s(ZX#u(ZX#w(ZX#y(ZX#z(ZX#}(ZX([(ZX(m(ZX(t(ZX(u(ZX!Y(ZX!Z(ZX~O#}$Oi!Y$Oi!Z$Oi~P#D_O#}!oi!Z!oi~P$*TOg'Xa!Y'Xa~P!0pO!Z7UO~O!Y'`a!Z'`a~P#D_OP]XR]X[]Xo]X}]X!P]X!V]X!Y]X!i]X!m]X#O]X#P]X#]]X#hfX#k]X#l]X#m]X#n]X#o]X#p]X#q]X#r]X#s]X#u]X#w]X#y]X#z]X$P]X([]X(m]X(t]X(u]X~O!d%WX#s%WX~P&-}O!d#vO(m'mO!Y'aa!h'aa~O!Y/hO!h(zi~O!Y/hO!d#vO!h(zi~Og$zq!Y$zq#]$zq#}$zq~P!0pO!V'ca!Y'ca~P#.aO!d7]O~O!Y/pO!V({i~P#.aO!Y/pO!V({i~O!V7aO~O!d#vO#s7fO~Oo7gO!d#vO(m'mO~O}){O!P)|O(u%QOk'fa(t'fa!Y'fa#]'fa~Og'fa#}'fa~P&2mO}){O!P)|Ok'ha(t'ha(u'ha!Y'ha#]'ha~Og'ha#}'ha~P&3`O!V7iO~Og$|q!Y$|q#]$|q#}$|q~P!0pOa$my!Y$my'u$my's$my!V$my!h$mys$my![$my%f$my!d$my~P!9mO!d6YO~O!Y4tO![(|a~O![']OP$SaR$Sa[$Sao$Sa}$Sa!P$Sa!Y$Sa!i$Sa!m$Sa#O$Sa#k$Sa#l$Sa#m$Sa#n$Sa#o$Sa#p$Sa#q$Sa#r$Sa#s$Sa#u$Sa#w$Sa#y$Sa#z$Sa([$Sa(m$Sa(t$Sa(u$Sa~O%f6nO~P&5iOa#`y!Y#`y'u#`y's#`y!V#`y!h#`ys#`y![#`y%f#`y!d#`y~P!9mO[7nO~Ob7pO(O+kO(QTO(TUO~O!Y0wO!Z)Ti~O`7tO~O(`(xO!Y'lX!Z'lX~O!Y5]O!Z)Qa~O!Z7}O~P%6ZOp!nO!P8OO(QTO(TUO(`!mO(j!sO~O![1aO~O![1aO%f8QO~Ok8TO![1aO%f8QO~O[8YO!Y'oa!Z'oa~O!Y1lO!Z)Ri~O!h8^O~O!h8_O~O!h8bO~O!h8bO~P%[Oa8dO~O!d8eO~O!h8fO~O!Y(ri!Z(ri~P#D_Oa%lO#]8nO'u%lO~O!Y(oy!h(oya(oy'u(oy~P!9mO!Y(fO!h(ny~O%f8qO~P&5iO![']O%f8qO~O#h$zqP$zqR$zq[$zqa$zqo$zq!Y$zq!i$zq!m$zq#O$zq#k$zq#l$zq#m$zq#n$zq#o$zq#p$zq#q$zq#r$zq#s$zq#u$zq#w$zq#y$zq#z$zq'u$zq([$zq(m$zq!h$zq!V$zq's$zq#]$zqs$zq![$zq%f$zq!d$zq~P#.aO#h'faP'faR'fa['faa'fao'fa!i'fa!m'fa#O'fa#k'fa#l'fa#m'fa#n'fa#o'fa#p'fa#q'fa#r'fa#s'fa#u'fa#w'fa#y'fa#z'fa'u'fa(['fa(m'fa!h'fa!V'fa's'fas'fa!['fa%f'fa!d'fa~P&2mO#h'haP'haR'ha['haa'hao'ha!i'ha!m'ha#O'ha#k'ha#l'ha#m'ha#n'ha#o'ha#p'ha#q'ha#r'ha#s'ha#u'ha#w'ha#y'ha#z'ha'u'ha(['ha(m'ha!h'ha!V'ha's'has'ha!['ha%f'ha!d'ha~P&3`O#h$|qP$|qR$|q[$|qa$|qo$|q!Y$|q!i$|q!m$|q#O$|q#k$|q#l$|q#m$|q#n$|q#o$|q#p$|q#q$|q#r$|q#s$|q#u$|q#w$|q#y$|q#z$|q'u$|q([$|q(m$|q!h$|q!V$|q's$|q#]$|qs$|q![$|q%f$|q!d$|q~P#.aO!Y'Ui!h'Ui~P!9mO#}#`q!Y#`q!Z#`q~P#D_O(t%OOP%^aR%^a[%^ao%^a!i%^a!m%^a#O%^a#k%^a#l%^a#m%^a#n%^a#o%^a#p%^a#q%^a#r%^a#s%^a#u%^a#w%^a#y%^a#z%^a#}%^a([%^a(m%^a!Y%^a!Z%^a~Ok%^a}%^a!P%^a(u%^a~P&FgO(u%QOP%`aR%`a[%`ao%`a!i%`a!m%`a#O%`a#k%`a#l%`a#m%`a#n%`a#o%`a#p%`a#q%`a#r%`a#s%`a#u%`a#w%`a#y%`a#z%`a#}%`a([%`a(m%`a!Y%`a!Z%`a~Ok%`a}%`a!P%`a(t%`a~P&HkOk<qO}){O!P)|O(u%QO~P&FgOk<qO}){O!P)|O(t%OO~P&HkOR0`O}0`O!P0aO#P$dOPza[zakzaoza!iza!mza#Oza#kza#lza#mza#nza#oza#pza#qza#rza#sza#uza#wza#yza#zza#}za([za(mza(tza(uza!Yza!Zza~O}){O!P)|OP$qaR$qa[$qak$qao$qa!i$qa!m$qa#O$qa#k$qa#l$qa#m$qa#n$qa#o$qa#p$qa#q$qa#r$qa#s$qa#u$qa#w$qa#y$qa#z$qa#}$qa([$qa(m$qa(t$qa(u$qa!Y$qa!Z$qa~O}){O!P)|OP$saR$sa[$sak$sao$sa!i$sa!m$sa#O$sa#k$sa#l$sa#m$sa#n$sa#o$sa#p$sa#q$sa#r$sa#s$sa#u$sa#w$sa#y$sa#z$sa#}$sa([$sa(m$sa(t$sa(u$sa!Y$sa!Z$sa~OP%RaR%Ra[%Rao%Ra!i%Ra!m%Ra#O%Ra#k%Ra#l%Ra#m%Ra#n%Ra#o%Ra#p%Ra#q%Ra#r%Ra#s%Ra#u%Ra#w%Ra#y%Ra#z%Ra#}%Ra([%Ra(m%Ra!Y%Ra!Z%Ra~P&(tO#}$lq!Y$lq!Z$lq~P#D_O#}$mq!Y$mq!Z$mq~P#D_O!Z9OO~O#}9PO~P!0pO!d#vO!Y'ai!h'ai~O!d#vO(m'mO!Y'ai!h'ai~O!Y/hO!h(zq~O!V'ci!Y'ci~P#.aO!Y/pO!V({q~O!V9VO~P#.aO!V9VO~Og(Yy!Y(Yy~P!0pO!Y'ja!['ja~P#.aOa%Yq![%Yq'u%Yq!Y%Yq~P#.aO[9[O~O!Y0wO!Z)Tq~O#]9`O!Y'la!Z'la~O!Y5]O!Z)Qi~P#D_O![1aO%f9dO~O(QTO(TUO(`9iO~O!Y1lO!Z)Rq~O!h9lO~O!h9mO~O!h9nO~O!h9nO~P%[O#]9qO!Y#ey!Z#ey~O!Y#ey!Z#ey~P#D_O%f9vO~P&5iO![']O%f9vO~O#}#{y!Y#{y!Z#{y~P#D_OP$ziR$zi[$zio$zi!i$zi!m$zi#O$zi#k$zi#l$zi#m$zi#n$zi#o$zi#p$zi#q$zi#r$zi#s$zi#u$zi#w$zi#y$zi#z$zi#}$zi([$zi(m$zi!Y$zi!Z$zi~P&(tO}){O!P)|O(u%QOP'eaR'ea['eak'eao'ea!i'ea!m'ea#O'ea#k'ea#l'ea#m'ea#n'ea#o'ea#p'ea#q'ea#r'ea#s'ea#u'ea#w'ea#y'ea#z'ea#}'ea(['ea(m'ea(t'ea!Y'ea!Z'ea~O}){O!P)|OP'gaR'ga['gak'gao'ga!i'ga!m'ga#O'ga#k'ga#l'ga#m'ga#n'ga#o'ga#p'ga#q'ga#r'ga#s'ga#u'ga#w'ga#y'ga#z'ga#}'ga(['ga(m'ga(t'ga(u'ga!Y'ga!Z'ga~O(t%OOP%^iR%^i[%^ik%^io%^i}%^i!P%^i!i%^i!m%^i#O%^i#k%^i#l%^i#m%^i#n%^i#o%^i#p%^i#q%^i#r%^i#s%^i#u%^i#w%^i#y%^i#z%^i#}%^i([%^i(m%^i(u%^i!Y%^i!Z%^i~O(u%QOP%`iR%`i[%`ik%`io%`i}%`i!P%`i!i%`i!m%`i#O%`i#k%`i#l%`i#m%`i#n%`i#o%`i#p%`i#q%`i#r%`i#s%`i#u%`i#w%`i#y%`i#z%`i#}%`i([%`i(m%`i(t%`i!Y%`i!Z%`i~O#}$my!Y$my!Z$my~P#D_O#}#`y!Y#`y!Z#`y~P#D_O!d#vO!Y'aq!h'aq~O!Y/hO!h(zy~O!V'cq!Y'cq~P#.aO!V:PO~P#.aO!Y0wO!Z)Ty~O!Y5]O!Z)Qq~O![1aO%f:WO~O!h:ZO~O%f:`O~P&5iOP$zqR$zq[$zqo$zq!i$zq!m$zq#O$zq#k$zq#l$zq#m$zq#n$zq#o$zq#p$zq#q$zq#r$zq#s$zq#u$zq#w$zq#y$zq#z$zq#}$zq([$zq(m$zq!Y$zq!Z$zq~P&(tO}){O!P)|O(u%QOP'faR'fa['fak'fao'fa!i'fa!m'fa#O'fa#k'fa#l'fa#m'fa#n'fa#o'fa#p'fa#q'fa#r'fa#s'fa#u'fa#w'fa#y'fa#z'fa#}'fa(['fa(m'fa(t'fa!Y'fa!Z'fa~O}){O!P)|OP'haR'ha['hak'hao'ha!i'ha!m'ha#O'ha#k'ha#l'ha#m'ha#n'ha#o'ha#p'ha#q'ha#r'ha#s'ha#u'ha#w'ha#y'ha#z'ha#}'ha(['ha(m'ha(t'ha(u'ha!Y'ha!Z'ha~OP$|qR$|q[$|qo$|q!i$|q!m$|q#O$|q#k$|q#l$|q#m$|q#n$|q#o$|q#p$|q#q$|q#r$|q#s$|q#u$|q#w$|q#y$|q#z$|q#}$|q([$|q(m$|q!Y$|q!Z$|q~P&(tOg%b!Z!Y%b!Z#]%b!Z#}%b!Z~P!0pO!Y'lq!Z'lq~P#D_O!Y#e!Z!Z#e!Z~P#D_O#h%b!ZP%b!ZR%b!Z[%b!Za%b!Zo%b!Z!Y%b!Z!i%b!Z!m%b!Z#O%b!Z#k%b!Z#l%b!Z#m%b!Z#n%b!Z#o%b!Z#p%b!Z#q%b!Z#r%b!Z#s%b!Z#u%b!Z#w%b!Z#y%b!Z#z%b!Z'u%b!Z([%b!Z(m%b!Z!h%b!Z!V%b!Z's%b!Z#]%b!Zs%b!Z![%b!Z%f%b!Z!d%b!Z~P#.aOP%b!ZR%b!Z[%b!Zo%b!Z!i%b!Z!m%b!Z#O%b!Z#k%b!Z#l%b!Z#m%b!Z#n%b!Z#o%b!Z#p%b!Z#q%b!Z#r%b!Z#s%b!Z#u%b!Z#w%b!Z#y%b!Z#z%b!Z#}%b!Z([%b!Z(m%b!Z!Y%b!Z!Z%b!Z~P&(tOs(aX~P1qO}%pO~P!(oO(P!lO~P!(oO!VfX!YfX#]fX~P&-}OP]XR]X[]Xo]X}]X!P]X!Y]X!YfX!i]X!m]X#O]X#P]X#]]X#]fX#hfX#k]X#l]X#m]X#n]X#o]X#p]X#q]X#r]X#s]X#u]X#w]X#y]X#z]X$P]X([]X(m]X(t]X(u]X~O!dfX!h]X!hfX(mfX~P'CvOP:kOQ:kOSfOd<fOe!iOmkOo:kOpkOqkOwkOy:kO{:kO!PWO!TkO!UkO![XO!f:nO!iZO!l:kO!m:kO!n:kO!p:oO!r:rO!u!hO$V!kO(O)YO(QTO(TUO([VO(j[O(y<dO~O!Y;PO!Z$oa~Oh%WOm%XOo$uOp$tOq$tOw%YOy%ZO{;ZO!P$|O![$}O!f<kO!i$yO#g;aO$V%_O$r;]O$t;_O$w%`O(O(rO(QTO(TUO([$vO(t%OO(u%QO~O#t)`O~P'HlOo!bX(m!bX~P# ZO!Z]X!ZfX~P'CvO!VfX!V$xX!YfX!Y$xX#]fX~P!/gO#h:sO~O!d#vO#h:sO~O#];TO~O#s:xO~O#];dO!Y(rX!Z(rX~O#];TO!Y(pX!Z(pX~O#h;eO~Og;gO~P!0pO#h;mO~O#h;nO~O!d#vO#h;oO~O!d#vO#h;eO~O#};pO~P#D_O#h;qO~O#h;rO~O#h;wO~O#h;xO~O#h;yO~O#h;zO~O#};{O~P!0pO#};|O~P!0pO#P#Q#R#T#U#X#f#g#r(y$r$t$w%Z%e%f%g%n%p%s%t%v%x~'yT#l!U'w(P#mp#k#no}'x$['x(O$^(`~",
@@ -19040,7 +19040,7 @@ Markers given to this facet should _only_ define an
 in all gutters for the line).
 */
 const gutterLineClass = /*@__PURE__*/Facet.define();
-const defaults$1 = {
+const defaults$2 = {
     class: "",
     renderEmptyElements: false,
     elementStyle: "",
@@ -19058,7 +19058,7 @@ Define an editor gutter. The order in which the gutters appear is
 determined by their extension priority.
 */
 function gutter(config) {
-    return [gutters(), activeGutters.of(Object.assign(Object.assign({}, defaults$1), config))];
+    return [gutters(), activeGutters.of(Object.assign(Object.assign({}, defaults$2), config))];
 }
 const unfixGutters = /*@__PURE__*/Facet.define({
     combine: values => values.some(x => x)
@@ -23075,7 +23075,7 @@ const snippetPointerHandler = /*@__PURE__*/EditorView.domEventHandlers({
     }
 });
 
-const defaults = {
+const defaults$1 = {
     brackets: ["(", "[", "{", "'", '"'],
     before: ")]}:;>",
     stringPrefixes: []
@@ -23122,7 +23122,7 @@ function closing(ch) {
     return fromCodePoint(ch < 128 ? ch : ch + 1);
 }
 function config(state, pos) {
-    return state.languageDataAt("closeBrackets", pos)[0] || defaults;
+    return state.languageDataAt("closeBrackets", pos)[0] || defaults$1;
 }
 const android$1 = typeof navigator == "object" && /*@__PURE__*//Android\b/.test(navigator.userAgent);
 const inputHandler = /*@__PURE__*/EditorView.inputHandler.of((view, from, to, insert) => {
@@ -23146,7 +23146,7 @@ const deleteBracketPair = ({ state, dispatch }) => {
     if (state.readOnly)
         return false;
     let conf = config(state, state.selection.main.head);
-    let tokens = conf.brackets || defaults.brackets;
+    let tokens = conf.brackets || defaults$1.brackets;
     let dont = null, changes = state.changeByRange(range => {
         if (range.empty) {
             let before = prevChar(state.doc, range.head);
@@ -23182,12 +23182,12 @@ take care of running this for user input.)
 */
 function insertBracket(state, bracket) {
     let conf = config(state, state.selection.main.head);
-    let tokens = conf.brackets || defaults.brackets;
+    let tokens = conf.brackets || defaults$1.brackets;
     for (let tok of tokens) {
         let closed = closing(codePointAt(tok, 0));
         if (bracket == tok)
             return closed == tok ? handleSame(state, tok, tokens.indexOf(tok + tok + tok) > -1, conf)
-                : handleOpen(state, tok, closed, conf.before || defaults.before);
+                : handleOpen(state, tok, closed, conf.before || defaults$1.before);
         if (bracket == closed && closedBracketAt(state, state.selection.main.from))
             return handleClose(state, tok, closed);
     }
@@ -23242,7 +23242,7 @@ function handleClose(state, _open, close) {
 // Handles cases where the open and close token are the same, and
 // possibly triple quotes (as in `"""abc"""`-style quoting).
 function handleSame(state, token, allowTriple, config) {
-    let stringPrefixes = config.stringPrefixes || defaults.stringPrefixes;
+    let stringPrefixes = config.stringPrefixes || defaults$1.stringPrefixes;
     let dont = null, changes = state.changeByRange(range => {
         if (!range.empty)
             return { changes: [{ insert: token, from: range.from }, { insert: token, from: range.to }],
@@ -23493,7 +23493,7 @@ function getScope(doc, node) {
     cache.set(node, completions);
     return completions;
 }
-const Identifier = /^[\w$\xa1-\uffff][\w$\d\xa1-\uffff]*$/;
+const Identifier$1 = /^[\w$\xa1-\uffff][\w$\d\xa1-\uffff]*$/;
 const dontComplete = [
     "TemplateString", "String", "RegExp",
     "LineComment", "BlockComment",
@@ -23511,7 +23511,7 @@ function localCompletionSource(context) {
     if (dontComplete.indexOf(inner.name) > -1)
         return null;
     let isWord = inner.name == "VariableName" ||
-        inner.to - inner.from < 20 && Identifier.test(context.state.sliceDoc(inner.from, inner.to));
+        inner.to - inner.from < 20 && Identifier$1.test(context.state.sliceDoc(inner.from, inner.to));
     if (!isWord && !context.explicit)
         return null;
     let options = [];
@@ -23522,7 +23522,7 @@ function localCompletionSource(context) {
     return {
         options,
         from: isWord ? inner.from : context.pos,
-        validFor: Identifier
+        validFor: Identifier$1
     };
 }
 
@@ -23533,7 +23533,7 @@ highlighting and indentation information.
 */
 const javascriptLanguage = /*@__PURE__*/LRLanguage.define({
     name: "javascript",
-    parser: /*@__PURE__*/parser.configure({
+    parser: /*@__PURE__*/parser$2.configure({
         props: [
             /*@__PURE__*/indentNodeProp.add({
                 IfStatement: /*@__PURE__*/continuedIndent({ except: /^\s*({|else\b)/ }),
@@ -23595,8 +23595,8 @@ const tsxLanguage = /*@__PURE__*/javascriptLanguage.configure({
     props: [/*@__PURE__*/sublanguageProp.add(n => n.isTop ? [jsxSublanguage] : undefined)]
 }, "typescript");
 let kwCompletion = (name) => ({ label: name, type: "keyword" });
-const keywords = /*@__PURE__*/"break case const continue default delete export extends false finally in instanceof let new return static super switch this throw true typeof var yield".split(" ").map(kwCompletion);
-const typescriptKeywords = /*@__PURE__*/keywords.concat(/*@__PURE__*/["declare", "implements", "private", "protected", "public"].map(kwCompletion));
+const keywords$1 = /*@__PURE__*/"break case const continue default delete export extends false finally in instanceof let new return static super switch this throw true typeof var yield".split(" ").map(kwCompletion);
+const typescriptKeywords = /*@__PURE__*/keywords$1.concat(/*@__PURE__*/["declare", "implements", "private", "protected", "public"].map(kwCompletion));
 /**
 JavaScript support. Includes [snippet](https://codemirror.net/6/docs/ref/#lang-javascript.snippets)
 and local variable completion.
@@ -23604,7 +23604,7 @@ and local variable completion.
 function javascript(config = {}) {
     let lang = config.jsx ? (config.typescript ? tsxLanguage : jsxLanguage)
         : config.typescript ? typescriptLanguage : javascriptLanguage;
-    let completions = config.typescript ? typescriptSnippets.concat(typescriptKeywords) : snippets.concat(keywords);
+    let completions = config.typescript ? typescriptSnippets.concat(typescriptKeywords) : snippets.concat(keywords$1);
     return new LanguageSupport(lang, [
         javascriptLanguage.data.of({
             autocomplete: ifNotIn(dontComplete, completeFromList(completions))
@@ -23677,6 +23677,711 @@ const autoCloseTags = /*@__PURE__*/EditorView.inputHandler.of((view, from, to, t
     ]);
     return true;
 });
+
+// This file was generated by lezer-generator. You probably shouldn't edit it.
+const whitespace = 36,
+  LineComment = 1,
+  BlockComment = 2,
+  String$1 = 3,
+  Number = 4,
+  Bool = 5,
+  Null = 6,
+  ParenL = 7,
+  ParenR = 8,
+  BraceL = 9,
+  BraceR = 10,
+  BracketL = 11,
+  BracketR = 12,
+  Semi = 13,
+  Dot = 14,
+  Operator = 15,
+  Punctuation = 16,
+  SpecialVar = 17,
+  Identifier = 18,
+  QuotedIdentifier = 19,
+  Keyword = 20,
+  Type = 21,
+  Bits = 22,
+  Bytes = 23,
+  Builtin = 24;
+
+function isAlpha(ch) {
+    return ch >= 65 /* Ch.A */ && ch <= 90 /* Ch.Z */ || ch >= 97 /* Ch.a */ && ch <= 122 /* Ch.z */ || ch >= 48 /* Ch._0 */ && ch <= 57 /* Ch._9 */;
+}
+function isHexDigit(ch) {
+    return ch >= 48 /* Ch._0 */ && ch <= 57 /* Ch._9 */ || ch >= 97 /* Ch.a */ && ch <= 102 /* Ch.f */ || ch >= 65 /* Ch.A */ && ch <= 70 /* Ch.F */;
+}
+function readLiteral(input, endQuote, backslashEscapes) {
+    for (let escaped = false;;) {
+        if (input.next < 0)
+            return;
+        if (input.next == endQuote && !escaped) {
+            input.advance();
+            return;
+        }
+        escaped = backslashEscapes && !escaped && input.next == 92 /* Ch.Backslash */;
+        input.advance();
+    }
+}
+function readDoubleDollarLiteral(input, tag) {
+    scan: for (;;) {
+        if (input.next < 0)
+            return;
+        if (input.next == 36 /* Ch.Dollar */) {
+            input.advance();
+            for (let i = 0; i < tag.length; i++) {
+                if (input.next != tag.charCodeAt(i))
+                    continue scan;
+                input.advance();
+            }
+            if (input.next == 36 /* Ch.Dollar */) {
+                input.advance();
+                return;
+            }
+        }
+        else {
+            input.advance();
+        }
+    }
+}
+function readPLSQLQuotedLiteral(input, openDelim) {
+    let matchingDelim = "[{<(".indexOf(String.fromCharCode(openDelim));
+    let closeDelim = matchingDelim < 0 ? openDelim : "]}>)".charCodeAt(matchingDelim);
+    for (;;) {
+        if (input.next < 0)
+            return;
+        if (input.next == closeDelim && input.peek(1) == 39 /* Ch.SingleQuote */) {
+            input.advance(2);
+            return;
+        }
+        input.advance();
+    }
+}
+function readWord(input, result) {
+    for (;;) {
+        if (input.next != 95 /* Ch.Underscore */ && !isAlpha(input.next))
+            break;
+        if (result != null)
+            result += String.fromCharCode(input.next);
+        input.advance();
+    }
+    return result;
+}
+function readWordOrQuoted(input) {
+    if (input.next == 39 /* Ch.SingleQuote */ || input.next == 34 /* Ch.DoubleQuote */ || input.next == 96 /* Ch.Backtick */) {
+        let quote = input.next;
+        input.advance();
+        readLiteral(input, quote, false);
+    }
+    else {
+        readWord(input);
+    }
+}
+function readBits(input, endQuote) {
+    while (input.next == 48 /* Ch._0 */ || input.next == 49 /* Ch._1 */)
+        input.advance();
+    if (endQuote && input.next == endQuote)
+        input.advance();
+}
+function readNumber(input, sawDot) {
+    for (;;) {
+        if (input.next == 46 /* Ch.Dot */) {
+            if (sawDot)
+                break;
+            sawDot = true;
+        }
+        else if (input.next < 48 /* Ch._0 */ || input.next > 57 /* Ch._9 */) {
+            break;
+        }
+        input.advance();
+    }
+    if (input.next == 69 /* Ch.E */ || input.next == 101 /* Ch.e */) {
+        input.advance();
+        if (input.next == 43 /* Ch.Plus */ || input.next == 45 /* Ch.Dash */)
+            input.advance();
+        while (input.next >= 48 /* Ch._0 */ && input.next <= 57 /* Ch._9 */)
+            input.advance();
+    }
+}
+function eol(input) {
+    while (!(input.next < 0 || input.next == 10 /* Ch.Newline */))
+        input.advance();
+}
+function inString(ch, str) {
+    for (let i = 0; i < str.length; i++)
+        if (str.charCodeAt(i) == ch)
+            return true;
+    return false;
+}
+const Space = " \t\r\n";
+function keywords(keywords, types, builtin) {
+    let result = Object.create(null);
+    result["true"] = result["false"] = Bool;
+    result["null"] = result["unknown"] = Null;
+    for (let kw of keywords.split(" "))
+        if (kw)
+            result[kw] = Keyword;
+    for (let tp of types.split(" "))
+        if (tp)
+            result[tp] = Type;
+    for (let kw of (builtin || "").split(" "))
+        if (kw)
+            result[kw] = Builtin;
+    return result;
+}
+const SQLTypes = "array binary bit boolean char character clob date decimal double float int integer interval large national nchar nclob numeric object precision real smallint time timestamp varchar varying ";
+const SQLKeywords = "absolute action add after all allocate alter and any are as asc assertion at authorization before begin between both breadth by call cascade cascaded case cast catalog check close collate collation column commit condition connect connection constraint constraints constructor continue corresponding count create cross cube current current_date current_default_transform_group current_transform_group_for_type current_path current_role current_time current_timestamp current_user cursor cycle data day deallocate declare default deferrable deferred delete depth deref desc describe descriptor deterministic diagnostics disconnect distinct do domain drop dynamic each else elseif end end-exec equals escape except exception exec execute exists exit external fetch first for foreign found from free full function general get global go goto grant group grouping handle having hold hour identity if immediate in indicator initially inner inout input insert intersect into is isolation join key language last lateral leading leave left level like limit local localtime localtimestamp locator loop map match method minute modifies module month names natural nesting new next no none not of old on only open option or order ordinality out outer output overlaps pad parameter partial path prepare preserve primary prior privileges procedure public read reads recursive redo ref references referencing relative release repeat resignal restrict result return returns revoke right role rollback rollup routine row rows savepoint schema scroll search second section select session session_user set sets signal similar size some space specific specifictype sql sqlexception sqlstate sqlwarning start state static system_user table temporary then timezone_hour timezone_minute to trailing transaction translation treat trigger under undo union unique unnest until update usage user using value values view when whenever where while with without work write year zone ";
+const defaults = {
+    backslashEscapes: false,
+    hashComments: false,
+    spaceAfterDashes: false,
+    slashComments: false,
+    doubleQuotedStrings: false,
+    doubleDollarQuotedStrings: false,
+    unquotedBitLiterals: false,
+    treatBitsAsBytes: false,
+    charSetCasts: false,
+    plsqlQuotingMechanism: false,
+    operatorChars: "*+\-%<>!=&|~^/",
+    specialVar: "?",
+    identifierQuotes: '"',
+    caseInsensitiveIdentifiers: false,
+    words: /*@__PURE__*/keywords(SQLKeywords, SQLTypes)
+};
+function dialect(spec, kws, types, builtin) {
+    let dialect = {};
+    for (let prop in defaults)
+        dialect[prop] = (spec.hasOwnProperty(prop) ? spec : defaults)[prop];
+    if (kws)
+        dialect.words = keywords(kws, types || "", builtin);
+    return dialect;
+}
+function tokensFor(d) {
+    return new ExternalTokenizer(input => {
+        var _a;
+        let { next } = input;
+        input.advance();
+        if (inString(next, Space)) {
+            while (inString(input.next, Space))
+                input.advance();
+            input.acceptToken(whitespace);
+        }
+        else if (next == 36 /* Ch.Dollar */ && d.doubleDollarQuotedStrings) {
+            let tag = readWord(input, "");
+            if (input.next == 36 /* Ch.Dollar */) {
+                input.advance();
+                readDoubleDollarLiteral(input, tag);
+                input.acceptToken(String$1);
+            }
+        }
+        else if (next == 39 /* Ch.SingleQuote */ || next == 34 /* Ch.DoubleQuote */ && d.doubleQuotedStrings) {
+            readLiteral(input, next, d.backslashEscapes);
+            input.acceptToken(String$1);
+        }
+        else if (next == 35 /* Ch.Hash */ && d.hashComments ||
+            next == 47 /* Ch.Slash */ && input.next == 47 /* Ch.Slash */ && d.slashComments) {
+            eol(input);
+            input.acceptToken(LineComment);
+        }
+        else if (next == 45 /* Ch.Dash */ && input.next == 45 /* Ch.Dash */ &&
+            (!d.spaceAfterDashes || input.peek(1) == 32 /* Ch.Space */)) {
+            eol(input);
+            input.acceptToken(LineComment);
+        }
+        else if (next == 47 /* Ch.Slash */ && input.next == 42 /* Ch.Star */) {
+            input.advance();
+            for (let depth = 1;;) {
+                let cur = input.next;
+                if (input.next < 0)
+                    break;
+                input.advance();
+                if (cur == 42 /* Ch.Star */ && input.next == 47 /* Ch.Slash */) {
+                    depth--;
+                    input.advance();
+                    if (!depth)
+                        break;
+                }
+                else if (cur == 47 /* Ch.Slash */ && input.next == 42 /* Ch.Star */) {
+                    depth++;
+                    input.advance();
+                }
+            }
+            input.acceptToken(BlockComment);
+        }
+        else if ((next == 101 /* Ch.e */ || next == 69 /* Ch.E */) && input.next == 39 /* Ch.SingleQuote */) {
+            input.advance();
+            readLiteral(input, 39 /* Ch.SingleQuote */, true);
+            input.acceptToken(String$1);
+        }
+        else if ((next == 110 /* Ch.n */ || next == 78 /* Ch.N */) && input.next == 39 /* Ch.SingleQuote */ &&
+            d.charSetCasts) {
+            input.advance();
+            readLiteral(input, 39 /* Ch.SingleQuote */, d.backslashEscapes);
+            input.acceptToken(String$1);
+        }
+        else if (next == 95 /* Ch.Underscore */ && d.charSetCasts) {
+            for (let i = 0;; i++) {
+                if (input.next == 39 /* Ch.SingleQuote */ && i > 1) {
+                    input.advance();
+                    readLiteral(input, 39 /* Ch.SingleQuote */, d.backslashEscapes);
+                    input.acceptToken(String$1);
+                    break;
+                }
+                if (!isAlpha(input.next))
+                    break;
+                input.advance();
+            }
+        }
+        else if (d.plsqlQuotingMechanism &&
+            (next == 113 /* Ch.q */ || next == 81 /* Ch.Q */) && input.next == 39 /* Ch.SingleQuote */ &&
+            input.peek(1) > 0 && !inString(input.peek(1), Space)) {
+            let openDelim = input.peek(1);
+            input.advance(2);
+            readPLSQLQuotedLiteral(input, openDelim);
+            input.acceptToken(String$1);
+        }
+        else if (next == 40 /* Ch.ParenL */) {
+            input.acceptToken(ParenL);
+        }
+        else if (next == 41 /* Ch.ParenR */) {
+            input.acceptToken(ParenR);
+        }
+        else if (next == 123 /* Ch.BraceL */) {
+            input.acceptToken(BraceL);
+        }
+        else if (next == 125 /* Ch.BraceR */) {
+            input.acceptToken(BraceR);
+        }
+        else if (next == 91 /* Ch.BracketL */) {
+            input.acceptToken(BracketL);
+        }
+        else if (next == 93 /* Ch.BracketR */) {
+            input.acceptToken(BracketR);
+        }
+        else if (next == 59 /* Ch.Semi */) {
+            input.acceptToken(Semi);
+        }
+        else if (d.unquotedBitLiterals && next == 48 /* Ch._0 */ && input.next == 98 /* Ch.b */) {
+            input.advance();
+            readBits(input);
+            input.acceptToken(Bits);
+        }
+        else if ((next == 98 /* Ch.b */ || next == 66 /* Ch.B */) && (input.next == 39 /* Ch.SingleQuote */ || input.next == 34 /* Ch.DoubleQuote */)) {
+            const quoteStyle = input.next;
+            input.advance();
+            if (d.treatBitsAsBytes) {
+                readLiteral(input, quoteStyle, d.backslashEscapes);
+                input.acceptToken(Bytes);
+            }
+            else {
+                readBits(input, quoteStyle);
+                input.acceptToken(Bits);
+            }
+        }
+        else if (next == 48 /* Ch._0 */ && (input.next == 120 /* Ch.x */ || input.next == 88 /* Ch.X */) ||
+            (next == 120 /* Ch.x */ || next == 88 /* Ch.X */) && input.next == 39 /* Ch.SingleQuote */) {
+            let quoted = input.next == 39 /* Ch.SingleQuote */;
+            input.advance();
+            while (isHexDigit(input.next))
+                input.advance();
+            if (quoted && input.next == 39 /* Ch.SingleQuote */)
+                input.advance();
+            input.acceptToken(Number);
+        }
+        else if (next == 46 /* Ch.Dot */ && input.next >= 48 /* Ch._0 */ && input.next <= 57 /* Ch._9 */) {
+            readNumber(input, true);
+            input.acceptToken(Number);
+        }
+        else if (next == 46 /* Ch.Dot */) {
+            input.acceptToken(Dot);
+        }
+        else if (next >= 48 /* Ch._0 */ && next <= 57 /* Ch._9 */) {
+            readNumber(input, false);
+            input.acceptToken(Number);
+        }
+        else if (inString(next, d.operatorChars)) {
+            while (inString(input.next, d.operatorChars))
+                input.advance();
+            input.acceptToken(Operator);
+        }
+        else if (inString(next, d.specialVar)) {
+            if (input.next == next)
+                input.advance();
+            readWordOrQuoted(input);
+            input.acceptToken(SpecialVar);
+        }
+        else if (inString(next, d.identifierQuotes)) {
+            readLiteral(input, next, false);
+            input.acceptToken(QuotedIdentifier);
+        }
+        else if (next == 58 /* Ch.Colon */ || next == 44 /* Ch.Comma */) {
+            input.acceptToken(Punctuation);
+        }
+        else if (isAlpha(next)) {
+            let word = readWord(input, String.fromCharCode(next));
+            input.acceptToken(input.next == 46 /* Ch.Dot */ || input.peek(-word.length - 1) == 46 /* Ch.Dot */
+                ? Identifier : (_a = d.words[word.toLowerCase()]) !== null && _a !== void 0 ? _a : Identifier);
+        }
+    });
+}
+const tokens = /*@__PURE__*/tokensFor(defaults);
+
+// This file was generated by lezer-generator. You probably shouldn't edit it.
+const parser$1 = /*@__PURE__*/LRParser.deserialize({
+  version: 14,
+  states: "%vQ]QQOOO#wQRO'#DSO$OQQO'#CwO%eQQO'#CxO%lQQO'#CyO%sQQO'#CzOOQQ'#DS'#DSOOQQ'#C}'#C}O'UQRO'#C{OOQQ'#Cv'#CvOOQQ'#C|'#C|Q]QQOOQOQQOOO'`QQO'#DOO(xQRO,59cO)PQQO,59cO)UQQO'#DSOOQQ,59d,59dO)cQQO,59dOOQQ,59e,59eO)jQQO,59eOOQQ,59f,59fO)qQQO,59fOOQQ-E6{-E6{OOQQ,59b,59bOOQQ-E6z-E6zOOQQ,59j,59jOOQQ-E6|-E6|O+VQRO1G.}O+^QQO,59cOOQQ1G/O1G/OOOQQ1G/P1G/POOQQ1G/Q1G/QP+kQQO'#C}O+rQQO1G.}O)PQQO,59cO,PQQO'#Cw",
+  stateData: ",[~OtOSPOSQOS~ORUOSUOTUOUUOVROXSOZTO]XO^QO_UO`UOaPObPOcPOdUOeUOfUOgUOhUO~O^]ORvXSvXTvXUvXVvXXvXZvX]vX_vX`vXavXbvXcvXdvXevXfvXgvXhvX~OsvX~P!jOa_Ob_Oc_O~ORUOSUOTUOUUOVROXSOZTO^tO_UO`UOa`Ob`Oc`OdUOeUOfUOgUOhUO~OWaO~P$ZOYcO~P$ZO[eO~P$ZORUOSUOTUOUUOVROXSOZTO^QO_UO`UOaPObPOcPOdUOeUOfUOgUOhUO~O]hOsoX~P%zOajObjOcjO~O^]ORkaSkaTkaUkaVkaXkaZka]ka_ka`kaakabkackadkaekafkagkahka~Oska~P'kO^]O~OWvXYvX[vX~P!jOWnO~P$ZOYoO~P$ZO[pO~P$ZO^]ORkiSkiTkiUkiVkiXkiZki]ki_ki`kiakibkickidkiekifkigkihki~Oski~P)xOWkaYka[ka~P'kO]hO~P$ZOWkiYki[ki~P)xOasObsOcsO~O",
+  goto: "#hwPPPPPPPPPPPPPPPPPPPPPPPPPPx||||!Y!^!d!xPPP#[TYOZeUORSTWZbdfqT[OZQZORiZSWOZQbRQdSQfTZgWbdfqQ^PWk^lmrQl_Qm`RrseVORSTWZbdfq",
+  nodeNames: "⚠ LineComment BlockComment String Number Bool Null ( ) { } [ ] ; . Operator Punctuation SpecialVar Identifier QuotedIdentifier Keyword Type Bits Bytes Builtin Script Statement CompositeIdentifier Parens Braces Brackets Statement",
+  maxTerm: 38,
+  nodeProps: [
+    ["isolate", -4,1,2,3,19,""]
+  ],
+  skippedNodes: [0,1,2],
+  repeatNodeCount: 3,
+  tokenData: "RORO",
+  tokenizers: [0, tokens],
+  topRules: {"Script":[0,25]},
+  tokenPrec: 0
+});
+
+function tokenBefore(tree) {
+    let cursor = tree.cursor().moveTo(tree.from, -1);
+    while (/Comment/.test(cursor.name))
+        cursor.moveTo(cursor.from, -1);
+    return cursor.node;
+}
+function idName(doc, node) {
+    let text = doc.sliceString(node.from, node.to);
+    let quoted = /^([`'"])(.*)\1$/.exec(text);
+    return quoted ? quoted[2] : text;
+}
+function plainID(node) {
+    return node && (node.name == "Identifier" || node.name == "QuotedIdentifier");
+}
+function pathFor(doc, id) {
+    if (id.name == "CompositeIdentifier") {
+        let path = [];
+        for (let ch = id.firstChild; ch; ch = ch.nextSibling)
+            if (plainID(ch))
+                path.push(idName(doc, ch));
+        return path;
+    }
+    return [idName(doc, id)];
+}
+function parentsFor(doc, node) {
+    for (let path = [];;) {
+        if (!node || node.name != ".")
+            return path;
+        let name = tokenBefore(node);
+        if (!plainID(name))
+            return path;
+        path.unshift(idName(doc, name));
+        node = tokenBefore(name);
+    }
+}
+function sourceContext(state, startPos) {
+    let pos = syntaxTree(state).resolveInner(startPos, -1);
+    let aliases = getAliases(state.doc, pos);
+    if (pos.name == "Identifier" || pos.name == "QuotedIdentifier" || pos.name == "Keyword") {
+        return { from: pos.from,
+            quoted: pos.name == "QuotedIdentifier" ? state.doc.sliceString(pos.from, pos.from + 1) : null,
+            parents: parentsFor(state.doc, tokenBefore(pos)),
+            aliases };
+    }
+    if (pos.name == ".") {
+        return { from: startPos, quoted: null, parents: parentsFor(state.doc, pos), aliases };
+    }
+    else {
+        return { from: startPos, quoted: null, parents: [], empty: true, aliases };
+    }
+}
+const EndFrom = /*@__PURE__*/new Set(/*@__PURE__*/"where group having order union intersect except all distinct limit offset fetch for".split(" "));
+function getAliases(doc, at) {
+    let statement;
+    for (let parent = at; !statement; parent = parent.parent) {
+        if (!parent)
+            return null;
+        if (parent.name == "Statement")
+            statement = parent;
+    }
+    let aliases = null;
+    for (let scan = statement.firstChild, sawFrom = false, prevID = null; scan; scan = scan.nextSibling) {
+        let kw = scan.name == "Keyword" ? doc.sliceString(scan.from, scan.to).toLowerCase() : null;
+        let alias = null;
+        if (!sawFrom) {
+            sawFrom = kw == "from";
+        }
+        else if (kw == "as" && prevID && plainID(scan.nextSibling)) {
+            alias = idName(doc, scan.nextSibling);
+        }
+        else if (kw && EndFrom.has(kw)) {
+            break;
+        }
+        else if (prevID && plainID(scan)) {
+            alias = idName(doc, scan);
+        }
+        if (alias) {
+            if (!aliases)
+                aliases = Object.create(null);
+            aliases[alias] = pathFor(doc, prevID);
+        }
+        prevID = /Identifier$/.test(scan.name) ? scan : null;
+    }
+    return aliases;
+}
+function maybeQuoteCompletions(quote, completions) {
+    if (!quote)
+        return completions;
+    return completions.map(c => (Object.assign(Object.assign({}, c), { label: c.label[0] == quote ? c.label : quote + c.label + quote, apply: undefined })));
+}
+const Span = /^\w*$/, QuotedSpan = /^[`'"]?\w*[`'"]?$/;
+function isSelfTag(namespace) {
+    return namespace.self && typeof namespace.self.label == "string";
+}
+class CompletionLevel {
+    constructor(idQuote, idCaseInsensitive) {
+        this.idQuote = idQuote;
+        this.idCaseInsensitive = idCaseInsensitive;
+        this.list = [];
+        this.children = undefined;
+    }
+    child(name) {
+        let children = this.children || (this.children = Object.create(null));
+        let found = children[name];
+        if (found)
+            return found;
+        if (name && !this.list.some(c => c.label == name))
+            this.list.push(nameCompletion(name, "type", this.idQuote, this.idCaseInsensitive));
+        return (children[name] = new CompletionLevel(this.idQuote, this.idCaseInsensitive));
+    }
+    maybeChild(name) {
+        return this.children ? this.children[name] : null;
+    }
+    addCompletion(option) {
+        let found = this.list.findIndex(o => o.label == option.label);
+        if (found > -1)
+            this.list[found] = option;
+        else
+            this.list.push(option);
+    }
+    addCompletions(completions) {
+        for (let option of completions)
+            this.addCompletion(typeof option == "string" ? nameCompletion(option, "property", this.idQuote, this.idCaseInsensitive) : option);
+    }
+    addNamespace(namespace) {
+        if (Array.isArray(namespace)) {
+            this.addCompletions(namespace);
+        }
+        else if (isSelfTag(namespace)) {
+            this.addNamespace(namespace.children);
+        }
+        else {
+            this.addNamespaceObject(namespace);
+        }
+    }
+    addNamespaceObject(namespace) {
+        for (let name of Object.keys(namespace)) {
+            let children = namespace[name], self = null;
+            let parts = name.replace(/\\?\./g, p => p == "." ? "\0" : p).split("\0");
+            let scope = this;
+            if (isSelfTag(children)) {
+                self = children.self;
+                children = children.children;
+            }
+            for (let i = 0; i < parts.length; i++) {
+                if (self && i == parts.length - 1)
+                    scope.addCompletion(self);
+                scope = scope.child(parts[i].replace(/\\\./g, "."));
+            }
+            scope.addNamespace(children);
+        }
+    }
+}
+function nameCompletion(label, type, idQuote, idCaseInsensitive) {
+    if ((new RegExp("^[a-z_][a-z_\\d]*$", idCaseInsensitive ? "i" : "")).test(label))
+        return { label, type };
+    return { label, type, apply: idQuote + label + idQuote };
+}
+// Some of this is more gnarly than it has to be because we're also
+// supporting the deprecated, not-so-well-considered style of
+// supplying the schema (dotted property names for schemas, separate
+// `tables` and `schemas` completions).
+function completeFromSchema(schema, tables, schemas, defaultTableName, defaultSchemaName, dialect) {
+    var _a;
+    let idQuote = ((_a = dialect === null || dialect === void 0 ? void 0 : dialect.spec.identifierQuotes) === null || _a === void 0 ? void 0 : _a[0]) || '"';
+    let top = new CompletionLevel(idQuote, !!(dialect === null || dialect === void 0 ? void 0 : dialect.spec.caseInsensitiveIdentifiers));
+    let defaultSchema = defaultSchemaName ? top.child(defaultSchemaName) : null;
+    top.addNamespace(schema);
+    if (tables)
+        (defaultSchema || top).addCompletions(tables);
+    if (schemas)
+        top.addCompletions(schemas);
+    if (defaultSchema)
+        top.addCompletions(defaultSchema.list);
+    if (defaultTableName)
+        top.addCompletions((defaultSchema || top).child(defaultTableName).list);
+    return (context) => {
+        let { parents, from, quoted, empty, aliases } = sourceContext(context.state, context.pos);
+        if (empty && !context.explicit)
+            return null;
+        if (aliases && parents.length == 1)
+            parents = aliases[parents[0]] || parents;
+        let level = top;
+        for (let name of parents) {
+            while (!level.children || !level.children[name]) {
+                if (level == top && defaultSchema)
+                    level = defaultSchema;
+                else if (level == defaultSchema && defaultTableName)
+                    level = level.child(defaultTableName);
+                else
+                    return null;
+            }
+            let next = level.maybeChild(name);
+            if (!next)
+                return null;
+            level = next;
+        }
+        let quoteAfter = quoted && context.state.sliceDoc(context.pos, context.pos + 1) == quoted;
+        let options = level.list;
+        if (level == top && aliases)
+            options = options.concat(Object.keys(aliases).map(name => ({ label: name, type: "constant" })));
+        return {
+            from,
+            to: quoteAfter ? context.pos + 1 : undefined,
+            options: maybeQuoteCompletions(quoted, options),
+            validFor: quoted ? QuotedSpan : Span
+        };
+    };
+}
+function completeKeywords(keywords, upperCase) {
+    let completions = Object.keys(keywords).map(keyword => ({
+        label: upperCase ? keyword.toUpperCase() : keyword,
+        type: keywords[keyword] == Type ? "type" : keywords[keyword] == Keyword ? "keyword" : "variable",
+        boost: -1
+    }));
+    return ifNotIn(["QuotedIdentifier", "SpecialVar", "String", "LineComment", "BlockComment", "."], completeFromList(completions));
+}
+
+let parser = /*@__PURE__*/parser$1.configure({
+    props: [
+        /*@__PURE__*/indentNodeProp.add({
+            Statement: /*@__PURE__*/continuedIndent()
+        }),
+        /*@__PURE__*/foldNodeProp.add({
+            Statement(tree, state) { return { from: Math.min(tree.from + 100, state.doc.lineAt(tree.from).to), to: tree.to }; },
+            BlockComment(tree) { return { from: tree.from + 2, to: tree.to - 2 }; }
+        }),
+        /*@__PURE__*/styleTags({
+            Keyword: tags.keyword,
+            Type: tags.typeName,
+            Builtin: /*@__PURE__*/tags.standard(tags.name),
+            Bits: tags.number,
+            Bytes: tags.string,
+            Bool: tags.bool,
+            Null: tags.null,
+            Number: tags.number,
+            String: tags.string,
+            Identifier: tags.name,
+            QuotedIdentifier: /*@__PURE__*/tags.special(tags.string),
+            SpecialVar: /*@__PURE__*/tags.special(tags.name),
+            LineComment: tags.lineComment,
+            BlockComment: tags.blockComment,
+            Operator: tags.operator,
+            "Semi Punctuation": tags.punctuation,
+            "( )": tags.paren,
+            "{ }": tags.brace,
+            "[ ]": tags.squareBracket
+        })
+    ]
+});
+/**
+Represents an SQL dialect.
+*/
+class SQLDialect {
+    constructor(
+    /**
+    @internal
+    */
+    dialect, 
+    /**
+    The language for this dialect.
+    */
+    language, 
+    /**
+    The spec used to define this dialect.
+    */
+    spec) {
+        this.dialect = dialect;
+        this.language = language;
+        this.spec = spec;
+    }
+    /**
+    Returns the language for this dialect as an extension.
+    */
+    get extension() { return this.language.extension; }
+    /**
+    Define a new dialect.
+    */
+    static define(spec) {
+        let d = dialect(spec, spec.keywords, spec.types, spec.builtin);
+        let language = LRLanguage.define({
+            name: "sql",
+            parser: parser.configure({
+                tokenizers: [{ from: tokens, to: tokensFor(d) }]
+            }),
+            languageData: {
+                commentTokens: { line: "--", block: { open: "/*", close: "*/" } },
+                closeBrackets: { brackets: ["(", "[", "{", "'", '"', "`"] }
+            }
+        });
+        return new SQLDialect(d, language, spec);
+    }
+}
+/**
+Returns a completion source that provides keyword completion for
+the given SQL dialect.
+*/
+function keywordCompletionSource(dialect, upperCase = false) {
+    return completeKeywords(dialect.dialect.words, upperCase);
+}
+/**
+FIXME remove on 1.0 @internal
+*/
+function keywordCompletion(dialect, upperCase = false) {
+    return dialect.language.data.of({
+        autocomplete: keywordCompletionSource(dialect, upperCase)
+    });
+}
+/**
+Returns a completion sources that provides schema-based completion
+for the given configuration.
+*/
+function schemaCompletionSource(config) {
+    return config.schema ? completeFromSchema(config.schema, config.tables, config.schemas, config.defaultTable, config.defaultSchema, config.dialect || StandardSQL)
+        : () => null;
+}
+/**
+FIXME remove on 1.0 @internal
+*/
+function schemaCompletion(config) {
+    return config.schema ? (config.dialect || StandardSQL).language.data.of({
+        autocomplete: schemaCompletionSource(config)
+    }) : [];
+}
+/**
+SQL language support for the given SQL dialect, with keyword
+completion, and, if provided, schema-based completion as extra
+extensions.
+*/
+function sql(config = {}) {
+    let lang = config.dialect || StandardSQL;
+    return new LanguageSupport(lang.language, [schemaCompletion(config), keywordCompletion(lang, !!config.upperCaseKeywords)]);
+}
+/**
+The standard SQL dialect.
+*/
+const StandardSQL = /*@__PURE__*/SQLDialect.define({});
 
 /**
 Comment or uncomment the current selection. Will use line comments
@@ -26938,4 +27643,4 @@ const minimalSetup = /*@__PURE__*/(() => [
     ])
 ])();
 
-export { Annotation, Decoration, Direction, EditorSelection, EditorState, EditorView, Facet, HighlightStyle, MapMode, Prec, RangeSet, RangeSetBuilder, RegExpCursor, SearchQuery, StateEffect, StateField, StringStream, Transaction, ViewPlugin, WidgetType, autocompletion, basicSetup, bracketMatching, closeBrackets, closeBracketsKeymap, completionKeymap, crosshairCursor, cursorCharBackward, cursorCharLeft, cursorLineBoundaryBackward, cursorLineBoundaryForward, defaultHighlightStyle, defaultKeymap, drawSelection, dropCursor, ensureSyntaxTree, foldCode, foldGutter, foldKeymap, highlightActiveLine, highlightActiveLineGutter, highlightSelectionMatches, highlightSpecialChars, history, historyKeymap, indentLess, indentMore, indentOnInput, indentSelection, indentUnit, indentWithTab, insertNewlineAndIndent, invertedEffects, javascript, keymap, lineNumbers, lintKeymap, matchBrackets, minimalSetup, rectangularSelection, redo, runScopeHandlers, searchKeymap, setSearchQuery, showPanel, startCompletion, syntaxHighlighting, tags, undo };
+export { Annotation, Decoration, Direction, EditorSelection, EditorState, EditorView, Facet, HighlightStyle, MapMode, Prec, RangeSet, RangeSetBuilder, RegExpCursor, SearchQuery, StateEffect, StateField, StringStream, Transaction, ViewPlugin, WidgetType, autocompletion, basicSetup, bracketMatching, closeBrackets, closeBracketsKeymap, completionKeymap, crosshairCursor, cursorCharBackward, cursorCharLeft, cursorLineBoundaryBackward, cursorLineBoundaryForward, defaultHighlightStyle, defaultKeymap, drawSelection, dropCursor, ensureSyntaxTree, foldCode, foldGutter, foldKeymap, highlightActiveLine, highlightActiveLineGutter, highlightSelectionMatches, highlightSpecialChars, history, historyKeymap, indentLess, indentMore, indentOnInput, indentSelection, indentUnit, indentWithTab, insertNewlineAndIndent, invertedEffects, javascript, keymap, lineNumbers, lintKeymap, matchBrackets, minimalSetup, rectangularSelection, redo, runScopeHandlers, searchKeymap, setSearchQuery, showPanel, sql, startCompletion, syntaxHighlighting, tags, undo };

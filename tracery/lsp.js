@@ -666,14 +666,21 @@ export class LanguageClient extends EventTarget {
           new CustomEvent("diagnostics", {
             detail: {
               path,
-              diagnostics: message.params.diagnostics.map((d) => ({
-                ...d,
-                severity: ["", "error", "warning", "info", "hint"][d.severity],
-                tags: (d.tags ?? []).map(
-                  (t) => ["", "unnecessary", "deprecated"][t],
-                ),
-                range: rangeToIndices(this.lastDocumentText.get(path), d.range),
-              })),
+              diagnostics: message.params.diagnostics
+                .filter(() => this.lastDocumentText.get(path))
+                .map((d) => ({
+                  ...d,
+                  severity: ["", "error", "warning", "info", "hint"][
+                    d.severity
+                  ],
+                  tags: (d.tags ?? []).map(
+                    (t) => ["", "unnecessary", "deprecated"][t],
+                  ),
+                  range: rangeToIndices(
+                    this.lastDocumentText.get(path),
+                    d.range,
+                  ),
+                })),
             },
           }),
         );

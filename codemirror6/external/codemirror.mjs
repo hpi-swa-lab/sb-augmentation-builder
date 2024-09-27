@@ -1,4 +1,5 @@
 export { javascript } from "@codemirror/lang-javascript";
+export { sql } from "@codemirror/lang-sql";
 export { EditorView, basicSetup, minimalSetup } from "codemirror";
 export {
   RangeSet,

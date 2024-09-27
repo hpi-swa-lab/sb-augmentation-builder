@@ -47,6 +47,7 @@ import { exploriants } from "./exploriants.ts";
 import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
 import { openReferences } from "./references.ts";
+import { sql } from "./sql.ts";
 import { watch, wrapWithWatch } from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
 
@@ -99,6 +100,7 @@ function extensionsForPath(path): {
         augBool(language),
         augColor(language),
         augChartsType(language),
+        sql(language),
       ],
     };
   if (language === languageFor("typescript"))

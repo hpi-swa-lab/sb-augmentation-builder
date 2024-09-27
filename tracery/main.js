@@ -5,6 +5,8 @@ import { openBrowser } from "./browser.ts";
 import { openSearch } from "./search.js";
 import { useAsyncEffect, useLocalStorageSignal } from "../view/widgets.js";
 import { useEffect, useMemo } from "../external/preact-hooks.mjs";
+import { openPotluck } from "./potluck.ts";
+import { openIPyNotebook } from "./notebook.ts";
 
 appendCss(`
 html {
@@ -52,6 +54,11 @@ function Tracery() {
   useAsyncEffect(async () => {
     if (project) {
       await project.open();
+      if (false)
+        openIPyNotebook(
+          { path: "notebook-example.ipynb", project },
+          { doNotStartAttached: true, initialPosition: { x: 100, y: 100 } },
+        );
 
       openBrowser(
         project,
@@ -98,6 +105,7 @@ function Tracery() {
     ),
     projectPath.value &&
       h("button", { onclick: () => openBrowser(project) }, "Open Browser"),
+    h("button", { onclick: () => openPotluck() }, "Open Potluck"),
   ];
 }
 

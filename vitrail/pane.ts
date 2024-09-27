@@ -376,7 +376,9 @@ export class Pane<T> {
       render(
         h(
           VitrailContext.Provider,
-          { value: { vitrail: this.vitrail, pane: this } },
+          {
+            value: { vitrail: this.vitrail, pane: this, view: instance.view },
+          },
           h(instance.augmentation.view, {
             ...instance.match.props,
             replacement: instance,

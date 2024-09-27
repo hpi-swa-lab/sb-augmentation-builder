@@ -1,12 +1,10 @@
-import { SBNode } from "../core/model";
-
-export function getFocusHost(element: Node) {
-  let host: Node | null = element;
-  while (host) {
-    if ((host as any).isFocusHost) return host;
-    host = host.parentNode;
+export function getFocusHost(element: Node | null) {
+  let host: Node | null = null;
+  while (element) {
+    if ((element as any).isFocusHost) host = element;
+    element = element.parentNode;
   }
-  return null;
+  return host;
 }
 
 export function markInputEditableForNode(
@@ -92,6 +90,12 @@ export function mapIndexToLocal(indexMap: [number, number][], index: number) {
   return index;
 }
 
+// Returns a string with the replacements applied and a list of
+// [originalIndex, changeInLength] for each replacement, meaning
+// that the character at originalIndex will be replaced by the
+// character at originalIndex + changeInLength.
+// So for example, if the input is a\"b and we replace \",
+// the output will be a"b and the indexMap will be [[1, 1]].
 export function remapIndices(
   s: string,
   rules: [string, string][],
@@ -147,9 +151,9 @@ function nextCursorPosition({ root, element, index }) {
   return null;
 }
 
-export function cursorPositionsForIndex(element: HTMLElement, index: number) {
+export function cursorPositionsForIndex(element: Node, index: number) {
   let bestDistance = Infinity;
-  let candidates: { index: number; element: HTMLElement }[] = [];
+  let candidates: { index: number; element: Node }[] = [];
 
   for (const { index: i, element: e } of (element as any).cursorPositions()) {
     const distance = Math.abs(i - index);

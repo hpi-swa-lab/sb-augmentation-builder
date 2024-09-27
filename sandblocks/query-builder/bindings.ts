@@ -1,15 +1,14 @@
 import { SBBlock } from "../../core/model.js";
 import { useEffect, useRef } from "../../external/preact-hooks.mjs";
 import { h } from "../../external/preact.mjs";
-import { Side, findChange, rangeShift } from "../../utils.js";
+import { Side, findChange, last, rangeShift } from "../../utils.js";
 import {
   mapIndexToGlobal,
-  mapIndexToLocal,
   markInputEditableForNode,
   remapIndices,
   remapIndicesReverse,
 } from "../../view/focus.ts";
-import { Change } from "../../vitrail/vitrail.ts";
+import { applyStringChange, Change } from "../../vitrail/vitrail.ts";
 
 export function bindSourceString(node: SBBlock) {
   const [text, range] = node.editor.nodeTextWithPendingChanges([node]);
@@ -26,6 +25,55 @@ export function bindSourceString(node: SBBlock) {
           number,
           number,
         ];
+      node.editor.applyChanges([change]);
+    },
+  };
+}
+
+// take an array of JSON (not JS) strings
+export function bindPlainStringFromArray(node) {
+  const rules: [string, string][] = [
+    ['\\"', '"'],
+    ["\\n", "\n"],
+  ];
+
+  const textsAndRanges = node.childBlocks.map((x) => {
+    const [original, range] = x.editor.nodeTextWithPendingChanges([
+      x.childBlock(0),
+    ]);
+    const [text, indexMap] = remapIndices(original, rules);
+    return [text, range, indexMap, x];
+  });
+
+  const start = node.children[0].range[1];
+  const indexMap = textsAndRanges.flatMap(([_, __, indexMap, node]) =>
+    indexMap.map(([a, b]) => [a + node.range[0] - start, b]),
+  );
+  return {
+    node,
+    text: textsAndRanges.map(([text]) => text).join(""),
+    range:
+      textsAndRanges.length > 0
+        ? [textsAndRanges[0][1], last(textsAndRanges)[1]]
+        : [node.children[0].range[1], node.children[1].range[0]],
+    indexMap,
+    onLocalChange: (change: Change<any>) => {
+      change.from = mapIndexToGlobal(indexMap, change.from);
+      change.to = mapIndexToGlobal(indexMap, change.to);
+      if (change.insert)
+        change.insert = remapIndicesReverse(change.insert, rules)[0];
+      // const [_, newIndexMap] = remapIndices(
+      //   applyStringChange(original, change),
+      //   rules,
+      // );
+      change.from += start;
+      change.to += start;
+      // if (change.selectionRange) {
+      //   change.selectionRange = [
+      //     mapIndexToGlobal(newIndexMap, change.selectionRange[0]) + start,
+      //     mapIndexToGlobal(newIndexMap, change.selectionRange[1]) + start,
+      //   ];
+      // }
       node.editor.applyChanges([change]);
     },
   };
@@ -64,7 +112,7 @@ export function bindPlainString(node: SBBlock) {
       if (change.insert)
         change.insert = remapIndicesReverse(change.insert, rules)[0];
       const [_, newIndexMap] = remapIndices(
-        node.editor.applyStringChange(original, change),
+        applyStringChange(original, change),
         rules,
       );
       change.from += range[0];
