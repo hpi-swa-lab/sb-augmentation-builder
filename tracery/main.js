@@ -7,6 +7,7 @@ import { useAsyncEffect, useLocalStorageSignal } from "../view/widgets.js";
 import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { openPotluck } from "./potluck.ts";
 import { openIPyNotebook } from "./notebook.ts";
+import { openFileInWindow } from "./editor.ts";
 
 appendCss(`
 html {
@@ -60,22 +61,29 @@ function Tracery() {
           { doNotStartAttached: true, initialPosition: { x: 100, y: 100 } },
         );
 
-      openBrowser(
-        project,
-        {
-          initialSelection: startUpFile.value
-            ? {
-                path: project.path + "/" + startUpFile.value.split(":")[0],
-                topLevel: startUpFile.value.split(":")[1],
-              }
-            : undefined,
-        },
-        {
+      if (true)
+        openFileInWindow(project, "recipes.md", {
           doNotStartAttached: true,
           initialPosition: { x: 100, y: 100 },
-          initialSize: { x: 800, y: 800 },
-        },
-      );
+        });
+
+      if (false)
+        openBrowser(
+          project,
+          {
+            initialSelection: startUpFile.value
+              ? {
+                  path: project.path + "/" + startUpFile.value.split(":")[0],
+                  topLevel: startUpFile.value.split(":")[1],
+                }
+              : undefined,
+          },
+          {
+            doNotStartAttached: true,
+            initialPosition: { x: 100, y: 100 },
+            initialSize: { x: 800, y: 800 },
+          },
+        );
     }
   }, [project]);
 

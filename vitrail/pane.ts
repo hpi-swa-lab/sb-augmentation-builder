@@ -286,6 +286,10 @@ export class Pane<T> {
     );
   }
 
+  get augmentations() {
+    return [...this._augmentationInstances];
+  }
+
   updateAugmentations() {
     const active: [AugmentationMatch, Augmentation<any>][] = [];
     const myAugmentations = this.fetchAugmentations();
@@ -301,7 +305,14 @@ export class Pane<T> {
       )) {
       if (
         this.containsNode(match.matchedNode, augmentation.type === "mark") &&
-        !replacedNodes.some((n) => match.matchedNode.orHasParent(n))
+        !replacedNodes.some((n) => match.matchedNode.orHasParent(n)) &&
+        // prevent recursion
+        !(
+          this.nodes[0] === match.props.nodes[0] &&
+          this.parentPane?.replacements.some(
+            (r) => r.match.props.nodes[0] === this.nodes[0],
+          )
+        )
       ) {
         active.push([match, augmentation]);
         replacedNodes.push(...match.props.nodes);
@@ -317,19 +328,10 @@ export class Pane<T> {
     }
 
     for (const [match, augmentation] of active) {
-      // prevent recursion
-      if (
-        this.nodes[0] === match.props.nodes[0] &&
-        this.parentPane?.replacements.some(
-          (r) => r.match.props.nodes[0] === this.nodes[0],
-        )
-      )
-        continue;
-
       if (current.some((i) => i.match === match)) continue;
 
       let view: VitrailReplacementContainer | Marker[];
-      if (augmentation.type === "replace") {
+      if (augmentation.type === "replace" || augmentation.type === "insert") {
         view = document.createElement(
           "vitrail-replacement-container",
         ) as VitrailReplacementContainer;
@@ -372,7 +374,10 @@ export class Pane<T> {
 
   renderAugmentation(instance: AugmentationInstance<any>) {
     console.assert(!!this.vitrail);
-    if (instance.augmentation.type === "replace") {
+    if (
+      instance.augmentation.type === "replace" ||
+      instance.augmentation.type === "insert"
+    ) {
       render(
         h(
           VitrailContext.Provider,

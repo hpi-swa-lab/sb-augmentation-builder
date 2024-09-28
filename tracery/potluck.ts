@@ -40,6 +40,10 @@ class PotluckModel extends SBLanguage {
     }
     return root;
   }
+
+  get rootRuleName() {
+    return "document";
+  }
 }
 
 function Potluck() {

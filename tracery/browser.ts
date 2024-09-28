@@ -4,10 +4,10 @@ import { h } from "../external/preact.mjs";
 import { List } from "../sandblocks/list.js";
 import { appendCss, clamp } from "../utils.js";
 import { openComponentInWindow } from "./window.js";
-import { TraceryEditor, openNodesInWindow } from "./editor.ts";
+import { TraceryEditor } from "./editor.ts";
 import { outline } from "./outline.ts";
 import { removeCommonIndent } from "./whitespace.ts";
-import { changesIntendToDeleteNode, useValidator } from "../vitrail/vitrail.ts";
+import { useValidator } from "../vitrail/vitrail.ts";
 
 appendCss(`
 .tracery-browser {
@@ -179,12 +179,9 @@ function TraceryBrowser({ project, initialSelection, window }) {
               "Add",
             ),
           ),
-          h(
-            "div",
-            {
-              style: { height: "1.5rem" },
-            },
-          ),
+          h("div", {
+            style: { height: "1.5rem" },
+          }),
         ),
         selectedFile.value &&
           h(TraceryEditor, {

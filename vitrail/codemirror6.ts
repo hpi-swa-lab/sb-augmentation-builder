@@ -5,7 +5,7 @@ import {
   AugmentationInstance,
   ReversibleChange,
   Vitrail,
-  replacementRange,
+  replacementRange as augmentationRange,
   Marker,
   markerRange,
 } from "./vitrail.ts";
@@ -48,6 +48,7 @@ import {
   invertedEffects,
   Annotation,
   Facet,
+  ViewPlugin,
 } from "../codemirror6/external/codemirror.bundle.js";
 import {
   rangeShift,
@@ -184,7 +185,7 @@ async function codeMirror6WithVitrail(
     a: AugmentationInstance<any>,
     vitrail: Vitrail<any>,
   ) {
-    const range = replacementRange(a, vitrail);
+    const range = augmentationRange(a, vitrail);
     return a.augmentation.type === "mark"
       ? range[0] < range[1]
       : range[0] <= range[1];
@@ -193,24 +194,27 @@ async function codeMirror6WithVitrail(
     const replacementsField = StateField.define({
       create: () => Decoration.none,
       update: () => {
-        const s = pane.replacements
+        const s = pane.augmentations
           .filter((a) => validAugmentationInstance(a, pane.vitrail))
-          .flatMap((r) => {
+          .flatMap((a) => {
             const range = rangeShift(
-              replacementRange(r, pane.vitrail),
+              augmentationRange(a, pane.vitrail),
               -pane.startIndex,
             );
 
-            return r.augmentation.type === "replace"
-              ? (range[0] === range[1]
+            const insertPosition = a.augmentation.insertPosition ?? "start";
+            return a.augmentation.type !== "mark"
+              ? (range[0] === range[1] || a.augmentation.type === "insert"
                   ? Decoration.widget
                   : Decoration.replace)({
-                  widget: new CodeMirrorReplacementWidget(r),
+                  side: insertPosition === "start" ? 1 : -1,
+                  widget: new CodeMirrorReplacementWidget(a),
                 }).range(...range)
-              : (r.view as Marker[]).map((v) =>
-                  Decoration.mark({ attributes: v.attributes }).range(
-                    ...markerRange(v, range as [number, number]),
-                  ),
+              : (a.view as Marker[]).map((v) =>
+                  Decoration.mark({
+                    attributes: v.attributes,
+                    eventHandlers: v.eventHandlers,
+                  }).range(...markerRange(v, range as [number, number])),
                 );
           })
           .filter((r) =>
@@ -229,11 +233,30 @@ async function codeMirror6WithVitrail(
       },
       provide: (f) => [
         EditorView.decorations.from(f),
-        EditorView.atomicRanges.of(
-          (view) => view.state.field(f) ?? Decoration.none,
-        ),
+        // TODO enable for replacements, not for marks
+        // EditorView.atomicRanges.of(
+        //   (view) => view.state.field(f) ?? Decoration.none,
+        // ),
       ],
     });
+
+    function eventHandlers() {
+      const events = ["mousedown", "mouseup", "mousemove", "click"];
+      return Object.fromEntries(
+        events.map((name) => [
+          name,
+          (e, view) => {
+            const ranges = view.state.field(replacementsField);
+            const pos = view.posAtDOM(e.target);
+            ranges.between(
+              pos,
+              pos,
+              (_, __, node) => node.spec.eventHandlers?.[name]?.(e),
+            );
+          },
+        ]),
+      );
+    }
 
     return [
       PaneFacet.of(pane),
@@ -248,6 +271,9 @@ async function codeMirror6WithVitrail(
         return !(
           replacement && arrayEqual(replacement.match.props.nodes, pane.nodes)
         );
+      }),
+      ViewPlugin.fromClass(class {}, {
+        eventHandlers: eventHandlers(),
       }),
       Prec.highest(
         keymap.of([

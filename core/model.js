@@ -142,6 +142,11 @@ export class SBLanguage {
     return { tx, root, diff };
   }
 
+  /** @returns {string | null} */
+  get rootRuleName() {
+    return null;
+  }
+
   get canBeDefault() {
     return false;
   }
@@ -174,6 +179,10 @@ class _SBBaseLanguage extends SBLanguage {
     root.appendChild(content);
 
     return root;
+  }
+
+  get rootRuleName() {
+    return "document";
   }
 }
 
@@ -217,6 +226,10 @@ export class SBNode {
     return c;
   }
 
+  get type() {
+    return "";
+  }
+
   get language() {
     return this._language ?? this.parent?.language;
   }
@@ -225,6 +238,7 @@ export class SBNode {
     return this._id;
   }
 
+  /** @returns {SBNode[]} */
   get children() {
     return [];
   }
@@ -243,7 +257,7 @@ export class SBNode {
   }
 
   get isRoot() {
-    return this._sourceString !== undefined;
+    return !this.parent && this.language?.rootRuleName === this.type;
   }
 
   get sourceString() {
@@ -387,6 +401,7 @@ export class SBNode {
     return this.children.filter((child) => !!child.named);
   }
 
+  /** @return {SBBlock | null} */
   get nextSiblingBlock() {
     if (this.isRoot) return null;
     let pickNext = false;
@@ -397,6 +412,7 @@ export class SBNode {
     return null;
   }
 
+  /** @return {SBNode | null} */
   get nextSiblingNode() {
     if (this.isRoot) return null;
     let pickNext = false;
@@ -407,6 +423,7 @@ export class SBNode {
     return null;
   }
 
+  /** @return {SBNode | null} */
   get previousSiblingNode() {
     if (this.isRoot) return null;
     let last = null;
@@ -425,6 +442,7 @@ export class SBNode {
     return this.parent?.children[this.siblingIndex - 1];
   }
 
+  /** @returns {SBNode | undefined} */
   get nextSiblingChild() {
     return this.parent?.children[this.siblingIndex + 1];
   }

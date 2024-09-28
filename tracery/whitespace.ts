@@ -1,12 +1,6 @@
-import { SBBlock, SBLanguage, SBNode, SBText } from "../core/model.js";
+import { SBBlock, SBLanguage, SBText } from "../core/model.js";
 import { h } from "../external/preact.mjs";
-import {
-  metaexec,
-  query,
-  first,
-  also,
-  all,
-} from "../sandblocks/query-builder/functionQueries.js";
+import { metaexec } from "../sandblocks/query-builder/functionQueries.js";
 import { nodesSourceString } from "../utils.js";
 import {
   DeletionInteraction,
@@ -16,6 +10,10 @@ import {
 class _SBWhitespaceModel extends SBLanguage {
   constructor() {
     super({ name: "whitespace", extensions: [], defaultExtensions: [] });
+  }
+
+  get rootRuleName() {
+    return "document";
   }
 
   _parse(text, _old) {
@@ -83,8 +81,8 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
   },
 });
 
-function consecutiveTabs(node: SBBlock, count: number) {
-  if (node.type !== "newline") return null;
+function consecutiveTabs(node: SBBlock | null, count: number) {
+  if (node?.type !== "newline") return null;
 
   node = node.nextSiblingBlock;
   const nodes: SBBlock[] = [];

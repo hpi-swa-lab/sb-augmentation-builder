@@ -70,9 +70,20 @@ export class TreeSitterLanguage extends SBLanguage {
       this.grammar = this._prepareGrammar(await this._loadGrammar());
   }
 
+  get rootRuleName() {
+    return this._rootRuleName;
+  }
+
+  _extractRootRuleName(grammarText) {
+    this._rootRuleName = grammarText.match(
+      /"rules"\:[\s\r\n]*\{[\s\r\n]*"([A-Za-z_]+)"/,
+    )?.[1];
+  }
+
   async _loadGrammar() {
     const saved = localStorage.getItem(this.name + "-grammar");
     if (saved) {
+      this._extractRootRuleName(saved);
       const info = JSON.parse(saved);
       if (
         info.repo === this.repo &&
@@ -83,11 +94,13 @@ export class TreeSitterLanguage extends SBLanguage {
       }
     }
 
-    const grammar = await (
+    const grammarText = await (
       await fetch(
         `https://raw.githubusercontent.com/${this.repo}/${this.branch}${this.path}src/grammar.json`,
       )
-    ).json();
+    ).text();
+    this._extractRootRuleName(grammarText);
+    const grammar = JSON.parse(grammarText);
     localStorage.setItem(
       this.name + "-grammar",
       JSON.stringify({
@@ -610,6 +623,10 @@ export class TreeSitterComposedLanguage extends SBLanguage {
     this.matcher = matcher;
   }
 
+  get rootRuleName() {
+    return this.baseLanguage.rootRuleName;
+  }
+
   async ready() {
     await this.baseLanguage.ready();
     await this.nestedLanguage.ready();
@@ -624,12 +641,12 @@ export class TreeSitterComposedLanguage extends SBLanguage {
 
   _parse(text, oldRoot = null) {
     // TODO use includedRanges instead
-    const newRoot = this.baseLanguage.parse(text, oldRoot);
+    const newRoot = this.baseLanguage._parse(text, oldRoot);
     const update = [];
     newRoot.allNodesDo((n) => {
       if (this.matcher(n)) {
         // TODO oldRoot?
-        const nestedRoot = this.nestedLanguage.parse(n.sourceString);
+        const nestedRoot = this.nestedLanguage._parse(n.sourceString);
         update.push([n, nestedRoot]);
       }
     });

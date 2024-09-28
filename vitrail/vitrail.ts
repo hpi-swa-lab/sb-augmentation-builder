@@ -83,6 +83,7 @@ export interface Marker {
   offset?: number;
   length?: number;
   attributes: { [key: string]: any };
+  eventHandlers: { [key: string]: any };
 }
 
 export interface AugmentationInstance<Props extends ReplacementProps> {
@@ -95,7 +96,16 @@ export function replacementRange(
   vitrail: Vitrail<any>,
 ) {
   const nodes = a.match.props.nodes;
-  return vitrail.adjustRange([nodes[0].range[0], last(nodes).range[1]], true);
+  const start = nodes[0].range[0];
+  const end = last(nodes).range[1];
+  return vitrail.adjustRange(
+    a.augmentation.type === "insert"
+      ? (a.augmentation.insertPosition ?? "start") === "start"
+        ? [start, start]
+        : [end, end]
+      : [start, end],
+    true,
+  );
 }
 
 export function markerRange(a: Marker, base: [number, number]) {
@@ -121,14 +131,15 @@ export enum DeletionInteraction {
 
 export interface Augmentation<Props extends ReplacementProps> {
   name?: string;
-  type: "replace" | "mark";
+  type: "replace" | "mark" | "insert";
   model: Model;
-  matcherDepth: number;
+  matcherDepth?: number;
   match: (node: SBNode) => Props | null;
   view: (props: Props) => JSX | Marker;
   checkOnEdit?: (editBuffer: EditBuffer, check: (node: SBNode) => void) => void;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
+  insertPosition?: "start" | "end";
   // deprecated and no longer used -- only comparing the input props now
   rerender?: (editBuffer: EditBuffer) => boolean;
 }
@@ -652,7 +663,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       checkedNodes = new Set();
       this._augmentationsCheckedTrees.set(augmentation, checkedNodes);
     }
-    const check = (node: SBNode) => {
+    const check = (node: SBNode | undefined) => {
+      if (!node) return;
       if (checkedNodes.has(node)) return;
 
       checkedNodes.add(node);
@@ -684,7 +696,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       let node: SBNode | null = root;
       for (
         let i = 0;
-        i <= augmentation.matcherDepth;
+        i <= (augmentation.matcherDepth ?? 1);
         i++, node = node?.parent
       ) {
         // FIXME limit to nodes of current pane

@@ -46,6 +46,12 @@ import {
 import { exploriants } from "./exploriants.ts";
 import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
+import {
+  markdownImage,
+  markdownLink,
+  markdownTag,
+  recipesList,
+} from "./recipes.ts";
 import { openReferences } from "./references.ts";
 import { sql } from "./sql.ts";
 import { table } from "./table.ts";
@@ -124,6 +130,11 @@ function extensionsForPath(path): {
         table(language),
       ],
     };
+  if (language === languageFor("markdown"))
+    return {
+      cmExtensions: [],
+      augmentations: [recipesList, markdownTag, markdownLink, markdownImage],
+    };
   return { cmExtensions: [], augmentations: [] };
 }
 
@@ -199,12 +210,16 @@ function FullDeclarationPaneWindow({ nodes, ...props }) {
 export function openNodesInWindow(nodes: SBNode[], props: any = {}) {
   openComponentInWindow(FullDeclarationPaneWindow, { nodes, ...props });
 }
-export function openFileInWindow(project, path: string) {
-  openComponentInWindow(TraceryEditor, {
-    project,
-    path,
-    style: { width: "100%", flex: "1 1" },
-  });
+export function openFileInWindow(project, path: string, windowProps) {
+  openComponentInWindow(
+    TraceryEditor,
+    {
+      project,
+      path,
+      style: { width: "100%", flex: "1 1" },
+    },
+    windowProps,
+  );
 }
 
 export function TraceryInlineEditor({ source, fileSuffix }) {
