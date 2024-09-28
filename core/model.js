@@ -591,7 +591,7 @@ export class SBNode {
     this.editor.replaceTextFromCommand(
       [remove[0].range[0], last(remove).range[1]],
       "",
-      editOptions ?? { intentDeleteNodes: [row[index]] },
+      editOptions ?? { intentDeleteNodes: [this] },
     );
   }
 

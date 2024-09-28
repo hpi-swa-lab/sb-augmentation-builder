@@ -199,6 +199,13 @@ function FullDeclarationPaneWindow({ nodes, ...props }) {
 export function openNodesInWindow(nodes: SBNode[], props: any = {}) {
   openComponentInWindow(FullDeclarationPaneWindow, { nodes, ...props });
 }
+export function openFileInWindow(project, path: string) {
+  openComponentInWindow(TraceryEditor, {
+    project,
+    path,
+    style: { width: "100%", flex: "1 1" },
+  });
+}
 
 export function TraceryInlineEditor({ source, fileSuffix }) {
   const { augmentations, cmExtensions } = useMemo(
