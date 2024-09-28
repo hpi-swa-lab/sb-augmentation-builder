@@ -2,10 +2,57 @@ import { SBNode } from "../core/model.js";
 import { useRef } from "../external/preact-hooks.mjs";
 import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
+import { Portal } from "../view/portal.ts";
 import { createPlaceholder } from "../vitrail/placeholder.ts";
 import { VitrailPane } from "../vitrail/vitrail.ts";
 
-export function NodeArray({
+type JSX = any;
+
+export interface NodeArrayProps<T> {
+  // node that contains the items
+  container: SBNode;
+  // list of items, can be but don't have to be nodes
+  items?: T[];
+  // how to obtain a node from an item
+  nodeFromItem?: (item: T) => SBNode;
+
+  // turn an item into a view
+  view?: (item: T, ref, onmousemove, onmouseleave) => JSX;
+  // style applied to the default view, if used
+  style?: { [prop: string]: any };
+
+  // return source text for the item to be created, used by the default insert
+  insertItem?: (index: number) => string;
+  // grammar type of item to be inserted, used by the default insert
+  insertType?: string;
+  // first index of the item nodes in the container's childBlocks, used by the default insert
+  baseIndex?: number;
+  // overrides the insert action entirely, replacing the above fields
+  insert?: (index: number) => Promise<void>;
+  // overrides the delete action entirely
+  remove?: (item: T, node: SBNode, index: number) => void;
+
+  // create a view for the container
+  wrap?: (view: JSX) => JSX;
+  // create an add button
+  viewInsert?: (
+    position: [number, number] | null,
+    ref,
+    onclick,
+    onmouseleave,
+  ) => JSX;
+  // create a remove button
+  viewRemove?: (
+    position: [number, number] | null,
+    ref,
+    onclick,
+    onmouseleave,
+  ) => JSX;
+  // specify where the buttons are placed
+  buttonPos?: ["top", "bottom"];
+}
+
+export function NodeArray<T extends object>({
   container,
   items,
   nodeFromItem,
@@ -13,15 +60,20 @@ export function NodeArray({
   style,
   insertItem,
   insertType,
+  insert,
+  remove,
   baseIndex,
   wrap,
-  add,
-  remove,
-  buttonPos = ["top", "bottom"],
-}) {
+  viewInsert,
+  viewRemove,
+  buttonPos,
+}: NodeArrayProps<T>) {
+  buttonPos ??= ["top", "bottom"];
   nodeFromItem ??= (it) =>
-    it?.node ? it.node.orParentThat((p) => p.parent === container) : it;
-  items ??= container.childBlocks;
+    "node" in it
+      ? (it.node as SBNode).orParentThat((p) => p.parent === container)
+      : it;
+  items ??= container.childBlocks as T[];
 
   style = { display: "flex", flexDirection: "column", ...style };
   insertType ??= "expression";
@@ -34,17 +86,48 @@ export function NodeArray({
       onmousemove,
     });
   wrap ??= (it) => h("div", { style }, it);
-  add ??= (position, ref, onclick, onmouseleave) =>
+  viewInsert ??= (position, ref, onclick, onmouseleave) =>
     h(
-      "div",
-      {
+      Portal,
+      { into: document.body },
+      h(
+        "div",
+        {
+          ref,
+          onclick,
+          onmouseleave,
+          style: {
+            width: "1rem",
+            height: "1rem",
+            background: "#555",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: "1",
+            color: "#fff",
+            cursor: "pointer",
+            position: position ? "fixed" : "static",
+            top: position?.[1],
+            left: position?.[0],
+            zIndex: 99999999,
+          },
+        },
+        "+",
+      ),
+    );
+  viewRemove ??= (position, ref, onclick, onmouseleave) =>
+    h(
+      Portal,
+      { into: document.body },
+      h("div", {
         ref,
         onclick,
         onmouseleave,
         style: {
           width: "1rem",
           height: "1rem",
-          background: "#555",
+          background: "#FF0000",
           borderRadius: "50%",
           display: "flex",
           alignItems: "center",
@@ -55,69 +138,54 @@ export function NodeArray({
           position: position ? "fixed" : "static",
           top: position?.[1],
           left: position?.[0],
+          zIndex: 99999999,
         },
-      },
-      "+",
+      }),
     );
-  remove ??= (position, ref, onclick, onmouseleave) =>
-    h("div", {
-      ref,
-      onclick,
-      onmouseleave,
-      style: {
-        width: "1rem",
-        height: "1rem",
-        background: "#FF0000",
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: "1",
-        color: "#fff",
-        cursor: "pointer",
-        position: position ? "fixed" : "static",
-        top: position?.[1],
-        left: position?.[0],
-      },
-    });
 
   baseIndex ??=
     items.length > 0
       ? container.childBlocks.indexOf(nodeFromItem(items[0]))
       : 0;
 
-  const insert = async (index: number) => {
-    const item = await insertItem(baseIndex + index);
-    if (item) container.insert(item, insertType, baseIndex + index);
-    console.log(container.sourceString);
-  };
+  const _insert =
+    insert ??
+    (async (index: number) => {
+      const item = await insertItem(baseIndex + index);
+      if (item) container.insert(item, insertType, baseIndex + index);
+    });
+  const _remove =
+    remove ??
+    ((item: T, node: SBNode, index: number) => {
+      if (container.childBlocks.length == 1) {
+        container.removeFull();
+      } else {
+        while (node.parent && node.parent.id != container.id) {
+          node = node.parent;
+        }
+        node.removeFull();
+      }
+    });
 
   return wrap(
     items.length === 0
-      ? add(null, null, () => insert(0))
+      ? viewInsert(
+          null,
+          null,
+          () => _insert(0),
+          () => {},
+        )
       : items.map((it, index) => {
           const node = nodeFromItem(it);
           return h(_NodeArrayItem, {
-            onInsert: (atEnd) => insert(index + (atEnd ? 1 : 0)),
-            onRemove: () => {
-              let nodeToDelete = nodeFromItem(items[index]);
-              if (container.childBlocks.length == 1) {
-                container.removeFull();
-              } else {
-                while (
-                  nodeToDelete.parent &&
-                  nodeToDelete.parent.id != container.id
-                ) {
-                  nodeToDelete = nodeToDelete.parent;
-                }
-                nodeToDelete.removeFull();
-              }
-            },
+            onInsert: (atEnd) => _insert(index + (atEnd ? 1 : 0)),
+            onRemove: () =>
+              _remove(items[index], nodeFromItem(items[index]), index),
             item: it,
             key: node,
             view,
-            add,
-            remove,
+            add: viewInsert,
+            remove: viewRemove,
             buttonPos,
           });
         }),

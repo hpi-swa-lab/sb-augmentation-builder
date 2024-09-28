@@ -1,16 +1,20 @@
+import { SBNode } from "../core/model.js";
 import { h } from "../external/preact.mjs";
 import {
   all,
+  also,
   debugIt,
   metaexec,
   query,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
+import { createPlaceholder } from "../vitrail/placeholder.ts";
 import {
   useValidateKeepReplacement,
   VitrailPane,
   VitrailPaneWithWhitespace,
 } from "../vitrail/vitrail.ts";
+import { BUTTON_PLACEMENT, NodeArray, NodeArrayProps } from "./node-array.ts";
 
 export const table = (model) => ({
   type: "replace" as const,
@@ -33,12 +37,14 @@ export const table = (model) => ({
         ],
         [
           spawnArray(
-            [
-              query("[$$$nestedItems]"),
-              (it) => it.nestedItems,
-              (it) => it.length,
-              (it) => it === capture.get("columns"),
-            ],
+            (node) =>
+              metaexec(node, (_capture) => [
+                query("[$$$nestedItems]"),
+                (it) => it.nestedItems,
+                (it) => it.length,
+                (it) => it === capture.get("columns"),
+                _capture("success"),
+              ]),
             false,
           ),
         ],
@@ -55,7 +61,7 @@ export const table = (model) => ({
         ],
       ),
     ]),
-  view: ({ rows, columns, items, replacement }) => {
+  view: ({ rows, columns, items, replacement, nodes }) => {
     useValidateKeepReplacement(replacement);
     return h(
       "div",
@@ -63,20 +69,55 @@ export const table = (model) => ({
       h(
         "table",
         { style: { border: "1px solid", borderCollapse: "collapse" } },
-        [...Array(columns).keys()].map((i) =>
+        [...Array(rows).keys()].map((i) =>
           h(
             "tr",
             { style: { border: "1px solid" } },
-            [...Array(rows).keys()].map((j) =>
-              h(
-                "td",
-                { style: { border: "1px solid" } },
-                h(VitrailPaneWithWhitespace, {
-                  ignoreLeft: true,
-                  nodes: [items[j][i]],
-                }),
-              ),
-            ),
+            h(NodeArray, <NodeArrayProps<SBNode>>{
+              container: items[i][0].parent,
+              items: items[i],
+              buttonPos: [BUTTON_PLACEMENT.START, BUTTON_PLACEMENT.END],
+              insert: async (index) => {
+                nodes[0].editor.transaction(() => {
+                  for (const row of items)
+                    row[0].parent.insert(
+                      createPlaceholder("expression"),
+                      "expression",
+                      index,
+                    );
+                });
+              },
+              remove: (_item, _node, index) => {
+                nodes[0].editor.transaction(() => {
+                  for (const row of items) row[index].removeFull();
+                });
+              },
+              view: (it, ref, onmousemove, onmouseleave) =>
+                h(
+                  "td",
+                  {
+                    style: { border: "1px solid", padding: "5px" },
+                    onmouseleave,
+                    onmousemove,
+                    ref,
+                  },
+                  h(VitrailPaneWithWhitespace, {
+                    ignoreLeft: true,
+                    nodes: [it],
+                  }),
+                ),
+              wrap: (it) => it,
+            }),
+            // [...Array(rows).keys()].map((j) =>
+            //   h(
+            //     "td",
+            //     { style: { border: "1px solid" } },
+            //     h(VitrailPaneWithWhitespace, {
+            //       ignoreLeft: true,
+            //       nodes: [items[j][i]],
+            //     }),
+            //   ),
+            // ),
           ),
         ),
       ),

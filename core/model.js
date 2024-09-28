@@ -228,6 +228,7 @@ export class SBNode {
   get children() {
     return [];
   }
+  /** @returns {SBNode | null} */
   get parent() {
     return this._parent;
   }
@@ -381,6 +382,7 @@ export class SBNode {
     return null;
   }
 
+  /** @returns {SBNode[]} */
   get childBlocks() {
     return this.children.filter((child) => !!child.named);
   }
@@ -584,11 +586,12 @@ export class SBNode {
     return ret.sort((a, b) => a.range[0] - b.range[0]);
   }
 
-  removeFull() {
+  removeFull(editOptions) {
     const remove = this.removalNodes;
     this.editor.replaceTextFromCommand(
       [remove[0].range[0], last(remove).range[1]],
       "",
+      editOptions ?? { intentDeleteNodes: [row[index]] },
     );
   }
 

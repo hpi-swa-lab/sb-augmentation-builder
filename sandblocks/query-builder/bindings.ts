@@ -86,7 +86,7 @@ export function bindPlainString(node: SBBlock) {
   const contentNodes =
     node.type === "template_string"
       ? node.children.slice(1, node.children.length - 1)
-      : (node.childBlocks as SBBlock[]);
+      : node.childBlocks;
   const quote = node.childNode(0) as SBBlock | null;
   if (!quote) return { text: "", onLocalChange: () => {} };
 

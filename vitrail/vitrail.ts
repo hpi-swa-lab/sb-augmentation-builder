@@ -220,7 +220,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     effect(() => {
       this._showValidationPending(
         hasPending.value,
-        last(this._pendingChanges.value)?.sourcePane,
+        last(this._pendingChanges.value)?.sourcePane ?? this._rootPane,
       );
     });
   }
@@ -860,15 +860,18 @@ export function useValidateKeepReplacement(
   replacement: AugmentationInstance<any>,
 ) {
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
+
   useValidator(
     replacement.augmentation.model,
-    (_root, _diff, changes) =>
-      changesIntendToDeleteNode(changes, replacement.match.matchedNode) ||
-      (replacement.match.matchedNode?.connected &&
-        vitrail.matchAugmentation(
-          replacement.match.matchedNode,
-          replacement.augmentation,
-        ) !== null),
+    (_root, _diff, changes) => {
+      if (changesIntendToDeleteNode(changes, replacement.match.matchedNode))
+        return true;
+      const node = replacement.match.matchedNode;
+      if (!node?.connected) return false;
+      if (!vitrail.matchAugmentation(node, replacement.augmentation))
+        return false;
+      return true;
+    },
     [...replacement.match.props.nodes, replacement.augmentation],
   );
 }
