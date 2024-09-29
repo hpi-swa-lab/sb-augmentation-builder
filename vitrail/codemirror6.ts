@@ -409,11 +409,7 @@ async function codeMirror6WithVitrail(
       },
       focusRange: (head, anchor) => {
         host.focus();
-        host.dispatch({
-          selection: { anchor: head, head: anchor },
-          // FIXME do we always want this?
-          scrollIntoView: true,
-        });
+        host.dispatch({ selection: { anchor: head, head: anchor } });
       },
       applyLocalChanges: (changes: Change<EditorView>[]) => {
         const intentToDelete = changes.flatMap(

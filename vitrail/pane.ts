@@ -164,7 +164,8 @@ export class Pane<T> {
   }
 
   unmount() {
-    for (const replacement of this.replacements) render(null, replacement.view);
+    for (const a of this.augmentations)
+      if (a.view instanceof HTMLElement) render(null, a.view);
     this._augmentationInstances.clear();
   }
 
@@ -323,13 +324,14 @@ export class Pane<T> {
         )
       ) {
         active.push([match, augmentation]);
-        replacedNodes.push(...match.props.nodes);
+        if (augmentation.type === "replace")
+          replacedNodes.push(...match.props.nodes);
       }
     }
 
     const current = [...this._augmentationInstances];
     for (const instance of current) {
-      if (!this.vitrail._matchedAugmentations.has(instance.match)) {
+      if (!active.find((match) => match[0] === instance.match)) {
         if (instance.view instanceof HTMLElement) render(null, instance.view);
         this._augmentationInstances.delete(instance);
       }

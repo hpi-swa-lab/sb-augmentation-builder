@@ -61,14 +61,14 @@ function Tracery() {
           { doNotStartAttached: true, initialPosition: { x: 100, y: 100 } },
         );
 
-      if (true)
+      if (false)
         openFileInWindow(project, "recipes.md", {
           doNotStartAttached: true,
           initialPosition: { x: 100, y: 100 },
           initialSize: { x: 300, y: 400 },
         });
 
-      if (false)
+      if (true)
         openBrowser(
           project,
           {

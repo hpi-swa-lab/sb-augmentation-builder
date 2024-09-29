@@ -74,7 +74,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
     vitrail.value && getModel(),
     (_root, _diff, _changes) => {
       // const del = changesIntendToDeleteNode(changes, selectedNodes[0]);
-      return !!selectedNodes[0].connected;
+      return !selectedNodes || !!selectedNodes[0].connected;
     },
     [...(selectedNodes ?? [])],
     vitrail,
@@ -188,9 +188,10 @@ function TraceryBrowser({ project, initialSelection, window }) {
             onLoad: (v) => {
               vitrail.value = v;
               topLevelEntries.value = getOutline();
-              selectedTopLevel.value = topLevelEntries.value.find(
-                (entry) => entry.name === initialSelection?.topLevel,
-              )?.nodes;
+              selectedTopLevel.value =
+                topLevelEntries.value.find(
+                  (entry) => entry.name === initialSelection?.topLevel,
+                )?.nodes ?? topLevelEntries.value[0]?.nodes;
               selectedMember.value = selectedTopLevel.value?.members?.find(
                 (entry) => entry.name === initialSelection?.member,
               )?.nodes;

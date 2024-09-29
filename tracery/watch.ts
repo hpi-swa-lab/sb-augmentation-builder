@@ -1,4 +1,10 @@
-import { useEffect, useState } from "../external/preact-hooks.mjs";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "../external/preact-hooks.mjs";
 import { socket, withSocket } from "./host.js";
 import {
   all,
@@ -9,9 +15,14 @@ import {
   replace,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { randomId } from "../utils.js";
-import { html } from "../view/widgets.js";
-import { VitrailPane, useValidateKeepReplacement } from "../vitrail/vitrail.ts";
+import { h, html } from "../view/widgets.js";
+import {
+  Augmentation,
+  VitrailPane,
+  useValidateKeepReplacement,
+} from "../vitrail/vitrail.ts";
 import { objectToString } from "./query-builder.ts";
+import { SBNode } from "../core/model.js";
 
 // function makeWatchExtension(config) {
 //   return new Extension()
@@ -131,6 +142,92 @@ export const watch = (model) => ({
         ${lastValue}
       </div>
     </div>`;
+  },
+});
+
+export const invisibleWatch = (model) => ({
+  name: "invisible-watch",
+  type: "replace" as const,
+  model,
+  rerender: () => true,
+  match: (n) =>
+    metaexec(n, (capture) => [
+      replace(capture),
+      query(
+        `["viWatch",
+    ((e) => (
+      fetch("https://localhost:3000/sb-watch", {
+        method: "POST",
+        body: JSON.stringify({ id: $identifier, e }),
+        headers: { "Content-Type": "application/json" },
+      }), e))($$$expressions),][1]`,
+      ),
+      all(
+        [
+          (it) => it.identifier,
+          (it) => parseInt(it.text, 10),
+          capture("watchId"),
+        ],
+        [(it) => it.expressions, nodesWithWhitespace, capture("expressions")],
+      ),
+    ]),
+  matcherDepth: 15,
+  view: ({ replacement, watchId, expressions }) => {
+    useValidateKeepReplacement(replacement);
+
+    useEffect(() => {
+      (window as any).sbWatch.registry.set(watchId, replacement);
+      replacement.reportValue = (value) => {};
+      return () => {
+        (window as any).sbWatch.registry.delete(watchId);
+      };
+    }, [replacement, watchId]);
+
+    return h(VitrailPane, { nodes: expressions, className: "no-padding" });
+  },
+});
+
+export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
+  const watchNode = useRef(null);
+  const id = useMemo(() => randomId(), []);
+
+  useEffect(() => {
+    (window as any).sbWatch.registry.set(id, { reportValue: onValue });
+    return () => (window as any).sbWatch.registry.delete(id);
+  }, [id, onValue]);
+
+  useEffect(() => {
+    if (watchNode.current === node) return;
+    queueMicrotask(() => {
+      const url = `${window.location.origin}/sb-watch`;
+      const headers = `headers: {"Content-Type": "application/json"}`;
+      const opts = `{method: "POST", body: JSON.stringify({id: ${id}, e}), ${headers},}`;
+      watchNode.current = node.wrapWith(
+        `["viWatch",((e) => (fetch("${url}", ${opts}), e))(`,
+        `),][1]`,
+      );
+    });
+    return () =>
+      queueMicrotask(() => watchNode.current?.replaceWith(node.sourceString));
+  }, [id]);
+
+  return watchNode.current;
+}
+
+export const testLogs = (model) => ({
+  name: "test-logs",
+  type: "insert" as const,
+  match: (node) =>
+    metaexec(node, (capture) => [
+      query("console.log($expression, $$$rest)"),
+      (it) => it.expression,
+      replace(capture),
+    ]),
+  matcherDepth: 3,
+  model,
+  view: ({ nodes }) => {
+    useRuntimeValues(nodes[0], (v) => console.log(v));
+    return h("span", {}, "Log");
   },
 });
 

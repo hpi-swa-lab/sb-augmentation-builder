@@ -747,10 +747,25 @@ export class SBNode {
     this.editor.replaceTextFromCommand(this.range, str, editOptions);
   }
 
+  recoverNodeAtSamePosition(cb) {
+    const indices = [];
+    let node = this;
+    while (node.parent) {
+      indices.unshift(node.siblingIndex);
+      node = node.parent;
+    }
+    cb();
+    console.assert(node.connected);
+    for (const index of indices) node = node.children[index];
+    return node;
+  }
+
   wrapWith(start, end) {
-    this.editor.replaceTextFromCommand(
-      this.range,
-      `${start}${this.sourceString}${end}`,
+    return this.recoverNodeAtSamePosition(() =>
+      this.editor.replaceTextFromCommand(
+        this.range,
+        `${start}${this.sourceString}${end}`,
+      ),
     );
   }
 
@@ -932,7 +947,7 @@ export class SBBlock extends SBNode {
 
   get text() {
     if (this.children.length === 0) return this.sourceString;
-    if (this.children.length === 1) return this.children[1].text;
+    if (this.children.length === 1) return this.children[0].text;
     return "";
   }
 

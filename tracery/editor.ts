@@ -55,7 +55,7 @@ import {
 import { openReferences } from "./references.ts";
 import { sql } from "./sql.ts";
 import { table } from "./table.ts";
-import { watch, wrapWithWatch } from "./watch.ts";
+import { invisibleWatch, testLogs, watch, wrapWithWatch } from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
 
 appendCss(`.diagnostic { background: rgba(255, 0, 0, 0.2); }`);
@@ -95,10 +95,12 @@ function extensionsForPath(path): {
     return {
       cmExtensions: [javascript()],
       augmentations: [
+        testLogs(language),
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
         // uiBuilder(language),
+        invisibleWatch(language),
         placeholder(language),
         exploriants(language),
         augChartsJS(language),
@@ -115,10 +117,12 @@ function extensionsForPath(path): {
     return {
       cmExtensions: [javascript({ typescript: true })],
       augmentations: [
+        testLogs(language),
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
         // uiBuilder(language),
+        invisibleWatch(language),
         placeholder(language),
         exploriants(language),
         augChartsJS(language),
@@ -184,15 +188,12 @@ const singleDeclaration: (model: Model) => Augmentation<any> = (model) => ({
   name: "singleDeclaration",
   type: "replace" as const,
   matcherDepth: 1,
-  rerender: () => true,
   model,
   selectionInteraction: SelectionInteraction.Skip,
-  match(node) {
-    return metaexec(node, (capture) => [(it) => it.isRoot, replace(capture)]);
-  },
+  match: (node) => (node.isRoot ? {} : null),
   view: ({ nodes: topLevel }) => {
     const nodes = useVitrailProps().nodes ?? topLevel;
-    return h(FullDeclarationPane, { nodes, key: nodes[0].id });
+    return h(FullDeclarationPane, { nodes });
   },
 });
 
@@ -306,6 +307,9 @@ export function TraceryEditor({
     // cheap operation when nothing changes, so we can do it on every render
     vitrail.value?.updateAugmentationList();
   });
+  useEffect(() => {
+    vitrail.value?.updateAugmentationList();
+  }, [nodes]);
 
   const language = languageForPath(path) ?? SBBaseLanguage;
   const singleDecl = useMemo(() => singleDeclaration(language), [language]);
