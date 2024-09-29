@@ -49,6 +49,7 @@ import {
   Annotation,
   Facet,
   ViewPlugin,
+  EditorSelection,
 } from "../codemirror6/external/codemirror.bundle.js";
 import {
   rangeShift,
@@ -394,9 +395,25 @@ async function codeMirror6WithVitrail(
         host.state.selection.main.anchor,
       ],
       syncReplacements: () => host.dispatch({ userEvent: "sync" }),
+      showRange: (range) => {
+        host.dispatch({
+          effects: [
+            EditorView.scrollIntoView(
+              EditorSelection.range(range[0], range[1]),
+              {
+                y: "center",
+              },
+            ),
+          ],
+        });
+      },
       focusRange: (head, anchor) => {
         host.focus();
-        host.dispatch({ selection: { anchor: head, head: anchor } });
+        host.dispatch({
+          selection: { anchor: head, head: anchor },
+          // FIXME do we always want this?
+          scrollIntoView: true,
+        });
       },
       applyLocalChanges: (changes: Change<EditorView>[]) => {
         const intentToDelete = changes.flatMap(

@@ -4,6 +4,7 @@ import {
   clamp,
   exec,
   last,
+  rangeContains,
   rangeEqual,
 } from "../utils.js";
 import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
@@ -93,11 +94,36 @@ export class OffscreenEditor {
   }
 }
 
+export function sortModels(models) {
+  const sorted = [];
+  const visited = new Set();
+  const visit = (model) => {
+    if (visited.has(model)) return;
+    visited.add(model);
+    for (const dep of model.dependencies ?? []) visit(dep);
+    sorted.push(model);
+  };
+  for (const model of models) visit(model);
+  return sorted;
+}
+
 export class SBLanguage {
+  dependencies = [];
+  _dependentRoots = [];
+
   constructor({ name, extensions, defaultExtensions }) {
     this.name = name;
     this.extensions = extensions;
     this.defaultExtensions = defaultExtensions;
+  }
+
+  prepareForParsing(models) {
+    this._dependentRoots = this.dependencies.map((model) => models.get(model));
+  }
+
+  /** @returns {SBNode[]} */
+  getDependencies() {
+    return this._dependentRoots;
   }
 
   async ready() {}
@@ -110,6 +136,10 @@ export class SBLanguage {
   compatibleType(type, other) {
     return type === other;
   }
+  /**
+   * @param {string} text
+   * @param {SBNode | null} oldRoot
+   * @returns {SBNode} */
   _parse(text, oldRoot = null) {
     throw "subclass responsibility";
   }
@@ -142,9 +172,9 @@ export class SBLanguage {
     return { tx, root, diff };
   }
 
-  /** @returns {string | null} */
+  /** @returns {string} */
   get rootRuleName() {
-    return null;
+    return "document";
   }
 
   get canBeDefault() {
@@ -227,6 +257,10 @@ export class SBNode {
   }
 
   get type() {
+    return "";
+  }
+
+  get text() {
     return "";
   }
 
@@ -471,6 +505,14 @@ export class SBNode {
       return this;
     }
     return null;
+  }
+
+  *leafsInRange(range) {
+    if (this.children.length === 0 && rangeContains(range, this.range))
+      yield this;
+    for (const child of this.children) {
+      yield* child.leafsInRange(range);
+    }
   }
 
   leafForPosition(pos, excludeEnd) {
@@ -821,6 +863,14 @@ export class SBText extends SBNode {
 export class SBBlock extends SBNode {
   _children = [];
 
+  static named(type, range) {
+    return new SBBlock(type, null, range[0], range[1], true);
+  }
+
+  static root(text, type = "document") {
+    return new SBBlock(type, null, 0, text.length, true);
+  }
+
   constructor(type, field, start, end, named) {
     super();
     this._type = type;
@@ -876,8 +926,14 @@ export class SBBlock extends SBNode {
     this.insertChild(child, this.children.length);
   }
 
+  appendAll(children) {
+    for (const child of children) this.insertChild(child, this.children.length);
+  }
+
   get text() {
-    return this.children.length === 1 ? this.children[0].text : "";
+    if (this.children.length === 0) return this.sourceString;
+    if (this.children.length === 1) return this.children[1].text;
+    return "";
   }
 
   get structureHash() {

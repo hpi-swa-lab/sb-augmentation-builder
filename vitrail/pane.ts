@@ -38,6 +38,7 @@ type PaneApplyLocalChangesFunc<T> = (changes: Change<T>[]) => void;
 type PaneGetLocalSelectionIndicesFunc = () => [number, number];
 type PaneEnsureContinueEditing = () => void;
 type PaneFocusRangeFunc = (head: number, anchor: number) => void;
+type PaneShowRangeFunc = (range: [number, number]) => void;
 
 export class Pane<T> {
   vitrail: Vitrail<T>;
@@ -51,6 +52,7 @@ export class Pane<T> {
 
   _fetchAugmentations: PaneFetchAugmentationsFunc<T>;
   focusRange: PaneFocusRangeFunc;
+  showRange: PaneShowRangeFunc;
   hasFocus: () => boolean;
   _applyLocalChanges: PaneApplyLocalChangesFunc<T>;
   getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
@@ -59,7 +61,7 @@ export class Pane<T> {
   setText: PaneSetTextFunc;
   syncReplacements: () => void;
 
-  get range() {
+  get range(): [number, number] {
     const r = this.vitrail.adjustRange([
       this.nodes[0].range[0],
       last(this.nodes).range[1],
@@ -77,6 +79,7 @@ export class Pane<T> {
     host,
     setText,
     getText,
+    showRange,
     focusRange,
     hasFocus,
     syncReplacements,
@@ -90,6 +93,7 @@ export class Pane<T> {
     host: T;
     syncReplacements: () => void;
     hasFocus: () => boolean;
+    showRange: (range: [number, number]) => void;
     focusRange: PaneFocusRangeFunc;
     ensureContinueEditing: PaneEnsureContinueEditing;
     getLocalSelectionIndices: PaneGetLocalSelectionIndicesFunc;
@@ -105,6 +109,7 @@ export class Pane<T> {
     this.getText = getText;
     this.hasFocus = hasFocus;
     this.focusRange = focusRange;
+    this.showRange = showRange;
     this.ensureContinueEditing = ensureContinueEditing;
     this.syncReplacements = syncReplacements;
     this._applyLocalChanges = applyLocalChanges;
@@ -122,6 +127,9 @@ export class Pane<T> {
     };
     (this.view as any).focusRange = function (head: number, anchor: number) {
       pane.focusRange(head - pane.startIndex, anchor - pane.startIndex);
+    };
+    (this.view as any).showRange = function (range: [number, number]) {
+      pane.showRange(rangeShift(range, -pane.startIndex));
     };
     (this.view as any).hasFocus = function () {
       return pane.hasFocus();

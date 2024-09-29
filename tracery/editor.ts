@@ -341,7 +341,7 @@ export function TraceryEditor({
         <Augmentation<any>[]>[
           ...augmentations,
           ...(extraAugmentations ?? []),
-          singleDecl,
+          ...(nodes ? [singleDecl] : []),
           // {
           //   type: "mark" as const,
           //   model: SBBaseLanguage,

@@ -410,6 +410,11 @@ export function rangeSize(a) {
   return a[1] - a[0];
 }
 
+/**
+ * @param {[number, number]} range
+ * @param {number} delta
+ * @returns {[number, number]}
+ */
 export function rangeShift(range, delta) {
   return [range[0] + delta, range[1] + delta];
 }

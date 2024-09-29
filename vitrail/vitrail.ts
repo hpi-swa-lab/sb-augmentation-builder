@@ -1,6 +1,11 @@
 import { EditBuffer } from "../core/diff.js";
 import { EditOptions, ModelEditor } from "../core/matcher.ts";
-import { SBBaseLanguage, SBLanguage, SBNode } from "../core/model.js";
+import {
+  SBBaseLanguage,
+  SBLanguage,
+  SBNode,
+  sortModels,
+} from "../core/model.js";
 import {
   useContext,
   useEffect,
@@ -14,6 +19,7 @@ import {
   adjustIndex,
   allChildren,
   last,
+  rangeContains,
   rangeEqual,
   rangeShift,
   takeWhile,
@@ -145,6 +151,8 @@ export interface Augmentation<Props extends ReplacementProps> {
 }
 
 export interface Model {
+  dependencies?: Model[];
+  prepareForParsing: (models: Map<Model, SBNode>) => void;
   parse: <T>(sourceString: string, v: Vitrail<T>) => Promise<SBNode>;
   canBeDefault: boolean;
 }
@@ -285,6 +293,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
   async _loadModel(model: Model) {
     if (!this._models.has(model)) {
+      for (const d of model.dependencies ?? []) await this._loadModel(d);
+      model.prepareForParsing(this._models);
       this._models.set(model, await model.parse(this.sourceString, this));
       this.dispatchEvent(
         new CustomEvent("newModelLoaded", { detail: { model } }),
@@ -355,7 +365,9 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       );
     }
 
-    const update = [...this._models.values()].map((n) => n.reParse(newSource));
+    const update = sortModels([...this._models.values()]).map((n) =>
+      n.reParse(newSource),
+    );
     if (!forceApply) {
       for (const { diff, root } of update) {
         for (const [validateModel, validator] of this._validators) {
@@ -403,24 +415,9 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
     // finally, find a good place for the cursor
     if (!allChanges.some((c) => c.noFocus)) {
-      const target = last(allChanges).selectionRange;
-      let current = this.getSelection();
-      if (!current?.range || !rangeEqual(current?.range, target)) {
-        const candidates = this._cursorRoots().flatMap((r) =>
-          cursorPositionsForIndex(r, target[0]),
-        );
-        const head =
-          candidates.find((p) => (p.element as any).hasFocus()) ??
-          candidates[0];
-        const anchor = cursorPositionsForIndex(head.element, target[1])[0]
-          ?.index;
-        (head.element as any).focusRange(head.index, anchor ?? head.index);
-        current = { element: head.element, range: target };
-      }
-
-      if (allChanges.some((c) => c.requireContinueInput)) {
-        this.paneForView(current?.element)?.ensureContinueEditing();
-      }
+      const position = this.selectRange(last(allChanges).selectionRange);
+      if (allChanges.some((c) => c.requireContinueInput))
+        this.paneForView(position?.element)?.ensureContinueEditing();
     }
 
     this.dispatchEvent(
@@ -538,6 +535,33 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   }
 
   // Selection
+
+  _cursorPositionForRange(target: [number, number]) {
+    let current = this.getSelection();
+    if (current?.range && rangeContains(current.range, target)) {
+      return { element: current.element, index: current.range[0] };
+    }
+    const candidates = this._cursorRoots().flatMap((r) =>
+      cursorPositionsForIndex(r, target[0]),
+    );
+    return (
+      candidates.find((p) => (p.element as any).hasFocus()) ?? candidates[0]
+    );
+  }
+
+  selectRange(target: [number, number]) {
+    const current = this.getSelection();
+    if (current?.range && rangeEqual(current?.range, target)) return current;
+
+    const head = this._cursorPositionForRange(target);
+    const anchor = cursorPositionsForIndex(head.element, target[1])[0]?.index;
+    (head.element as any).focusRange(head.index, anchor ?? head.index);
+    return { element: head.element, range: [head.index, anchor] };
+  }
+
+  showRange(target: [number, number]) {
+    this._cursorPositionForRange(target)?.element.showRange?.(target);
+  }
 
   _cursorRoots() {
     const myRoot = getFocusHost(this._rootPane.view) ?? this._rootPane.view;

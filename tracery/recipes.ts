@@ -1,5 +1,7 @@
 import { languageFor } from "../core/languages.js";
 import { RegexModel } from "../core/model-regex.ts";
+import { SBBlock, SBLanguage } from "../core/model.js";
+import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { appendCss } from "../utils.js";
 import {
@@ -27,13 +29,41 @@ const TagModel = new RegexModel("tags", {
   link: /https:\/\/[^\s]+/g,
 });
 
+class _RecipeModel extends SBLanguage {
+  dependencies = [languageFor("markdown"), TagModel];
+
+  constructor() {
+    super({ name: "recipes", extensions: [], defaultExtensions: [] });
+  }
+
+  _parse(text: string) {
+    const [markdown, tags] = this.getDependencies();
+
+    const root = SBBlock.root(text);
+    for (const node of markdown.childBlocks.filter(
+      (b) => b.type === "section" && b.atType("atx_heading"),
+    )) {
+      const recipe = SBBlock.named("recipe", node.range);
+      const name = node.atType("atx_heading")!.atType("inline");
+      recipe.appendChild(SBBlock.named("title", name?.range ?? ""));
+      recipe.appendAll(
+        [...tags.leafsInRange(recipe.range)].map((t) => t.shallowClone()),
+      );
+      root.appendChild(recipe);
+    }
+    return root;
+  }
+}
+const RecipeModel = new _RecipeModel();
+
 export const recipesList: Augmentation<any> = {
   name: "recipes-list",
   match: (node) => (node.isRoot ? {} : null),
   matcherDepth: 1,
-  model: languageFor("markdown"),
-  view: ({ nodes }) =>
-    h(
+  model: RecipeModel,
+  view: ({ nodes }) => {
+    const search = useSignal("");
+    return h(
       "div",
       {
         style: {
@@ -42,9 +72,33 @@ export const recipesList: Augmentation<any> = {
           flexDirection: "column",
         },
       },
-      h("input", { placeholder: "Filter ..." }),
-      h(VitrailPane, { nodes, className: "pane-full-width" }),
-    ),
+      h("input", {
+        value: search.value,
+        onInput: (e) => (search.value = e.target.value),
+        placeholder: "Filter ...",
+      }),
+      search.value
+        ? nodes[0].children
+            .filter((n) => n.atType("title").text.includes(search.value))
+            .map((n) =>
+              h(
+                "div",
+                {
+                  key: n.id,
+                  onClick: () => {
+                    search.value = "";
+                    setTimeout(() => {
+                      // n.editor.selectRange([n.range[0], n.range[0]]);
+                      n.editor.showRange(n.range);
+                    });
+                  },
+                },
+                n.atType("title").text,
+              ),
+            )
+        : h(VitrailPane, { nodes, className: "pane-full-width" }),
+    );
+  },
   type: "replace" as const,
   selectionInteraction: SelectionInteraction.Skip,
 };
@@ -69,7 +123,7 @@ export const markdownLink: Augmentation<any> = {
   view: ({ nodes }) => [
     {
       attributes: { class: "md-link" },
-      eventHandlers: { click: () => window.open(nodes[0].sourceString) },
+      eventHandlers: { click: () => window.open(nodes[0].text) },
     },
   ],
 };
@@ -78,10 +132,8 @@ export const markdownImage: Augmentation<any> = {
   name: "markdown-image",
   type: "insert" as const,
   match: (node) =>
-    node.type === "image"
-      ? {
-          link: node.atType("link_destination")?.sourceString,
-        }
+    node.type === "image" && node.atType("link_destination")
+      ? { link: node.atType("link_destination")!.sourceString }
       : null,
   insertPosition: "end",
   model: languageFor("markdown"),
