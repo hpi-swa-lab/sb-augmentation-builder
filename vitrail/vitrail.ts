@@ -936,12 +936,18 @@ export function useValidator(
 
 export function useValidateKeepReplacement(
   replacement: AugmentationInstance<any>,
+  exception?: (
+    root: SBNode,
+    diff: EditBuffer,
+    changes: ReversibleChange<any>[],
+  ) => boolean,
 ) {
   const { vitrail }: { vitrail: Vitrail<any> } = useContext(VitrailContext);
 
   useValidator(
     replacement.augmentation.model,
-    (_root, _diff, changes) => {
+    (root, diff, changes) => {
+      if (exception?.(root, diff, changes)) return true;
       if (changesIntendToDeleteNode(changes, replacement.match.matchedNode))
         return true;
       const node = replacement.match.matchedNode;

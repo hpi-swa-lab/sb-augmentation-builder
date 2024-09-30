@@ -155,6 +155,8 @@ const jsQuery = `["viWatch", ((e) => (
     headers: { "Content-Type": "application/json" },
   }), e))($$$expressions),][1]`;
 
+// FIXME
+// * insert position before and after the watch expr
 export const invisibleWatch = (model) => ({
   name: "invisible-watch",
   type: "replace" as const,
@@ -170,12 +172,19 @@ export const invisibleWatch = (model) => ({
     ]),
   matcherDepth: 15,
   view: ({ nodes, replacement, expressions }) => {
-    useValidateKeepReplacement(replacement);
+    useValidateKeepReplacement(replacement, (_) => {
+      // Exception is if we still match but the user deleted all
+      // expressions. Then we can just remove ourselves.
+      const match = query(jsQuery)(replacement.match.matchedNode);
+      return match && match.expressions.length === 0;
+    });
     useEffect(() => {
       return () => {
         nodes[0].replaceWith(
           expressions[0].connected
-            ? expressions[0].editor.nodeTextWithPendingChanges(expressions[0])
+            ? expressions[0].editor.nodeTextWithPendingChanges(
+                expressions[0],
+              )[0]
             : "",
         );
       };

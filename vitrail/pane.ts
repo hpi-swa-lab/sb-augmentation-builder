@@ -514,7 +514,6 @@ export class Pane<T> {
       return true;
     } else if (adjusted !== pos?.index) {
       // FIXME not sure what to best do here, delete the next valid character?
-      debugger;
     }
     return false;
   }

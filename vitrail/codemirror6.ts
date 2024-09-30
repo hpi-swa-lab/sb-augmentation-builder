@@ -170,7 +170,7 @@ function buildPendingChangesHint(v: Vitrail<EditorView>, box: HTMLElement) {
     h(
       "span",
       {},
-      "Pending changes",
+      "Pending changes ",
       h("button", { onClick: () => v.revertPendingChanges() }, "Revert"),
       h("button", { onClick: () => v.applyPendingChanges() }, "Apply"),
     ),
@@ -479,7 +479,7 @@ async function codeMirror6WithVitrail(
     showValidationPending: (show, sourcePane) => {
       if (show && sourcePane) {
         const rect = sourcePane.view.getBoundingClientRect();
-        pendingChangesHint.style.top = `calc(${rect.top}px - 2rem)`;
+        pendingChangesHint.style.top = `calc(${rect.top}px - 2.1rem)`;
         pendingChangesHint.style.left = rect.left + "px";
         document.body.appendChild(pendingChangesHint);
       } else pendingChangesHint.remove();
