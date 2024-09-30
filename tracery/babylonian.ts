@@ -1,5 +1,4 @@
 import { SBNode } from "../core/model.js";
-import { useEffect } from "../external/preact-hooks.mjs";
 import { h } from "../external/preact.mjs";
 import {
   bindPlainString,
@@ -14,6 +13,7 @@ import { appendCss, evalModule } from "../utils.js";
 import { useAsyncEffect } from "../view/widgets.js";
 import {
   Augmentation,
+  useOnChange,
   useValidateKeepNodes,
   VitrailPane,
 } from "../vitrail/vitrail.ts";
@@ -49,14 +49,13 @@ export const babylonian = (model) =>
     }) => {
       useValidateKeepNodes([args, self]);
 
-      useAsyncEffect(async () => {
+      useOnChange(async () => {
         let func = nodes[0].orParentThat(
           (n) => n.type === "function_declaration",
         );
         const name = func?.atField("name")?.text;
         if (!func || !name) return;
 
-        return;
         try {
           await evalModule(func, (func) =>
             func.root.insert(
@@ -66,7 +65,7 @@ export const babylonian = (model) =>
             ),
           );
         } catch (e) {}
-      }, []);
+      });
 
       return h(
         "span",

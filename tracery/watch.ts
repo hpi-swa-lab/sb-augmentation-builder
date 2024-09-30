@@ -208,7 +208,8 @@ export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
 
   useEffect(() => {
     queueMicrotask(() => {
-      // disappeared in the meantime?
+      // FIXME this causes issues -- sometimes nodes are not wrapped
+      // possibly this occurs when there already is a vi watch wrapped in the file on disk
       if (!node.connected) return;
 
       const url = `${window.location.origin}/sb-watch`;

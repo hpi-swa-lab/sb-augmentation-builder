@@ -10,7 +10,6 @@ import {
   baseCMExtensions,
   CodeMirrorWithVitrail,
 } from "../vitrail/codemirror6.ts";
-import { VitrailPane } from "../vitrail/vitrail.ts";
 
 /* # Excursion on language composition in Vitrail
 - if we use augmentations to replace escaped chars with unescaped, we get

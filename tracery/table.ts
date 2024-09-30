@@ -11,7 +11,6 @@ import {
 import { createPlaceholder } from "../vitrail/placeholder.ts";
 import {
   useValidateKeepReplacement,
-  VitrailPane,
   VitrailPaneWithWhitespace,
 } from "../vitrail/vitrail.ts";
 import { BUTTON_PLACEMENT, NodeArray, NodeArrayProps } from "./node-array.ts";

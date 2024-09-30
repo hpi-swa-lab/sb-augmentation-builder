@@ -112,6 +112,7 @@ export function _metaexec(obj, makeScript, debugId) {
 }
 
 function isAbortReason(next) {
+  if (typeof next === "number") return false;
   if (!next) return true;
   if (_isEmptyObject(next)) return true;
   // does not make sense with array processing

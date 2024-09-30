@@ -54,6 +54,7 @@ import {
   recipesList,
 } from "./recipes.ts";
 import { openReferences } from "./references.ts";
+import { color, slider, spreadsheet } from "./livelits.ts";
 import { sql } from "./sql.ts";
 import { table } from "./table.ts";
 import { invisibleWatch, testLogs, watch, wrapWithWatch } from "./watch.ts";
@@ -96,7 +97,7 @@ function extensionsForPath(path): {
     return {
       cmExtensions: [javascript()],
       augmentations: [
-        testLogs(language),
+        //testLogs(language),
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
@@ -113,6 +114,9 @@ function extensionsForPath(path): {
         sql(language),
         table(language),
         babylonian(language),
+        slider(language),
+        color(language),
+        spreadsheet(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -135,6 +139,7 @@ function extensionsForPath(path): {
         augChartsType(language),
         table(language),
         babylonian(language),
+        slider(language),
       ],
     };
   if (language === languageFor("markdown"))

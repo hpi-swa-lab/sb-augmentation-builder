@@ -191,7 +191,7 @@ async function codeMirror6WithVitrail(
       ? range[0] < range[1]
       : range[0] <= range[1];
   }
-  const extensions = (pane: Pane<EditorView>) => {
+  const extensions = (pane: Pane<EditorView>, hostOptions) => {
     const replacementsField = StateField.define({
       create: () => Decoration.none,
       update: () => {
@@ -311,15 +311,18 @@ async function codeMirror6WithVitrail(
           },
         ]),
       ),
-      // EditorView.domEventHandlers({
-      //     beforeinput(e, view) {
-      //         let command = e.inputType == "historyUndo" ? undo : e.inputType == "historyRedo" ? redo : null;
-      //         if (!command)
-      //             return false;
-      //         e.preventDefault();
-      //         return command(view);
-      //     }
-      // }),
+      EditorView.domEventHandlers({
+        //     beforeinput(e, view) {
+        //         let command = e.inputType == "historyUndo" ? undo : e.inputType == "historyRedo" ? redo : null;
+        //         if (!command)
+        //             return false;
+        //         e.preventDefault();
+        //         return command(view);
+        //     }
+        blur(e, view) {
+          hostOptions?.onBlur?.(view);
+        },
+      }),
       replacementsField,
       EditorView.updateListener.of((update) => {
         if (
@@ -452,7 +455,7 @@ async function codeMirror6WithVitrail(
 
     host.dispatch({
       effects: StateEffect.appendConfig.of([
-        ...extensions(pane),
+        ...extensions(pane, hostOptions),
         ...(hostOptions?.cmExtensions ? hostOptions.cmExtensions : []),
         ...(isRoot ? [history()] : []),
       ]),

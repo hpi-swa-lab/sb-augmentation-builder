@@ -31,23 +31,15 @@ function hello(b) {
   const db = pool.connect();
   db.query(sql`SELECT * FROM \`events\` WHERE id = 123`);
 
+  ["slider", 0, 100, 1, 30][4];
+
   const table = [
     [1, 2, 3],
     [4, 5, 6],
     [7, 8, 9],
   ];
 
-  const a = [
-    "sbWatch",
-    ((e) => (
-      fetch("http://localhost:3000/sb-watch", {
-        method: "POST",
-        body: JSON.stringify({ id: 412842763, e }),
-        headers: { "Content-Type": "application/json" },
-      }),
-      e
-    ))("asdadfsd".length + 21),
-  ][1];
+  const a = "asdadfsd".length + 21;
 
   console.log(b);
   sbWatch(

@@ -78,6 +78,13 @@ export const useOnSelectReplacement = (cb) => {
     return () => view.removeEventListener("focus", cb);
   }, [view, cb]);
 };
+export const useOnChange = (cb) => {
+  const vitrail = useContext(VitrailContext).vitrail;
+  useEffect(() => {
+    vitrail.addEventListener("change", cb);
+    return () => vitrail.removeEventListener("change", cb);
+  }, [vitrail, cb]);
+};
 
 export type ReplacementProps = {
   nodes: SBNode[];
@@ -807,6 +814,7 @@ export const VitrailPane = forwardRef(function VitrailPane(
   props: VitrailPaneProps,
   ref,
 ) {
+  console.assert(!props.nodes || Array.isArray(props.nodes));
   if (props.nodes && props.nodes.length > 0)
     return h(_VitrailPane, { ...props, ref });
   else return null;
@@ -824,7 +832,6 @@ const _VitrailPane = forwardRef(function _VitrailPane(
   }: VitrailPaneProps,
   ref,
 ) {
-  console.assert(!nodes || Array.isArray(nodes));
   const vitrail: Vitrail<any> = nodes[0]?.editor;
   console.assert(
     !!vitrail,

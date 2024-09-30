@@ -47,7 +47,7 @@ class PotluckModel extends SBLanguage {
 }
 
 function Potluck() {
-  const source = useSignal("");
+  const source = useSignal("40g + 13");
   const rules: Rules = useMemo(
     () => ({
       0: [/(\d+)g/g, (x) => parseFloat(x) * 2 + "g", "replace"],
@@ -93,7 +93,11 @@ function Potluck() {
                 flexDirection: mode === "beside" ? "row" : "column",
               },
             },
-            h(VitrailPane, { nodes: [node], className: "no-padding" }),
+            h(VitrailPane, {
+              nodes: [node],
+              className: "no-padding",
+              hostOptions: { onBlur: () => (active.value = false) },
+            }),
             transformed,
           );
           useOnSelectReplacement(() => (active.value = !active.value));
