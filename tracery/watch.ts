@@ -172,22 +172,26 @@ export const invisibleWatch = (model) => ({
     ]),
   matcherDepth: 15,
   view: ({ nodes, replacement, expressions }) => {
-    useValidateKeepReplacement(replacement, (_) => {
+    useValidateKeepReplacement(replacement, () => {
       // Exception is if we still match but the user deleted all
       // expressions. Then we can just remove ourselves.
       const match = query(jsQuery)(replacement.match.matchedNode);
       return match && match.expressions.length === 0;
     });
     useEffect(() => {
-      return () => {
-        nodes[0].replaceWith(
-          expressions[0].connected
-            ? expressions[0].editor.nodeTextWithPendingChanges(
-                expressions[0],
-              )[0]
-            : "",
+      return () =>
+        queueMicrotask(
+          () =>
+            nodes[0].connected &&
+            nodes[0].replaceWith(
+              expressions[0].connected
+                ? expressions[0].editor.nodeTextWithPendingChanges(
+                    expressions[0],
+                  )[0]
+                : "",
+              { intentDeleteNodes: nodes },
+            ),
         );
-      };
     }, []);
     return h(VitrailPane, { nodes: expressions, className: "no-padding" });
   },
@@ -203,8 +207,10 @@ export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
   }, [id, onValue]);
 
   useEffect(() => {
-    if (watchNode.current === node) debugger;
     queueMicrotask(() => {
+      // disappeared in the meantime?
+      if (!node.connected) return;
+
       const url = `${window.location.origin}/sb-watch`;
       const headers = `headers: {"Content-Type": "application/json"}`;
       const opts = `{method: "POST", body: JSON.stringify({id: ${id}, e}), ${headers},}`;

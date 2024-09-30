@@ -824,6 +824,7 @@ const _VitrailPane = forwardRef(function _VitrailPane(
   }: VitrailPaneProps,
   ref,
 ) {
+  console.assert(!nodes || Array.isArray(nodes));
   const vitrail: Vitrail<any> = nodes[0]?.editor;
   console.assert(
     !!vitrail,

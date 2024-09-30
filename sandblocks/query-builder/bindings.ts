@@ -54,7 +54,7 @@ export function bindPlainStringFromArray(node) {
     text: textsAndRanges.map(([text]) => text).join(""),
     range:
       textsAndRanges.length > 0
-        ? [textsAndRanges[0][1], last(textsAndRanges)[1]]
+        ? [textsAndRanges[0][1], last(textsAndRanges)![1]]
         : [node.children[0].range[1], node.children[1].range[0]],
     indexMap,
     onLocalChange: (change: Change<any>) => {
@@ -136,6 +136,7 @@ export function TextArea({
   range,
   indexMap,
   style,
+  className,
   textStyle: _textStyle = {},
 }) {
   // text = text[text.length - 1] === "\n" ? text : text + "\n";
@@ -170,6 +171,7 @@ export function TextArea({
         },
         rows: 1,
         cols: 1,
+        className,
         style: {
           ...textStyle,
           overflow: "hidden",

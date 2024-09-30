@@ -59,6 +59,10 @@ export class OffscreenEditor {
     this.applyChanges([{ from: range[0], to: range[1], insert: text }]);
   }
 
+  insertTextChange(position, text) {
+    return { from: position, to: position, insert: text };
+  }
+
   applyChanges(changes) {
     if (this.activeTransactionList) {
       const affinity = last(changes).sideAffinity;
@@ -537,6 +541,10 @@ export class SBNode {
     return this.orParentThat((x) => x.compatibleWith(type));
   }
 
+  /**
+   * @param {(node: SBNode) => boolean} predicate
+   * @returns {SBNode | undefined}
+   */
   orParentThat(predicate) {
     if (predicate(this)) return this;
     else return this.parent?.orParentThat(predicate);
@@ -799,6 +807,7 @@ export class SBNode {
 
   // queries
   query(string, extract = null) {
+    if (!this.connected) return false;
     const res = this.language.query(this, string, extract);
     return res ? Object.fromEntries(res) : null;
   }

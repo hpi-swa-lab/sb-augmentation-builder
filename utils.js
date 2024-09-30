@@ -638,3 +638,37 @@ export function parallelToSequentialChanges(changes) {
     changes[i].to = adjustIndex(changes[i].to, changes.slice(0, i));
   }
 }
+
+export async function evalModule(node, transformCb) {
+  function getAbsolutePath(node) {
+    const path = node.atField("source").childBlock(0);
+
+    // TODO not sure how to resolve this properly yet
+    // full URL is needed since we are using a dynamic import without path
+    return replaceRange(
+      node.sourceString,
+      rangeShift(path.range, -node.range[0]),
+      path.text.replace(/^\./, "https://localhost:3000"),
+    );
+  }
+
+  node = node.cloneOffscreen();
+  transformCb(node);
+  // const imports =
+  //   metaexec(node.root, (capture) => [
+  //     (it) => it.childBlocks,
+  //     spawnArray((it) =>
+  //       metaexec(it, (capture) => [
+  //         type("import_statement"),
+  //         getAbsolutePath,
+  //         capture("source"),
+  //       ]),
+  //     ),
+  //     capture("imports"),
+  //   ])
+  //     ?.imports?.map((i) => i.source)
+  //     .join("\n") ?? "";
+  return await import(
+    "data:text/javascript;charset=utf-8;base64," + btoa(node.root.sourceString)
+  );
+}

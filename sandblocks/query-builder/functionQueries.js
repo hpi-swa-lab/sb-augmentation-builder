@@ -15,6 +15,12 @@ export const evalRange = signal([10, 19]);
 
 export function orderFork() {}
 
+export function match(makeScript) {
+  return (it) => {
+    return metaexec(it, makeScript);
+  };
+}
+
 export function metaexec(obj, makeScript, debugId = null) {
   //console.log(`evalRange: ${evalRange.value}`);
   //console.log(`debugId: ${debugId}`);

@@ -59,7 +59,7 @@ export const sql = (model) => ({
         style: { display: "inline-block" },
         className: "no-padding",
       }),
-      h(VitrailPane, { nodes }),
+      // h(VitrailPane, { nodes }),
     );
   },
   rerender: () => true,

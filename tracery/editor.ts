@@ -43,6 +43,7 @@ import {
   augmentationBuilder,
   openNewAugmentation,
 } from "./augmentation-builder.ts";
+import { babylonian } from "./babylonian.ts";
 import { exploriants } from "./exploriants.ts";
 import { format } from "./format.js";
 import { queryBuilder } from "./query-builder.ts";
@@ -111,6 +112,7 @@ function extensionsForPath(path): {
         augChartsType(language),
         sql(language),
         table(language),
+        babylonian(language),
       ],
     };
   if (language === languageFor("typescript"))
@@ -132,6 +134,7 @@ function extensionsForPath(path): {
         augColor(language),
         augChartsType(language),
         table(language),
+        babylonian(language),
       ],
     };
   if (language === languageFor("markdown"))
