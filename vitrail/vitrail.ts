@@ -200,7 +200,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
   // Editing
   _activeTransactionList: ReversibleChange<T>[] | null = null;
-  _pendingChanges: ReturnType<typeof signal>;
+  _pendingChanges: { value: ReversibleChange<T>[] };
   _revertChanges: Change<T>[] = [];
 
   createPane: CreatePaneFunc<T>;
@@ -330,8 +330,8 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       !last(changes).sideAffinity &&
       last(changes).sourcePane
     ) {
-      let atStart = last(changes).sourcePane.startIndex === last(changes).from;
-      last(changes).sideAffinity = atStart ? Side.Left : Side.Right;
+      let atStart = last(changes).sourcePane!.startIndex === last(changes).from;
+      last(changes).sideAffinity = atStart ? Side.Left : (Side.Right as any);
     }
 
     // make sure all the intent-to-delete nodes have a language set, so we still know
@@ -353,12 +353,15 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
 
     const oldSource = this._sourceString;
     let newSource = oldSource;
-    const allChanges = [...this._pendingChanges.value, ...changes];
+    const allChanges: ReversibleChange<T>[] = [
+      ...this._pendingChanges.value,
+      ...changes,
+    ];
     for (const change of allChanges)
       newSource = applyStringChange(newSource, change);
 
     if (!last(allChanges).selectionRange && last(allChanges).sourcePane) {
-      const pane = last(allChanges).sourcePane;
+      const pane = last(allChanges).sourcePane!;
       last(allChanges).selectionRange = rangeShift(
         pane.getLocalSelectionIndices(),
         pane.startIndex,
@@ -398,6 +401,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     this._sourceString = newSource;
     this._pendingChanges.value = [];
     this._revertChanges = [];
+    const oldSelection = this.getSelection();
 
     // first, apply changes
     // may create or delete panes while iterating, so iterate over a copy
@@ -414,8 +418,26 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       this.updateAugmentations(buffer, this._panes);
 
     // finally, find a good place for the cursor
-    if (!allChanges.some((c) => c.noFocus)) {
-      const position = this.selectRange(last(allChanges).selectionRange);
+    const newSelection = this.getSelection();
+    let targetSelectionRange: [number, number] | undefined = undefined;
+
+    if (allChanges.some((c) => c.keepSelectionOffset) && oldSelection) {
+      targetSelectionRange = [
+        adjustIndex(oldSelection.range[0], allChanges, Side.Left),
+        adjustIndex(oldSelection.range[1], allChanges, Side.Right),
+      ];
+    } else if (!allChanges.some((c) => c.noFocus))
+      targetSelectionRange = last(allChanges).selectionRange;
+    // selection has moved as side-effect of changes, but user had requested
+    // no change to selection via noFocus
+    else if (
+      oldSelection &&
+      (!newSelection || !rangeEqual(newSelection.range, oldSelection.range))
+    )
+      targetSelectionRange = oldSelection.range;
+
+    if (targetSelectionRange) {
+      const position = this.selectRange(targetSelectionRange);
       if (allChanges.some((c) => c.requireContinueInput))
         this.paneForView(position?.element)?.ensureContinueEditing();
     }
@@ -512,26 +534,33 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     ]);
   }
 
+  insertTextChange(
+    position: number,
+    text: string,
+    editOptions: Partial<ReversibleChange<T>> = {},
+  ): ReversibleChange<T> {
+    position = this.adjustRange([position, position], true)[0];
+    return {
+      from: position,
+      to: position,
+      insert: text,
+      selectionRange: [position + text.length, position + text.length],
+      inverse: {
+        from: position,
+        to: position + text.length,
+        insert: "",
+      },
+      ...editOptions,
+    };
+  }
+
   insertTextFromCommand(
     position: number,
     text: string,
     editOptions: EditOptions,
   ) {
     position = this.adjustRange([position, position], true)[0];
-    this.applyChanges([
-      {
-        from: position,
-        to: position,
-        insert: text,
-        selectionRange: [position + text.length, position + text.length],
-        inverse: {
-          from: position,
-          to: position + text.length,
-          insert: "",
-        },
-        ...editOptions,
-      },
-    ]);
+    this.applyChanges([this.insertTextChange(position, text, editOptions)]);
   }
 
   // Selection
@@ -598,7 +627,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   selectedString() {
     const selection = this.getSelection();
     if (!selection) return null;
-    const { range } = selection;
+    const range = selection.range.sort((a, b) => a - b);
     return this.sourceString.slice(range[0], range[1]);
   }
 
@@ -834,20 +863,33 @@ const _VitrailPane = forwardRef(function _VitrailPane(
 });
 
 // Deprecated! Use nodesWithWhitespace in your query instead
-export function VitrailPaneWithWhitespace({ nodes, ignoreLeft, ...props }) {
-  const list = [
-    ...(ignoreLeft
-      ? []
-      : takeWhile(
-          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
-          (c) => c.isWhitespace(),
-        )),
-    ...nodes,
-    ...takeWhile(
-      last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
-      (c) => c.isWhitespace(),
-    ),
-  ];
+export function VitrailPaneWithWhitespace({
+  nodes,
+  ignoreLeft,
+  ...props
+}: {
+  nodes: SBNode[];
+  ignoreLeft?: boolean;
+}) {
+  const list = !nodes[0]
+    ? []
+    : [
+        ...(ignoreLeft || !nodes[0].parent
+          ? []
+          : takeWhile(
+              nodes[0].parent.children
+                .slice(0, nodes[0].siblingIndex)
+                .reverse(),
+              (c) => c.isWhitespace(),
+            )),
+        ...nodes,
+        ...(!last(nodes).parent
+          ? []
+          : takeWhile(
+              last(nodes).parent!.children.slice(last(nodes).siblingIndex + 1),
+              (c) => c.isWhitespace(),
+            )),
+      ];
 
   return h(VitrailPane, { nodes: list, ...props });
 }

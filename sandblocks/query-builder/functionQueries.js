@@ -455,19 +455,23 @@ export function getObjectField(obj, fieldName) {
 }
 
 export function nodesWithWhitespace(nodes, ignoreLeft = false) {
-  return [
-    ...(ignoreLeft
-      ? []
-      : takeWhile(
-          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+  return nodes.length === 0
+    ? []
+    : [
+        ...(ignoreLeft
+          ? []
+          : takeWhile(
+              nodes[0].parent.children
+                .slice(0, nodes[0].siblingIndex)
+                .reverse(),
+              (c) => c.isWhitespace(),
+            )),
+        ...nodes,
+        ...takeWhile(
+          last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
           (c) => c.isWhitespace(),
-        )),
-    ...nodes,
-    ...takeWhile(
-      last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
-      (c) => c.isWhitespace(),
-    ),
-  ];
+        ),
+      ];
 }
 
 //TODO: Think about Views in JSX

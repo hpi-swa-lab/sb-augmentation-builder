@@ -380,7 +380,7 @@ async function codeMirror6WithVitrail(
     isRoot = false,
     hostOptions?,
   ) {
-    host.dom.setAttribute("focusable", "");
+    if (isRoot) host.dom.setAttribute("focusable", "");
     host.dom.focus = () => host.focus();
     const pane = new Pane<EditorView>({
       vitrail,

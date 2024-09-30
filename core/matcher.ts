@@ -9,6 +9,8 @@ export interface EditOptions {
   requireContinueInput?: boolean;
   // Indicate that we do not want to move focus after this edit.
   noFocus?: boolean;
+  // Indicate that the relative selection ranges should be kept.
+  keepSelectionOffset?: boolean;
 }
 
 export interface ModelEditor {

@@ -760,12 +760,15 @@ export class SBNode {
     return node;
   }
 
-  wrapWith(start, end) {
+  wrapWith(start, end, editOptions = {}) {
     return this.recoverNodeAtSamePosition(() =>
-      this.editor.replaceTextFromCommand(
-        this.range,
-        `${start}${this.sourceString}${end}`,
-      ),
+      this.editor.applyChanges([
+        this.editor.insertTextChange(this.range[0], start),
+        this.editor.insertTextChange(this.range[1] + start.length, end, {
+          ...editOptions,
+          keepSelectionOffset: true,
+        }),
+      ]),
     );
   }
 

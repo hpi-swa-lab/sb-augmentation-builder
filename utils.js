@@ -446,6 +446,11 @@ export function sequenceMatch(query, word, startMustMatch = true) {
   return false;
 }
 
+/**
+ * @template T
+ * @param {T[]} array
+ * @returns T | undefined
+ */
 export function last(array) {
   return array[array.length - 1];
 }

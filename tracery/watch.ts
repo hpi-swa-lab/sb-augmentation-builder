@@ -18,11 +18,15 @@ import { randomId } from "../utils.js";
 import { h, html } from "../view/widgets.js";
 import {
   Augmentation,
+  DeletionInteraction,
+  SelectionInteraction,
   VitrailPane,
   useValidateKeepReplacement,
 } from "../vitrail/vitrail.ts";
 import { objectToString } from "./query-builder.ts";
 import { SBNode } from "../core/model.js";
+import { useSignal } from "../external/preact-signals.mjs";
+import { Explorer } from "./explorer.ts";
 
 // function makeWatchExtension(config) {
 //   return new Extension()
@@ -69,7 +73,6 @@ export function wrapWithWatch(node) {
 export const watch = (model) => ({
   type: "replace" as const,
   model,
-  rerender: () => true,
   match: (n) =>
     metaexec(n, (capture) => [
       replace(capture),
@@ -145,44 +148,38 @@ export const watch = (model) => ({
   },
 });
 
+const jsQuery = `["viWatch", ((e) => (
+  fetch("https://localhost:3000/sb-watch", {
+    method: "POST",
+    body: JSON.stringify({ id: $identifier, e }),
+    headers: { "Content-Type": "application/json" },
+  }), e))($$$expressions),][1]`;
+
 export const invisibleWatch = (model) => ({
   name: "invisible-watch",
   type: "replace" as const,
   model,
-  rerender: () => true,
+  selectionInteraction: SelectionInteraction.Skip,
   match: (n) =>
     metaexec(n, (capture) => [
-      replace(capture),
-      query(
-        `["viWatch",
-    ((e) => (
-      fetch("https://localhost:3000/sb-watch", {
-        method: "POST",
-        body: JSON.stringify({ id: $identifier, e }),
-        headers: { "Content-Type": "application/json" },
-      }), e))($$$expressions),][1]`,
-      ),
-      all(
-        [
-          (it) => it.identifier,
-          (it) => parseInt(it.text, 10),
-          capture("watchId"),
-        ],
-        [(it) => it.expressions, nodesWithWhitespace, capture("expressions")],
-      ),
+      query(jsQuery),
+      (it) => it.expressions,
+      (it) => it.length > 0,
+      nodesWithWhitespace,
+      capture("expressions"),
     ]),
   matcherDepth: 15,
-  view: ({ replacement, watchId, expressions }) => {
+  view: ({ nodes, replacement, expressions }) => {
     useValidateKeepReplacement(replacement);
-
     useEffect(() => {
-      (window as any).sbWatch.registry.set(watchId, replacement);
-      replacement.reportValue = (value) => {};
       return () => {
-        (window as any).sbWatch.registry.delete(watchId);
+        nodes[0].replaceWith(
+          expressions[0].connected
+            ? expressions[0].editor.nodeTextWithPendingChanges(expressions[0])
+            : "",
+        );
       };
-    }, [replacement, watchId]);
-
+    }, []);
     return h(VitrailPane, { nodes: expressions, className: "no-padding" });
   },
 });
@@ -197,7 +194,7 @@ export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
   }, [id, onValue]);
 
   useEffect(() => {
-    if (watchNode.current === node) return;
+    if (watchNode.current === node) debugger;
     queueMicrotask(() => {
       const url = `${window.location.origin}/sb-watch`;
       const headers = `headers: {"Content-Type": "application/json"}`;
@@ -208,28 +205,40 @@ export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
       );
     });
     return () =>
-      queueMicrotask(() => watchNode.current?.replaceWith(node.sourceString));
+      queueMicrotask(
+        () =>
+          watchNode.current?.connected &&
+          watchNode.current.replaceWith(node.sourceString),
+      );
   }, [id]);
 
   return watchNode.current;
 }
 
-export const testLogs = (model) => ({
-  name: "test-logs",
-  type: "insert" as const,
-  match: (node) =>
-    metaexec(node, (capture) => [
-      query("console.log($expression, $$$rest)"),
-      (it) => it.expression,
-      replace(capture),
-    ]),
-  matcherDepth: 3,
-  model,
-  view: ({ nodes }) => {
-    useRuntimeValues(nodes[0], (v) => console.log(v));
-    return h("span", {}, "Log");
-  },
-});
+export const testLogs = (model) =>
+  <Augmentation<any>>{
+    name: "test-logs",
+    type: "insert" as const,
+    insertPosition: "end",
+    match: (node) =>
+      metaexec(node, (capture) => [
+        query("console.log($expression, $$$rest)"),
+        (it) => it.expression,
+        replace(capture),
+      ]),
+    matcherDepth: 3,
+    model,
+    view: ({ nodes }) => {
+      const lastValue = useSignal("");
+      useRuntimeValues(nodes[0], (v) => (lastValue.value = v));
+      return lastValue.value
+        ? h(Explorer, {
+            obj: lastValue.value,
+            style: { display: "inline-block" },
+          })
+        : null;
+    },
+  };
 
 withSocket((socket) =>
   socket.on("sb-watch", ({ id, e }) => (window as any).sbWatch(e, id)),

@@ -142,7 +142,7 @@ function extensionsForPath(path): {
   return { cmExtensions: [], augmentations: [] };
 }
 
-function FullDeclarationPane({ nodes, ...props }) {
+function FullDeclarationPane({ nodes, ...props }: { nodes: SBNode[] }) {
   useValidateKeepNodes(nodes, nodes[0].language);
 
   // make sure no changes in our cell would destroy the next node
@@ -153,12 +153,12 @@ function FullDeclarationPane({ nodes, ...props }) {
     ? nodes
     : [
         ...takeWhile(
-          nodes[0].parent.children.slice(0, nodes[0].siblingIndex).reverse(),
+          nodes[0].parent!.children.slice(0, nodes[0].siblingIndex).reverse(),
           (c) => c.isWhitespace() || c.type === "comment",
         ),
         ...nodes,
         ...takeWhile(
-          last(nodes).parent.children.slice(last(nodes).siblingIndex + 1),
+          last(nodes).parent!.children.slice(last(nodes).siblingIndex + 1),
           (c) => c.isWhitespace() || c.type === "comment",
         ),
       ];
@@ -378,6 +378,14 @@ export function TraceryEditor({
             key: "Mod-q",
             run: () => {
               _wrapWithWatch();
+              return true;
+            },
+            preventDefault: true,
+          },
+          {
+            key: "Mod-p",
+            run: () => {
+              eval(vitrail.value.selectedString() ?? "");
               return true;
             },
             preventDefault: true,

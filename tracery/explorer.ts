@@ -42,7 +42,7 @@ function* iterateProps(obj) {
   }
 }
 
-export function Explorer({ obj, allCollapsed, actionsForItem }) {
+export function Explorer({ obj, allCollapsed, actionsForItem, style }) {
   const selected = useSignal("/root");
   const expanded = useSignal(allCollapsed ? [] : ["/root"]);
 
@@ -77,7 +77,7 @@ export function Explorer({ obj, allCollapsed, actionsForItem }) {
     "div",
     {
       class: "vitrail-explorer",
-      style: { overflowY: "auto", maxHeight: "100%", height: "100%" },
+      style: { overflowY: "auto", maxHeight: "100%", height: "100%", ...style },
       tabIndex: -1,
       focusable: true,
       onkeydown: (e) => {
@@ -187,6 +187,7 @@ function ExplorerObject({
             maxWidth: "250px",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            paddingRight: "0.25rem",
           },
         },
         h("span", {

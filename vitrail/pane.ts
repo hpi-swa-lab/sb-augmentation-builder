@@ -118,9 +118,21 @@ export class Pane<T> {
 
     let pane = this;
     (this.view as any)._debugPane = this;
-    (this.view as any).handleDelete = () => {
-      // FIXME I think this should just do nothing -- someone is trying to
-      // delete into us.
+    (this.view as any).handleDelete = (forward: boolean) => {
+      const pos = forward ? this.range[0] : this.range[1] - 1;
+      this.vitrail.applyChanges([
+        {
+          from: pos,
+          to: pos + 1,
+          insert: "",
+          selectionRange: [pos, pos],
+          inverse: {
+            from: pos,
+            to: pos,
+            insert: this.vitrail.sourceString[pos],
+          },
+        },
+      ]);
     };
     (this.view as any).cursorPositions = function* () {
       yield* pane.paneCursorPositions();
@@ -500,6 +512,9 @@ export class Pane<T> {
       //   },
       // ]);
       return true;
+    } else if (adjusted !== pos?.index) {
+      // FIXME not sure what to best do here, delete the next valid character?
+      debugger;
     }
     return false;
   }
