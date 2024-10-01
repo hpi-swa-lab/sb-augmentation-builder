@@ -119,7 +119,7 @@ function matchTopLevel(node) {
       ],
       [
         all(
-          [(it) => "unknown", capture("name")],
+          [(it) => it.type.replace(/_/g, " "), capture("name")],
           [(it) => "Other", capture("label")],
           [(it) => "symbol-misc", capture("icon")],
         ),

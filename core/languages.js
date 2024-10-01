@@ -130,6 +130,15 @@ registerLanguage(
 
 registerLanguage(
   new TreeSitterLanguage({
+    repo: "tree-sitter-grammars/tree-sitter-glsl",
+    branch: "66aec57f7119c7e8e40665b723cd7af5594f15ee",
+    extensions: ["glsl"],
+    defaultExtensions: [],
+  }),
+);
+
+registerLanguage(
+  new TreeSitterLanguage({
     repo: "tree-sitter/tree-sitter-haskell",
     branch: "a50070d5bb5bd5c1281740a6102ecf1f4b0c4f19",
     extensions: ["hs"],

@@ -257,6 +257,10 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return this._models;
   }
 
+  getRoots() {
+    return [...this._models.values()];
+  }
+
   modelForNode(node: SBNode) {
     return this._models.get(node.language as unknown as Model);
   }

@@ -14,8 +14,8 @@ function printString(obj, maxLength = 20) {
     if (obj === null) return "null";
     if (obj === undefined) return "undefined";
     if (typeof obj === "string") return `"${obj}"`;
-    if (obj instanceof SBBlock) return `SBBlock(${obj.type})`;
-    if (obj instanceof SBText) return `SBText(${printString(obj.text)})`;
+    if (obj instanceof SBBlock) return `*${obj.type}*`;
+    if (obj instanceof SBText) return `"${printString(obj.text)}"`;
 
     if (Array.isArray(obj))
       return `[${obj.map((o) => printString(o)).join(", ")}]`;
@@ -36,7 +36,9 @@ function printString(obj, maxLength = 20) {
 function* iterateProps(obj) {
   if (typeof obj === "string") return;
   if (obj instanceof SBBlock)
-    return yield* ["children", "id", "field", "named", "type"];
+    return yield* ["children", "parent", "id", "field", "named", "type"];
+  if (obj instanceof SBText)
+    return yield* ["text", "parent", "id", "field", "range"];
   for (const key in obj) {
     yield key;
   }
