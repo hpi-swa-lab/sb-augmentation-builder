@@ -13,6 +13,7 @@ import {
   keymap,
   javascript,
   cpp,
+  python,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage, SBNode } from "../core/model.js";
@@ -54,7 +55,12 @@ import { openReferences } from "./references.ts";
 import { color, slider, spreadsheet } from "./livelits.ts";
 import { sql } from "./sql.ts";
 import { table } from "./table.ts";
-import { invisibleWatch, testLogs, watch, wrapWithWatch } from "./watch.ts";
+import {
+  invisibleWatchRewrite,
+  testLogs,
+  watch,
+  wrapWithWatch,
+} from "./watch.ts";
 import { openComponentInWindow, parentWindow } from "./window.js";
 import { vectors } from "./glsl.ts";
 import { openExplorer } from "./explorer.ts";
@@ -96,12 +102,12 @@ function extensionsForPath(path): {
     return {
       cmExtensions: [javascript()],
       augmentations: [
-        //testLogs(language),
+        testLogs(language),
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
         // uiBuilder(language),
-        invisibleWatch(language),
+        invisibleWatchRewrite(language),
         placeholder(language),
         exploriants(language),
         augChartsJS(language),
@@ -126,8 +132,8 @@ function extensionsForPath(path): {
         augmentationBuilder(language),
         queryBuilder(language),
         watch(language),
+        invisibleWatchRewrite(language),
         // uiBuilder(language),
-        invisibleWatch(language),
         placeholder(language),
         exploriants(language),
         augChartsJS(language),
@@ -150,6 +156,15 @@ function extensionsForPath(path): {
     return {
       cmExtensions: [cpp()],
       augmentations: [vectors],
+    };
+  if (language === languageFor("python"))
+    return {
+      cmExtensions: [python()],
+      augmentations: [
+        watch(language),
+        invisibleWatchRewrite(language),
+        babylonian(language),
+      ],
     };
   return { cmExtensions: [], augmentations: [] };
 }
@@ -290,6 +305,10 @@ export function TraceryEditor({
   );
 
   const formatAndSave = async () => {
+    // TODO
+    console.log(vitrail.value.rewrittenSourceString);
+    return;
+
     if (vitrail.value) await format(vitrail.value, path);
     project.writeFile(path, source.value);
   };
@@ -399,7 +418,7 @@ export function TraceryEditor({
           {
             key: "Mod-p",
             run: () => {
-              eval(vitrail.value.selectedString() ?? "");
+              eval(vitrail.value.selectedString(true) ?? "");
               return true;
             },
             preventDefault: true,
@@ -414,7 +433,7 @@ export function TraceryEditor({
           },
         ]),
       ],
-      props: { project, nodes },
+      props: { project, nodes, path },
     })
   );
 }

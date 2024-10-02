@@ -1,4 +1,6 @@
+import { languageFor } from "../core/languages.js";
 import { SBNode } from "../core/model.js";
+import { useSignal } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   bindPlainString,
@@ -6,17 +8,22 @@ import {
 } from "../sandblocks/query-builder/bindings.ts";
 import {
   all,
+  also,
+  debugIt,
+  first,
+  languageSpecific,
   match,
   query,
 } from "../sandblocks/query-builder/functionQueries.js";
 import { appendCss, evalModule } from "../utils.js";
-import { useAsyncEffect } from "../view/widgets.js";
+import { useDebouncedEffect } from "../view/widgets.js";
 import {
   Augmentation,
   useOnChange,
   useValidateKeepNodes,
   VitrailPane,
 } from "../vitrail/vitrail.ts";
+import { Process } from "./host.js";
 
 appendCss(`.babylonian-param > .cm-editor, textarea.babylonian-param {
   border-radius: 0.4rem;
@@ -29,7 +36,64 @@ export const babylonian = (model) =>
     name: "babylonian-example",
     model,
     match: match((capture) => [
-      query(`() => ({ sbExample: $name, args: [$_args], self: $self })`),
+      first(
+        [
+          languageSpecific(
+            [languageFor("javascript"), languageFor("typescript")],
+            query(`() => ({ sbExample: $name, args: [$_args], self: $self })`),
+            also([
+              () => (n) => n.type === "function_declaration",
+              capture("funcSelector"),
+            ]),
+            also([
+              () => async (name: string, func: SBNode, args: SBNode) =>
+                await evalModule(func, (func) =>
+                  func.root.insert(
+                    `${name}(...${args.sourceString})`,
+                    "statement",
+                    9e8,
+                  ),
+                ),
+              capture("runModule"),
+            ]),
+          ),
+        ],
+        [
+          languageSpecific(
+            [languageFor("python")],
+            query(
+              `lambda: { "sbExample": $name, "args": [$_args], "self": $self }`,
+            ),
+            also([
+              () => (n) => n.type === "function_definition",
+              capture("funcSelector"),
+            ]),
+            also([
+              () => async (name: string, func: SBNode, args: SBNode) =>
+                await func.editor.materializeRewritesDuring(
+                  (editor) =>
+                    editor.models
+                      .get(languageFor("python"))
+                      .insert(
+                        `${name}(*${args.sourceString})`,
+                        "_statement",
+                        9e8,
+                      ),
+                  async (editor) =>
+                    await Process.complete(
+                      "python",
+                      [`"${editor.props.value.path}"`],
+                      editor.props.value.project.path,
+                    ),
+                  [func],
+                  undefined,
+                  true,
+                ),
+              capture("runModule"),
+            ]),
+          ),
+        ],
+      ),
       all(
         [(it) => it.name, bindPlainString, capture("name")],
         [(it) => it.args, capture("args")],
@@ -41,31 +105,36 @@ export const babylonian = (model) =>
       name,
       args,
       self,
+      funcSelector,
+      runModule,
     }: {
       nodes: SBNode[];
       name: any;
       self: SBNode;
       args: SBNode;
+      funcSelector: (n: SBNode) => boolean;
+      runModule: (name: string, func: SBNode, args: SBNode) => Promise<void>;
     }) => {
+      const counter = useSignal(0);
       useValidateKeepNodes([args, self]);
 
-      useOnChange(async () => {
-        let func = nodes[0].orParentThat(
-          (n) => n.type === "function_declaration",
-        );
-        const name = func?.atField("name")?.text;
-        if (!func || !name) return;
+      useDebouncedEffect(
+        500,
+        async () => {
+          let func = nodes[0].orParentThat(funcSelector);
+          const name = func?.atField("name")?.text;
+          if (func && name) {
+            try {
+              await runModule(name, func, args);
+            } catch (e) {
+              console.log(e);
+            }
+          }
+        },
+        [counter.value],
+      );
 
-        try {
-          await evalModule(func, (func) =>
-            func.root.insert(
-              `${name}(...${args.sourceString})`,
-              "statement",
-              9e8,
-            ),
-          );
-        } catch (e) {}
-      });
+      useOnChange(() => counter.value++);
 
       return h(
         "span",

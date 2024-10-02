@@ -27,7 +27,7 @@ export const placeholder = (model) => ({
     metaexec(x, (capture) => [
       first([
         languageSpecific(
-          ["javascript", "typescript"],
+          [languageFor("javascript"), languageFor("typescript")],
           (it) => it.type === "identifier",
           (it) => it.text.startsWith("__VI_PLACEHOLDER"),
           replace(capture),

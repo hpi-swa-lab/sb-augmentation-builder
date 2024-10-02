@@ -14,6 +14,8 @@ export interface EditOptions {
 }
 
 export interface ModelEditor {
+  get sourceString(): string;
+
   insertTextFromCommand(
     position: number,
     text: string,
@@ -108,6 +110,10 @@ export class MaybeEditor implements ModelEditor {
   parent: SBBlock;
   template: SBBlock;
   index: number;
+
+  get sourceString() {
+    return "";
+  }
 
   constructor(
     editor: ModelEditor,

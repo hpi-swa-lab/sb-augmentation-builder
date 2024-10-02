@@ -464,14 +464,14 @@ function test(string) {
         first(
           [
             languageSpecific(
-              "typescript",
+              languageFor("typescript"),
               (it) => it.type == "array",
               (it) => it.parent.type != "array",
             ),
           ],
           [
             languageSpecific(
-              ["haskell", "python"],
+              [languageFor("haskell"), languageFor("python")],
               (it) => it.type == "list",
               (it) => it.parent.type != "list",
             ),

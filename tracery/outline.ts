@@ -1,3 +1,4 @@
+import { languageFor } from "../core/languages.js";
 import { SBBaseLanguage } from "../core/model.js";
 import {
   all,
@@ -47,7 +48,7 @@ function matchTopLevel(node) {
     first(
       [
         languageSpecific(
-          ["javascript", "typescript"],
+          [languageFor("javascript"), languageFor("typescript")],
           first(
             [type("export_statement"), (it) => it.childBlock(0)],
             [(it) => it],

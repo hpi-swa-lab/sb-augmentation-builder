@@ -50,6 +50,7 @@ export class TreeSitterLanguage extends SBLanguage {
         }),
       parseExpressionPrefix: parseConfig?.parseExpressionPrefix ?? "",
       parseExpressionSuffix: parseConfig?.parseExpressionSuffix ?? "",
+      topLevelRules: parseConfig?.topLevelRules ?? [],
     });
   }
 
@@ -126,6 +127,7 @@ export class TreeSitterLanguage extends SBLanguage {
       );
     }
 
+    grammar.topLevelRules = this.parseConfig.topLevelRules;
     for (const rule of Object.values(grammar.rules)) {
       rule.postProcess(grammar);
     }
@@ -500,7 +502,7 @@ class GrammarNode extends Object {
   }
 
   postProcess(grammar) {
-    this.detectSeparator();
+    this.detectSeparator(grammar);
 
     for (const child of this.children) {
       child.postProcess(grammar);
@@ -531,7 +533,7 @@ class GrammarNode extends Object {
     return true;
   }
 
-  detectSeparator() {
+  detectSeparator(grammar) {
     if (
       this.matchesStructure([
         "CHOICE",
@@ -588,6 +590,14 @@ class GrammarNode extends Object {
         this.repeatSymbol = sym1;
         return;
       }
+    }
+    if (
+      this.type === "REPEAT" &&
+      grammar.topLevelRules.includes(this.root.name)
+    ) {
+      this.repeatSymbol = this.content;
+      this.repeatSeparator = "\n";
+      return;
     }
   }
 }
@@ -730,10 +740,13 @@ export class TSQuery {
     for (const child of optionalTemplate.allNodes()) {
       if (child.named && child.text.startsWith(this.prefix)) {
         if (child.text.startsWith(this.parentPrefix)) {
-          captures.push([child.text.slice(2), child.parent]);
+          captures.push([
+            child.text.slice(this.parentPrefix.length),
+            child.parent,
+          ]);
           toRemove.push(child);
         } else {
-          captures.push([child.text.slice(1), child]);
+          captures.push([child.text.slice(this.prefix.length), child]);
           toRemove.push(child);
         }
       }
@@ -749,8 +762,9 @@ export class TSQuery {
       }
     });
 
-    editor.root._editor = undefined;
-    optionalRoot = editor.root;
+    const root = editor.models.get(optionalTemplate.root.language);
+    root._editor = undefined;
+    optionalRoot = root;
 
     this._optionalRoots.set(a, (b, currentCaptures, bChildren, j) => {
       let localRoot = optionalRoot.internalClone();
@@ -810,7 +824,7 @@ export class TSQuery {
     if (isTemplate && !b.named) return false;
 
     if (isTemplate) {
-      captures.push([a.text.slice(1), b]);
+      captures.push([a.text.slice(this.prefix.length), b]);
       return true;
     }
     if (!a.isText && !b.isText && a.type === b.type) {

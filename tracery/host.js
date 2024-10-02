@@ -17,17 +17,19 @@ export function request(name, data) {
 
 export class Process {
   static complete(command, args, cwd, input) {
-    return new Promise(async (resolve) => {
+    return new Promise(async (resolve, reject) => {
       const process = new Process();
       await process.start(command, args, cwd);
-      await process.write(input);
+      if (input) await process.write(input);
       await process.close();
 
       const out = [];
       const err = [];
       process.onStdout((data) => out.push(data));
       process.onStderr((data) => err.push(data));
-      process.onClose(() => resolve(out.join("")));
+      process.onClose((code) =>
+        code === 0 ? resolve(out.join("")) : reject(err.join("")),
+      );
     });
   }
 

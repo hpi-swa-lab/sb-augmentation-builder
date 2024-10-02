@@ -13,6 +13,7 @@ import https from "https";
 import { hotReload } from "./hot-reload.js";
 import { typescript } from "./typescript.js";
 import chokidar from "chokidar";
+import net from "net";
 
 let key, cert;
 try {
@@ -38,6 +39,14 @@ app.post("/sb-watch", (req, res) => {
   res.send();
 });
 
+net
+  .createServer((socket) => {
+    let buffer = "";
+    socket.on("data", (data) => (buffer += data.toString()));
+    socket.on("end", () => io.sockets.emit("sb-watch", JSON.parse(buffer)));
+  })
+  .listen(7921, "127.0.0.1");
+
 const rootPath = fsPath.join(
   fsPath.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -48,10 +57,13 @@ app.use(express.static(rootPath));
 
 function callback(cb) {
   return async (data, send) => {
-    // try {
-    const ret = await cb(data);
-    send(ret);
-    // } catch (e) { send({ error: e.toString() }); }
+    try {
+      const ret = await cb(data);
+      send(ret);
+    } catch (e) {
+      console.error(e);
+      send({ error: e.toString() });
+    }
   };
 }
 

@@ -570,6 +570,10 @@ export function CodeMirrorWithVitrail({
     };
   }, [other, vitrail.value]);
 
+  // useEffect triggers later than useSignalEffect -- we can easily get into
+  // a race condition where the useSignalEffect at the bottom triggers some
+  // that expects props to already be set. So, we duplicate the props assign.
+  useSignalEffect(() => vitrail.value && (vitrail.value.props.value = props));
   useEffect(() => {
     if (vitrail.value) vitrail.value.props.value = props;
   }, [vitrail.value, props]);

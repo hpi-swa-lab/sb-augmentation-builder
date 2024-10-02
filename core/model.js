@@ -41,13 +41,22 @@ const hashCombine = (a, b) => a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
 
 export const extractType = (type) => (node) => node.firstOfType(type);
 
-export class OffscreenEditor {
+export class OffscreenEditor extends EventTarget {
+  nodeTags = new Map();
+  models = new Map();
+  sourceString = "";
+  props = { value: {} };
+
   constructor(root) {
+    super();
+
     if (root) {
       console.assert(root._sourceString, "node must have a source string");
       console.assert(root._language, "node must have a language");
-      this.root = root;
-      this.root._editor = this;
+
+      this.sourceString = root._sourceString;
+      root._editor = this;
+      this.models.set(root.language, root);
     }
   }
 
@@ -76,14 +85,30 @@ export class OffscreenEditor {
       return;
     }
 
-    let newText = this.root._sourceString;
+    const oldSource = this.sourceString;
+    let newSource = this.sourceString;
     for (const { insert, from, to } of changes) {
-      newText = newText.slice(0, from) + insert + newText.slice(to);
+      newSource = newSource.slice(0, from) + insert + newSource.slice(to);
     }
-    const { root, tx } = this.root.language.reParse(newText, this.root);
-    tx.commit();
-    this.root = root;
-    this.root._editor = this;
+    this.sourceString = newSource;
+
+    const update = sortModels([...this.models.values()]).map((n) =>
+      n.reParse(newSource),
+    );
+    // FIXME need validation support for rewrite augmentations?
+    for (const { tx } of update) tx.commit();
+    this.models = new Map(update.map(({ root }) => [root.language, root]));
+
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: {
+          changes: changes,
+          sourceString: this.sourceString,
+          oldSource,
+          diff: update,
+        },
+      }),
+    );
   }
 
   activeTransactionList = null;
@@ -260,6 +285,10 @@ export class SBNode {
     return c;
   }
 
+  findInClone(root) {
+    return this.recoverNodeAtSamePosition(() => {}, root);
+  }
+
   get type() {
     return "";
   }
@@ -313,6 +342,14 @@ export class SBNode {
 
   get connected() {
     return this.root.isRoot;
+  }
+
+  hasTag(tag) {
+    return this.editor.nodeTags.get(this)?.some(([t]) => t === tag) ?? false;
+  }
+
+  getTagData(tag) {
+    return this.editor.nodeTags.get(this)?.find(([t]) => t === tag)?.[1];
   }
 
   initOps() {
@@ -755,7 +792,14 @@ export class SBNode {
     this.editor.replaceTextFromCommand(this.range, str, editOptions);
   }
 
-  recoverNodeAtSamePosition(cb) {
+  /**
+   * Apply an operation, then find the node at the same position.
+   * Optionally look up the node in the same position in a different root.
+   *
+   * @param {() => void} cb
+   * @param {SBNode | null} otherRoot
+   */
+  recoverNodeAtSamePosition(cb, otherRoot = null) {
     const indices = [];
     let node = this;
     while (node.parent) {
@@ -764,6 +808,7 @@ export class SBNode {
     }
     cb();
     console.assert(node.connected);
+    if (otherRoot) node = otherRoot;
     for (const index of indices) node = node.children[index];
     return node;
   }

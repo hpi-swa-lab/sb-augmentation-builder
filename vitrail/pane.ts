@@ -318,7 +318,7 @@ export class Pane<T> {
     for (const [match, augmentation] of [
       ...this.vitrail._matchedAugmentations.entries(),
     ]
-      .filter(([_, a]) => myAugmentations.includes(a))
+      .filter(([_, a]) => myAugmentations.includes(a) && a.type !== "rewrite")
       .sort(
         (a, b) =>
           b[0].matchedNode.sourceString.length -

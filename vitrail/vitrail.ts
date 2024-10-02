@@ -1,6 +1,7 @@
-import { EditBuffer } from "../core/diff.js";
+import { EditBuffer, UpdateOp } from "../core/diff.js";
 import { EditOptions, ModelEditor } from "../core/matcher.ts";
 import {
+  OffscreenEditor,
   SBBaseLanguage,
   SBLanguage,
   SBNode,
@@ -18,6 +19,7 @@ import {
   Side,
   adjustIndex,
   allChildren,
+  arrayRemove,
   last,
   rangeContains,
   rangeEqual,
@@ -66,8 +68,33 @@ export function applyStringChange(source, { from, to, insert }: Change<any>) {
 };
 
 export const VitrailContext = createContext(null);
-export const useVitrailProps = () =>
-  useContext(VitrailContext).vitrail.props.value;
+export const useVitrail = (): Vitrail<any> =>
+  useContext(VitrailContext).vitrail;
+export const useVitrailProps = () => useVitrail().props.value;
+export const useTagNode = (node: SBNode, tag: string, data?: any) => {
+  const v = useVitrail();
+  const updateAugmentations = () =>
+    queueMicrotask(() => {
+      v._augmentationsCheckedTrees.clear();
+      v.updateAugmentations(
+        new EditBuffer([new UpdateOp(node, node.text)]),
+        [],
+      );
+    });
+  useEffect(() => {
+    const tuple: [string, any] = [tag, data];
+    if (v.nodeTags.has(node)) v.nodeTags.get(node)!.push(tuple);
+    else v.nodeTags.set(node, [tuple]);
+    updateAugmentations();
+
+    return () => {
+      const list = v.nodeTags.get(node)!;
+      arrayRemove(list, tuple);
+      if (list.length === 0) v.nodeTags.delete(node);
+      updateAugmentations();
+    };
+  }, [v, node, tag]);
+};
 export const usePaneProps = () =>
   useContext(VitrailContext).pane.props.value ?? {};
 export const useReplacementView = () => useContext(VitrailContext).view;
@@ -144,11 +171,11 @@ export enum DeletionInteraction {
 
 export interface Augmentation<Props extends ReplacementProps> {
   name?: string;
-  type: "replace" | "mark" | "insert";
+  type: "replace" | "mark" | "insert" | "rewrite";
   model: Model;
   matcherDepth?: number;
   match: (node: SBNode) => Props | null;
-  view: (props: Props) => JSX | Marker;
+  view: (props: Props) => JSX | Marker | void;
   checkOnEdit?: (editBuffer: EditBuffer, check: (node: SBNode) => void) => void;
   selectionInteraction?: SelectionInteraction;
   deletionInteraction?: DeletionInteraction;
@@ -160,7 +187,8 @@ export interface Augmentation<Props extends ReplacementProps> {
 export interface Model {
   dependencies?: Model[];
   prepareForParsing: (models: Map<Model, SBNode>) => void;
-  parse: <T>(sourceString: string, v: Vitrail<T>) => Promise<SBNode>;
+  parse: (sourceString: string, v: ModelEditor) => Promise<SBNode>;
+  parseSync: (sourceString: string, v: ModelEditor) => SBNode;
   canBeDefault: boolean;
 }
 
@@ -200,6 +228,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
   _props = signal({});
+  _nodeTags = new Map<SBNode, [string, any][]>();
 
   // Augmentations
   _matchedAugmentations: Map<AugmentationMatch, Augmentation<any>> = new Map();
@@ -218,8 +247,112 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     return this._props;
   }
 
+  // tag a node such that other augmentations can refer to that information
+  get nodeTags() {
+    return this._nodeTags;
+  }
+
   get sourceString() {
     return this._sourceString;
+  }
+
+  async materializeRewritesDuring(
+    prepareCallback: (
+      editor: ModelEditor,
+      resolvedNodes: SBNode[],
+      resolvedRange?: [number, number],
+    ) => Promise<void>,
+    runCallback: (
+      editor: ModelEditor,
+      resolvedNodes: SBNode[],
+      resolvedRange?: [number, number],
+    ) => Promise<void>,
+    resolveNodes: SBNode[] = [],
+    resolveRange?: [number, number],
+    requireClone = false,
+  ) {
+    const project = this.props.value.project;
+    if (!project) throw new Error("Need a project to materialize rewrites");
+
+    const info = this.getRewritten(resolveNodes, resolveRange, requireClone);
+    await prepareCallback(info.editor, info.resolvedNodes, info.resolvedRange);
+    await project.writeFile(this.props.value.path, info.editor.sourceString);
+    try {
+      await runCallback(info.editor, info.resolvedNodes, info.resolvedRange);
+    } finally {
+      await project.writeFile(this.props.value.path, this.sourceString);
+    }
+  }
+
+  get rewrittenSourceString() {
+    return this.getRewritten().editor.sourceString;
+  }
+
+  getRewrittenNode(node: SBNode) {
+    return this.getRewritten([node])[1][0];
+  }
+
+  getRewritten(
+    resolveNodes: SBNode[] = [],
+    resolveRange?: [number, number],
+    requireClone: boolean = false,
+  ): {
+    editor: ModelEditor;
+    resolvedNodes: SBNode[];
+    resolvedRange?: [number, number];
+  } {
+    const rewrite = [...this._matchedAugmentations.entries()].filter(
+      ([_, augmentation]) => augmentation.type === "rewrite",
+    );
+    if (rewrite.length === 0 && !requireClone) {
+      return { editor: this, resolvedNodes: resolveNodes };
+    }
+
+    const editor = new OffscreenEditor();
+    editor.sourceString = this.sourceString;
+    editor.props = this.props;
+
+    if (resolveRange) {
+      editor.addEventListener("change", (({
+        detail: { changes },
+      }: CustomEvent) => {
+        resolveRange = [
+          adjustIndex(resolveRange![0], changes, Side.Left),
+          adjustIndex(resolveRange![1], changes, Side.Right),
+        ];
+      }) as EventListener);
+    }
+
+    for (const model of new Set([
+      ...rewrite.map(([_, { model }]) => model),
+      ...resolveNodes.map((n) => n.language),
+    ])) {
+      editor.models.set(model, model.parseSync(this.sourceString, editor));
+    }
+
+    editor.nodeTags = new Map(
+      [...this.nodeTags.entries()]
+        .filter(([node]) => node.connected)
+        .map(([node, tags]) => [
+          node.findInClone(editor.models.get(node.language)),
+          tags,
+        ]),
+    );
+
+    resolveNodes = resolveNodes.map((n) =>
+      n.findInClone(editor.models.get(n.language)),
+    );
+
+    for (const [_, augmentation] of rewrite) {
+      const matches: [any, Augmentation<any>][] = [];
+      for (const node of editor.models.get(augmentation.model)?.allNodes()) {
+        const match = augmentation.match(node);
+        if (match) matches.push([match, augmentation]);
+      }
+      for (const [match, augmentation] of matches) augmentation.view(match);
+    }
+
+    return { editor, resolvedNodes: resolveNodes, resolvedRange: resolveRange };
   }
 
   get defaultModel(): Model {
@@ -635,11 +768,18 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       ?.childEncompassingRange(range);
   }
 
-  selectedString() {
+  selectedString(rewritten = false) {
     const selection = this.getSelection();
     if (!selection) return null;
     const range = selection.range.sort((a, b) => a - b);
-    return this.sourceString.slice(range[0], range[1]);
+
+    if (rewritten) {
+      const {
+        resolvedRange,
+        editor: { sourceString },
+      } = this.getRewritten([], range);
+      return sourceString.slice(...resolvedRange!);
+    } else return this.sourceString.slice(range[0], range[1]);
   }
 
   // Augmentations

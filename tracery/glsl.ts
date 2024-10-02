@@ -83,6 +83,7 @@ export const vectors = <Augmentation<any>>{
               "td",
               {},
               h(VitrailPaneWithWhitespace, {
+                ignoreLeft: true,
                 className: "no-padding",
                 nodes: [args[i * numColumns + j]],
               }),

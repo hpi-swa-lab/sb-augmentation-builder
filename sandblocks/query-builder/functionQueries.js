@@ -328,7 +328,7 @@ export function languageSpecific(language, ...pipeline) {
   return (it, debugId = null) => {
     const language_list = Array.isArray(language) ? language : [language];
     const mod_pipeline = [
-      (it) => language_list.includes(it.language.name),
+      (it) => language_list.includes(it.language),
       ...pipeline,
     ];
     return execScript(debugId, it, ...mod_pipeline);
@@ -462,6 +462,7 @@ export function getObjectField(obj, fieldName) {
 }
 
 export function nodesWithWhitespace(nodes, ignoreLeft = false) {
+  if (!Array.isArray(nodes)) nodes = [nodes];
   return nodes.length === 0
     ? []
     : [

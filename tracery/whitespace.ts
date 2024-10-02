@@ -49,6 +49,7 @@ class _SBWhitespaceModel extends SBLanguage {
 export const SBWhitespaceModel = new _SBWhitespaceModel();
 
 export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
+  name: "remove-indent",
   type: "replace" as const,
   selectionInteraction: SelectionInteraction.Start,
   deletionInteraction: DeletionInteraction.SelectThenFull,

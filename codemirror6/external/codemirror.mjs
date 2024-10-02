@@ -1,6 +1,7 @@
 export { javascript } from "@codemirror/lang-javascript";
 export { sql } from "@codemirror/lang-sql";
 export { cpp } from "@codemirror/lang-cpp";
+export { python } from "@codemirror/lang-python";
 export { EditorView, basicSetup, minimalSetup } from "codemirror";
 export {
   RangeSet,

@@ -455,6 +455,16 @@ export function last(array) {
   return array[array.length - 1];
 }
 
+/**
+ * @template T
+ * @param {T[]} array
+ * @param {T} item
+ */
+export function arrayRemove(array, item) {
+  const index = array.indexOf(item);
+  if (index >= 0) array.splice(index, 1);
+}
+
 export function rectDistance(a, b) {
   const left = b.right < a.left;
   const right = a.right < b.left;
@@ -652,7 +662,8 @@ export async function evalModule(node, transformCb) {
     );
   }
 
-  node = node.cloneOffscreen();
+  const { resolvedNodes } = node.editor.getRewritten([node], undefined, true);
+  node = resolvedNodes[0];
   transformCb(node);
   // const imports =
   //   metaexec(node.root, (capture) => [

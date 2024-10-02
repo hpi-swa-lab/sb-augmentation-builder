@@ -125,6 +125,7 @@ registerLanguage(
     branch: "71778c2a472ed00a64abf4219544edbf8e4b86d7",
     extensions: ["py"],
     defaultExtensions: [],
+    parseConfig: { matchPrefix: "____", topLevelRules: ["block", "module"] },
   }),
 );
 
