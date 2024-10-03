@@ -58,6 +58,7 @@ import {
   withDo,
   rangeContains,
   appendCss,
+  rangeEqual,
 } from "../utils.js";
 import { h, render } from "../external/preact.mjs";
 import { useEffect, useRef } from "../external/preact-hooks.mjs";
@@ -270,7 +271,8 @@ async function codeMirror6WithVitrail(
           v.iter().value?.widget?.replacement;
         // check if there is a single replacement covering the entire pane
         return !(
-          replacement && arrayEqual(replacement.match.props.nodes, pane.nodes)
+          replacement &&
+          rangeEqual(augmentationRange(replacement, pane.vitrail), pane.range)
         );
       }),
       ViewPlugin.fromClass(class {}, {
@@ -385,6 +387,7 @@ async function codeMirror6WithVitrail(
   ) {
     if (isRoot) host.dom.setAttribute("focusable", "");
     host.dom.focus = () => host.focus();
+    let text = host.state.doc.toString();
     const pane = new Pane<EditorView>({
       vitrail,
       view: host.dom,
@@ -429,8 +432,9 @@ async function codeMirror6WithVitrail(
                 : [],
           }),
         );
+        text = host.state.doc.toString();
       },
-      getText: () => host.state.doc.toString(),
+      getText: () => text,
       hasFocus: () => {
         if (!host.hasFocus) return false;
         const range = [
@@ -443,14 +447,16 @@ async function codeMirror6WithVitrail(
             return false;
         return true;
       },
-      setText: (text: string, undoable: boolean) =>
+      setText: (text: string, undoable: boolean) => {
         host.dispatch(
           host.state.update({
             userEvent: "sync",
             annotations: [Transaction.addToHistory.of(undoable)],
             changes: [{ from: 0, to: host.state.doc.length, insert: text }],
           }),
-        ),
+        );
+        text = host.state.doc.toString();
+      },
     });
 
     host.dispatch({
