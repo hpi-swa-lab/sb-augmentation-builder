@@ -236,6 +236,7 @@ export class Pane<T> {
     // FIXME need this extra loop?
     // for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
     //   this.vitrail.updateAugmentations(b, [this]);
+    this.updateAugmentations();
 
     // asynchronous update
     this.loadMissingModels(v);

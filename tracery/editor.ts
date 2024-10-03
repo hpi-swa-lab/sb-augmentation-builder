@@ -14,6 +14,7 @@ import {
   javascript,
   cpp,
   python,
+  sql as cmSql,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage, SBNode } from "../core/model.js";
@@ -93,11 +94,10 @@ Vim.defineAction(
   (cm) => (parentWindow(cm.cm6.state.facet(PaneFacet).view) as any)?.close(),
 );
 
-function extensionsForPath(path): {
+function extensionsFor(language: Model): {
   cmExtensions: any[];
   augmentations: Augmentation<any>[];
 } {
-  const language = languageForPath(path);
   if (language === languageFor("javascript"))
     return {
       cmExtensions: [javascript()],
@@ -165,6 +165,11 @@ function extensionsForPath(path): {
         invisibleWatchRewrite(language),
         babylonian(language),
       ],
+    };
+  if (language === languageFor("sql"))
+    return {
+      cmExtensions: [cmSql()],
+      augmentations: [],
     };
   return { cmExtensions: [], augmentations: [] };
 }
@@ -250,13 +255,25 @@ export function openFileInWindow(project, path: string, windowProps) {
   );
 }
 
-export function TraceryInlineEditor({ source, fileSuffix }) {
+/**
+ * Provide either `source` for an independent text field or provide `text` and
+ * `onLocalChange` for a text field that shows text from a parent editor.
+ */
+export function TraceryInlineEditor({ source, language, text, onLocalChange }) {
   const { augmentations, cmExtensions } = useMemo(
-    () => extensionsForPath(fileSuffix),
-    [fileSuffix],
+    () => extensionsFor(language),
+    [language],
   );
 
+  source = source ?? {
+    get value() {
+      return text;
+    },
+    set value(_) {},
+  };
+
   return h(CodeMirrorWithVitrail, {
+    onchange: (e) => e.detail.changes.forEach((c) => onLocalChange?.(c, true)),
     fetchAugmentations: () => augmentations,
     value: source,
     cmExtensions: [
@@ -265,6 +282,8 @@ export function TraceryInlineEditor({ source, fileSuffix }) {
       ...baseCMExtensions,
       drawSelection(),
     ],
+    style: { display: "inline-block" },
+    className: "no-padding",
   });
 }
 
@@ -300,7 +319,7 @@ export function TraceryEditor({
   }, [path]);
 
   const { augmentations, cmExtensions } = useMemo(
-    () => extensionsForPath(path),
+    () => extensionsFor(languageForPath(path)),
     [path],
   );
 

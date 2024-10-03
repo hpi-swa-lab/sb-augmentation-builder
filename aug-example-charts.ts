@@ -27,6 +27,9 @@ import { Dialog, openComponentInWindow } from "./tracery/window.js";
 import { TraceryEditor, TraceryInlineEditor } from "./tracery/editor.ts";
 import { CodeMirrorWithVitrail } from "./vitrail/codemirror6.ts";
 import { augColor } from "./aug-color-picker.ts";
+import { Chart, registerables } from "./external/chartjs/chart.mjs";
+
+Chart.register(...registerables);
 
 export const augBool = (model) => ({
   type: "replace" as const,
@@ -589,7 +592,10 @@ function AddKeyValue({ resolve, language }) {
           { display: "flex", flexDirection: "row", width: 200 },
           "value: ",
 
-          h(TraceryInlineEditor, { source, fileSuffix: "ts" }),
+          h(TraceryInlineEditor, {
+            source,
+            language: languageFor("typescript"),
+          }),
         ),
       ),
 
