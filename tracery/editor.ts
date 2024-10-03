@@ -151,7 +151,9 @@ function extensionsFor(language: Model): {
   if (language === languageFor("markdown"))
     return {
       cmExtensions: [markdown()],
-      augmentations: [recipesList, markdownTag, markdownLink, markdownImage],
+      augmentations: [
+        // recipesList, markdownTag, markdownLink, markdownImage
+      ],
     };
   if (language === languageFor("glsl"))
     return {

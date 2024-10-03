@@ -9,6 +9,8 @@ import { openPotluck } from "./potluck.ts";
 import { openIPyNotebook } from "./notebook.ts";
 import { openFileInWindow } from "./editor.ts";
 
+import "../example-files/tree-sitter-profile.ts";
+
 appendCss(`
 html {
   font-family: sans-serif;
@@ -55,7 +57,8 @@ function Tracery() {
   useAsyncEffect(async () => {
     if (project) {
       await project.open();
-      if (true)
+
+      if (false)
         openIPyNotebook(
           { path: "notebook-example.ipynb", project },
           { doNotStartAttached: true, initialPosition: { x: 100, y: 100 } },
@@ -68,7 +71,7 @@ function Tracery() {
           initialSize: { x: 300, y: 400 },
         });
 
-      if (false)
+      if (true)
         openBrowser(
           project,
           {

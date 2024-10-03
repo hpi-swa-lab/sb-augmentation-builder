@@ -66,6 +66,8 @@ export class TreeSitterLanguage extends SBLanguage {
     this.tsLanguage = await TreeSitter.Language.load(
       config.url(`external/tree-sitter-${this.name}.wasm`),
     );
+    this.parser = new TreeSitter();
+    this.parser.setLanguage(this.tsLanguage);
 
     if (!options?.parserOnly)
       this.grammar = this._prepareGrammar(await this._loadGrammar());
@@ -135,14 +137,50 @@ export class TreeSitterLanguage extends SBLanguage {
     return grammar;
   }
 
-  _parse(text, oldRoot = null) {
+  _parse(text, oldRoot = null, changes = [], tx) {
     console.assert(this.initialized, "language not initialized");
-    const parser = new TreeSitter();
-    parser.setLanguage(this.tsLanguage);
 
-    const newRoot = this._nodeFromTree(parser.parse(text, oldRoot), text);
-    oldRoot?._tree?.delete();
+    // just a simple request -- no reason to rollback
+    // FIXME the function is quite messy right now -- it supports
+    // both the first-time parse and subsequent parses. Maybe split.
+    if (!changes.length) {
+      tx = {
+        _onCommit: [],
+        onCommit: function (cb) {
+          this._onCommit.push(cb);
+        },
+        onRollback: () => {},
+      };
+    }
 
+    if (oldRoot?._tree) {
+      const copy = oldRoot._tree.copy();
+      tx.onRollback(() => {
+        oldRoot._tree.delete();
+        oldRoot._tree = copy;
+      });
+      tx.onCommit(() => {
+        oldRoot._tree.delete();
+        copy.delete();
+      });
+      for (const change of changes) {
+        console.assert(!!change);
+        oldRoot._tree.edit(change._ts);
+      }
+    }
+
+    const newTree = this.parser.parse(text, oldRoot?._tree);
+    const newRoot = this._nodeFromTree(newTree, text);
+    tx.onCommit(() => {
+      // we assign the new root on the tx once we obtain it from
+      // the diffing step -- the root may either be from the new
+      // or the old tree
+      tx.root._tree = newTree;
+    });
+    if (!changes.length) {
+      tx.root = newRoot;
+      for (const cb of tx._onCommit) cb();
+    }
     return newRoot;
   }
 
@@ -197,7 +235,7 @@ export class TreeSitterLanguage extends SBLanguage {
   _nodeFromCursor(cursor, text) {
     const node = new SBBlock(
       cursor.nodeType,
-      cursor.currentFieldName(),
+      cursor.currentFieldName,
       cursor.startIndex,
       cursor.endIndex,
       cursor.nodeIsNamed,

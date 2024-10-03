@@ -1,4 +1,5 @@
 import { exec, rangeShift } from "../utils.js";
+import { ReversibleChange } from "../vitrail/vitrail.js";
 import { SBBlock, SBNode } from "./model.js";
 
 export interface EditOptions {

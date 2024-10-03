@@ -51,8 +51,47 @@ function compareReplacementProps(a: any, b: any, editBuffer: EditBuffer) {
   return false;
 }
 
-export function applyStringChange(source, { from, to, insert }: Change<any>) {
+export function applyStringChange(source: string, change: Change<any>) {
+  const { from, to, insert } = change;
+  // FIXME need to do convert on the temporary old string -- but not nice to
+  // put this tree-sitter concern here.
+  change._ts = changeToTreeSitterEdit(source, change);
   return source.slice(0, from) + (insert ?? "") + source.slice(to);
+}
+function changeToTreeSitterEdit(
+  source: string,
+  { from, to, insert }: Change<any>,
+) {
+  let startPosition, oldEndPosition, newEndPosition;
+  const newEndIndex = from + (insert ?? "").length;
+  let lines = 0;
+  let columns = 0;
+  for (let i = 0; i <= Math.max(newEndIndex, to); i++) {
+    if (i === from) {
+      startPosition = { row: lines, column: columns };
+    }
+    if (i === to) {
+      oldEndPosition = { row: lines, column: columns };
+    }
+    if (i === newEndIndex) {
+      newEndPosition = { row: lines, column: columns };
+    }
+    if (source[i] === "\n") {
+      lines++;
+      columns = 0;
+    } else {
+      columns++;
+    }
+  }
+
+  return {
+    startIndex: from,
+    oldEndIndex: to,
+    newEndIndex,
+    startPosition,
+    oldEndPosition,
+    newEndPosition,
+  };
 }
 
 // TODO
@@ -197,6 +236,15 @@ export type AugmentationMatch = {
   matchedNode: SBNode;
 };
 
+interface TreeSitterEdit {
+  startIndex: number;
+  oldEndIndex: number;
+  newEndIndex: number;
+  startPosition: { row: number; column: number };
+  oldEndPosition: { row: number; column: number };
+  newEndPosition: { row: number; column: number };
+}
+
 export type ReversibleChange<T> = {
   from: number;
   to: number;
@@ -205,6 +253,7 @@ export type ReversibleChange<T> = {
   sourcePane?: Pane<T>;
   sideAffinity?: -1 | 0 | 1;
   selectionRange?: [number, number];
+  _ts?: TreeSitterEdit;
 } & EditOptions;
 export type Change<T> = Omit<ReversibleChange<T>, "inverse" | "sourcePane">;
 export type PaneFetchAugmentationsFunc<T> = (
@@ -513,7 +562,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     const update = sortModels([...this._models.values()]).map((n) =>
-      n.reParse(newSource),
+      n.reParse(newSource, allChanges),
     );
     if (!forceApply) {
       for (const { diff, root } of update) {

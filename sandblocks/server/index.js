@@ -208,7 +208,6 @@ cp ${repoName}.wasm ${upToRoot}/../../../external/${repoName}.wasm"`);
         io.sockets.emit("process", { type: "stdout", data: enc(data), pid });
       });
       proc.stderr.on("data", (data) => {
-        console.log(data.toString());
         io.sockets.emit("process", { type: "stderr", data: enc(data), pid });
       });
       proc.on("close", (code) => {

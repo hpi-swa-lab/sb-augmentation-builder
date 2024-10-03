@@ -113,10 +113,9 @@ export class TrueDiff {
     return { root, diff: buffer };
   }
 
-  applyEdits(a, b, leaveInfoForDebug = false) {
+  applyEdits(tx, a, b, leaveInfoForDebug = false) {
     const { root, diff } = this.detectEdits(a, b);
 
-    const tx = new Transaction();
     diff.apply(tx);
     this.recurseParallel(b, root, (b, a) => {
       tx.set(a, "_range", b.range);
@@ -578,15 +577,25 @@ export class EditBuffer {
   }
 }
 
-class Transaction {
+export class Transaction {
   undo = [];
+  _onCommit = [];
+  _onRollback = [];
 
   commit() {
+    for (const f of this._onCommit) f();
     this.undo = null;
   }
   rollback() {
+    for (const f of this._onRollback) f();
     this.undo.reverse().forEach((f) => f());
     this.undo = null;
+  }
+  onCommit(f) {
+    this._onCommit.push(f);
+  }
+  onRollback(f) {
+    this._onRollback.push(f);
   }
 
   updateNodeText(node, text) {

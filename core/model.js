@@ -7,7 +7,8 @@ import {
   rangeContains,
   rangeEqual,
 } from "../utils.js";
-import { AttachOp, LoadOp, TrueDiff } from "./diff.js";
+import { applyStringChange } from "../vitrail/vitrail.ts";
+import { AttachOp, LoadOp, Transaction, TrueDiff } from "./diff.js";
 export {
   SBMatcher,
   SBDefaultLanguageMatcher,
@@ -87,13 +88,13 @@ export class OffscreenEditor extends EventTarget {
 
     const oldSource = this.sourceString;
     let newSource = this.sourceString;
-    for (const { insert, from, to } of changes) {
-      newSource = newSource.slice(0, from) + insert + newSource.slice(to);
+    for (const change of changes) {
+      newSource = applyStringChange(newSource, change);
     }
     this.sourceString = newSource;
 
     const update = sortModels([...this.models.values()]).map((n) =>
-      n.reParse(newSource),
+      n.reParse(newSource, changes),
     );
     // FIXME need validation support for rewrite augmentations?
     for (const { tx } of update) tx.commit();
@@ -168,8 +169,10 @@ export class SBLanguage {
   /**
    * @param {string} text
    * @param {SBNode | null} oldRoot
+   * @param {any[]} changes
+   * @param {Transaction} tx
    * @returns {SBNode} */
-  _parse(text, oldRoot = null) {
+  _parse(text, oldRoot = null, changes = [], tx) {
     throw "subclass responsibility";
   }
 
@@ -187,16 +190,16 @@ export class SBLanguage {
     await this.ready();
     return this.parseSync(text, editor);
   }
-  reParse(text, oldRoot) {
+  reParse(text, oldRoot, changes) {
     console.assert(oldRoot);
 
-    const { tx, root, diff } = new TrueDiff().applyEdits(
-      oldRoot,
-      this._parse(text, oldRoot),
-    );
+    const tx = new Transaction();
+    const newRoot = this._parse(text, oldRoot, changes, tx);
+    const { root, diff } = new TrueDiff().applyEdits(tx, oldRoot, newRoot);
     if (root !== oldRoot) tx.set(oldRoot, "_sourceString", null);
     root._language = this;
     root._editor = oldRoot._editor;
+    tx.root = root;
     tx.set(root, "_sourceString", text);
     return { tx, root, diff };
   }
@@ -361,8 +364,8 @@ export class SBNode {
     ];
   }
 
-  reParse(text) {
-    return this.language.reParse(text, this);
+  reParse(text, changes) {
+    return this.language.reParse(text, this, changes);
   }
 
   destroy() {
