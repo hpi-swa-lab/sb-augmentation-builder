@@ -140,7 +140,7 @@ export class TreeSitterLanguage extends SBLanguage {
     const parser = new TreeSitter();
     parser.setLanguage(this.tsLanguage);
 
-    const newRoot = this._nodeFromTree(parser.parse(text), text);
+    const newRoot = this._nodeFromTree(parser.parse(text, oldRoot), text);
     oldRoot?._tree?.delete();
 
     return newRoot;
@@ -762,7 +762,7 @@ export class TSQuery {
       }
     });
 
-    const root = editor.models.get(optionalTemplate.root.language);
+    const root = editor.models.get(optionalRoot.language);
     root._editor = undefined;
     optionalRoot = root;
 
