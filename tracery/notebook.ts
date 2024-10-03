@@ -20,6 +20,7 @@ import {
   CodeMirrorWithVitrail,
 } from "../vitrail/codemirror6.ts";
 import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
+import { TraceryInlineEditor } from "./editor.ts";
 
 function objectField(key: string) {
   return (object) =>
@@ -62,13 +63,39 @@ const notebookCell: Augmentation<any> = {
   type: "replace" as const,
   matcherDepth: 3,
   model: languageFor("json"),
-  view: ({ source, cellType }) =>
-    h(
+  view: ({ source: { text, onLocalChange }, cellType }) => {
+    const styles = {
+      markdown: {
+        padding: "0.5em",
+        border: "1px solid #ccc",
+        borderRadius: "0.5em",
+      },
+      code: {
+        padding: "0.5em",
+        border: "1px solid #ccc",
+        borderRadius: "0.5em",
+        backgroundColor: "#f8f8f8",
+      },
+    };
+    return h(
       "div",
-      { style: { marginBottom: "1rem" } },
-      cellType,
-      h("div", { style: { width: "100%" } }, h(TextArea, source)),
-    ),
+      {
+        style: { display: "inline-block", ...styles[cellType] },
+      },
+      h(
+        "div",
+        { style: { width: "100%" } },
+        h(TraceryInlineEditor, {
+          text,
+          onLocalChange,
+          language: {
+            markdown: languageFor("markdown"),
+            code: languageFor("python"),
+          }[cellType],
+        }),
+      ),
+    );
+  },
 };
 
 function IPyNotebook({ path, project }) {
@@ -81,7 +108,9 @@ function IPyNotebook({ path, project }) {
 
   return h(
     "div",
-    { style: { display: "flex" } },
+    {
+      style: { display: "flex", width: "100%", flex: "1 1", overflowY: "auto" },
+    },
     h(CodeMirrorWithVitrail, {
       cmExtensions: baseCMExtensions,
       fetchAugmentations: () => augmentations,

@@ -192,7 +192,7 @@ async function codeMirror6WithVitrail(
       ? range[0] < range[1]
       : range[0] <= range[1];
   }
-  const extensions = (pane: Pane<EditorView>, hostOptions) => {
+  const extensions = (pane: Pane<EditorView>, hostOptions, onChange) => {
     const replacementsField = StateField.define({
       create: () => Decoration.none,
       update: () => {
@@ -327,6 +327,7 @@ async function codeMirror6WithVitrail(
       }),
       replacementsField,
       EditorView.updateListener.of((update) => {
+        onChange(pane.host.state.doc.toString());
         if (
           update.docChanged &&
           !update.transactions.some((t) => t.isUserEvent("sync"))
@@ -432,7 +433,6 @@ async function codeMirror6WithVitrail(
                 : [],
           }),
         );
-        text = host.state.doc.toString();
       },
       getText: () => text,
       hasFocus: () => {
@@ -447,21 +447,19 @@ async function codeMirror6WithVitrail(
             return false;
         return true;
       },
-      setText: (text: string, undoable: boolean) => {
+      setText: (text: string, undoable: boolean) =>
         host.dispatch(
           host.state.update({
             userEvent: "sync",
             annotations: [Transaction.addToHistory.of(undoable)],
             changes: [{ from: 0, to: host.state.doc.length, insert: text }],
           }),
-        );
-        text = host.state.doc.toString();
-      },
+        ),
     });
 
     host.dispatch({
       effects: StateEffect.appendConfig.of([
-        ...extensions(pane, hostOptions),
+        ...extensions(pane, hostOptions, (t) => (text = t)),
         ...(hostOptions?.cmExtensions ? hostOptions.cmExtensions : []),
         ...(isRoot ? [history()] : []),
       ]),

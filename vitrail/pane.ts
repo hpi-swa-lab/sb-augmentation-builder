@@ -46,7 +46,7 @@ export class Pane<T> {
   host: T;
   nodes: SBNode[];
   startIndex: number = -1;
-  startLineNumber: number = -1;
+  _startLineNumber: number = -1;
   rangeOffsets = [0, 0];
   props = signal(null);
 
@@ -228,7 +228,7 @@ export class Pane<T> {
 
   connectNodes(v: Vitrail<T>, nodes: SBNode[]) {
     this.startIndex = nodes[0].range[0];
-    this._computeLineNumber();
+    this._startLineNumber = -1;
     this.nodes = nodes;
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
@@ -298,7 +298,7 @@ export class Pane<T> {
       }
     }
 
-    this._computeLineNumber();
+    this._startLineNumber = -1;
   }
 
   _augmentationInstances: Set<AugmentationInstance<any>> = new Set();
@@ -520,12 +520,18 @@ export class Pane<T> {
     return false;
   }
 
+  get startLineNumber() {
+    return this._computeLineNumber();
+  }
+
   _computeLineNumber() {
+    if (this._startLineNumber !== -1) return this._startLineNumber;
+
     const source = this.vitrail.sourceString;
-    this.startLineNumber = 1;
+    this._startLineNumber = 1;
     for (let i = 0; i < this.startIndex; i++) {
-      if (source[i] === "\n") this.startLineNumber++;
+      if (source[i] === "\n") this._startLineNumber++;
     }
-    return this.startLineNumber;
+    return this._startLineNumber;
   }
 }

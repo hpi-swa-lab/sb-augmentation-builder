@@ -15,6 +15,7 @@ import {
   cpp,
   python,
   sql as cmSql,
+  markdown,
 } from "../codemirror6/external/codemirror.bundle.js";
 import { languageForPath, languageFor } from "../core/languages.js";
 import { SBBaseLanguage, SBNode } from "../core/model.js";
@@ -149,7 +150,7 @@ function extensionsFor(language: Model): {
     };
   if (language === languageFor("markdown"))
     return {
-      cmExtensions: [],
+      cmExtensions: [markdown()],
       augmentations: [recipesList, markdownTag, markdownLink, markdownImage],
     };
   if (language === languageFor("glsl"))
