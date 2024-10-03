@@ -233,8 +233,9 @@ export class Pane<T> {
 
     this.setText(v._sourceString.slice(this.range[0], this.range[1]), false);
 
-    for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
-      this.vitrail.updateAugmentations(b, [this]);
+    // FIXME need this extra loop?
+    // for (const b of this._getInitEditBuffersForRoots([...v._models.values()]))
+    //   this.vitrail.updateAugmentations(b, [this]);
 
     // asynchronous update
     this.loadMissingModels(v);
@@ -272,16 +273,16 @@ export class Pane<T> {
       this.startIndex = adjustIndex(this.startIndex, [change], Side.Left);
 
       // FIXME need to adjust length?
-      if (from >= length || to <= 0) continue;
+      if (from > length || to < 0) continue;
 
       translated.push({
         from: clamp(from, 0, length),
         to: clamp(to, 0, length),
-        insert: from > 0 ? change.insert : "",
+        insert: from >= 0 ? change.insert : "",
         intentDeleteNodes: change.intentDeleteNodes,
       });
     }
-    this._applyLocalChanges(translated);
+    if (translated.length > 0) this._applyLocalChanges(translated);
 
     if (
       this.nodes.every((n) => n.connected) &&
@@ -289,11 +290,11 @@ export class Pane<T> {
     ) {
       // depending on how the AST shifted, we may be off; if we have
       // pendingChanges, the AST won't update.
+      this.startIndex = this.nodes[0].range[0];
       const targetText = this.sourceString;
       if (this.getText() !== targetText) {
         this.setText(targetText, true);
       }
-      this.startIndex = this.nodes[0].range[0];
     }
 
     this._computeLineNumber();

@@ -55,7 +55,7 @@ function Tracery() {
   useAsyncEffect(async () => {
     if (project) {
       await project.open();
-      if (false)
+      if (true)
         openIPyNotebook(
           { path: "notebook-example.ipynb", project },
           { doNotStartAttached: true, initialPosition: { x: 100, y: 100 } },
@@ -68,7 +68,7 @@ function Tracery() {
           initialSize: { x: 300, y: 400 },
         });
 
-      if (true)
+      if (false)
         openBrowser(
           project,
           {

@@ -529,7 +529,7 @@ export function CodeMirrorWithVitrail({
   onLoad?: (vitrail: Vitrail<EditorView>) => void;
   [key: string]: any;
 }) {
-  const vitrail = useSignal(null);
+  const vitrail: { value: Vitrail<EditorView> } = useSignal(null);
   const view = useSignal(null);
   const parent = useRef();
 
@@ -552,7 +552,7 @@ export function CodeMirrorWithVitrail({
   }, []);
 
   useSignalEffect(() => {
-    const handler = ({ detail: { sourceString } }) => {
+    const handler: any = ({ detail: { sourceString } }) => {
       if (value.value !== sourceString) value.value = sourceString;
     };
     if (vitrail.value) vitrail.value.addEventListener("change", handler);
@@ -586,20 +586,22 @@ export function CodeMirrorWithVitrail({
 
   useEffect(() => {
     if (vitrail.value)
-      vitrail.value._rootPane.fetchAugmentations = fetchAugmentations;
+      vitrail.value._rootPane._fetchAugmentations = fetchAugmentations;
   }, [vitrail.value, fetchAugmentations]);
 
   useSignalEffect(() => {
+    const newValue = value.value || "";
     const currentValue = vitrail.value?.sourceString ?? "";
-    if (view.value && value.value !== currentValue) {
-      view.value.dispatch({
-        changes: {
+    if (view.value && newValue !== currentValue) {
+      vitrail.value.applyChanges([
+        {
           from: 0,
           to: currentValue.length,
-          insert: value.value || "",
+          insert: newValue,
+          inverse: { from: 0, to: newValue.length, insert: currentValue },
+          noFocus: true,
         },
-        annotations: [External.of(true)],
-      });
+      ]);
     }
   });
 

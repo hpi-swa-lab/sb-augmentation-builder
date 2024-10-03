@@ -53,7 +53,6 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
   type: "replace" as const,
   selectionInteraction: SelectionInteraction.Start,
   deletionInteraction: DeletionInteraction.SelectThenFull,
-  matcherDepth: Infinity,
   model: SBWhitespaceModel,
   match: (it) =>
     metaexec(it, (capture) => [
@@ -76,7 +75,6 @@ export const removeCommonIndent = (rootNodes: SBBlock[]) => ({
       "⭾",
     );
   },
-  rerender: () => true,
   checkOnEdit: (editBuffer, check) => {
     for (const c of editBuffer.root.children) check(c);
   },

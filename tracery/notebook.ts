@@ -9,6 +9,7 @@ import {
 import {
   all,
   debugIt,
+  match,
   metaexec,
   spawnArray,
 } from "../sandblocks/query-builder/functionQueries.js";
@@ -18,7 +19,7 @@ import {
   baseCMExtensions,
   CodeMirrorWithVitrail,
 } from "../vitrail/codemirror6.ts";
-import { Augmentation } from "../vitrail/vitrail.ts";
+import { Augmentation, VitrailPane } from "../vitrail/vitrail.ts";
 
 function objectField(key: string) {
   return (object) =>
@@ -35,52 +36,44 @@ const notebook: Augmentation<any> = {
       (x) => x.type === "object",
       all(
         [objectField("nbformat")],
-        [
-          objectField("cells"),
-          debugIt,
-          (x) => x.childBlocks,
-          spawnArray((x) =>
-            metaexec(x, (capture) => [
-              all(
-                [
-                  objectField("cell_type"),
-                  (x) => x.childBlock(0),
-                  (x) => x.text,
-                  capture("cellType"),
-                ],
-                [
-                  objectField("source"),
-                  bindPlainStringFromArray,
-                  capture("source"),
-                ],
-              ),
-            ]),
-          ),
-          capture("cells"),
-        ],
+        [objectField("cells"), (x) => x.childBlocks, capture("cells")],
       ),
     ]),
   type: "replace" as const,
   matcherDepth: 1,
   model: languageFor("json"),
   view: ({ cells }) =>
+    cells.map((c) => h(VitrailPane, { nodes: [c], key: c.id })),
+};
+
+const notebookCell: Augmentation<any> = {
+  match: match((capture) => [
+    (x) => x.type === "object",
+    all(
+      [
+        objectField("cell_type"),
+        (x) => x.childBlock(0),
+        (x) => x.text,
+        capture("cellType"),
+      ],
+      [objectField("source"), bindPlainStringFromArray, capture("source")],
+    ),
+  ]),
+  type: "replace" as const,
+  matcherDepth: 3,
+  model: languageFor("json"),
+  view: ({ source, cellType }) =>
     h(
       "div",
-      { style: { width: "100%" } },
-      cells.map((c) =>
-        h(
-          "div",
-          { style: { marginBottom: "1rem" } },
-          c.cellType,
-          h("div", { style: { width: "100%" } }, h(TextArea, c.source)),
-        ),
-      ),
+      { style: { marginBottom: "1rem" } },
+      cellType,
+      h("div", { style: { width: "100%" } }, h(TextArea, source)),
     ),
 };
 
 function IPyNotebook({ path, project }) {
   const source = useSignal("");
-  const augmentations = useMemo(() => [notebook], []);
+  const augmentations = useMemo(() => [notebook, notebookCell], []);
 
   useAsyncEffect(async () => {
     source.value = await project.openFile(path);
