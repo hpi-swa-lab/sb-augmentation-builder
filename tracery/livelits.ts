@@ -4,6 +4,7 @@ import {
   all,
   captureAll,
   match,
+  nodesWithWhitespace,
   query,
 } from "../sandblocks/query-builder/functionQueries.js";
 import {
@@ -55,15 +56,18 @@ export const color = (model) =>
     model,
     match: match((capture) => [
       query(`["color", $r, $g, $b, $a]`),
-      captureAll(capture),
+      all(
+        [(it) => it.r, nodesWithWhitespace, capture("r")],
+        [(it) => it.g, nodesWithWhitespace, capture("g")],
+        [(it) => it.b, nodesWithWhitespace, capture("b")],
+      ),
     ]),
-    view: ({ r, g, b, a, replacement }) => {
+    view: ({ r, g, b, replacement }) => {
       useValidateKeepReplacement(replacement);
 
       const red = useSignal(0);
       const green = useSignal(0);
       const blue = useSignal(0);
-      const alpha = useSignal(0);
 
       function storeNum(signal, val) {
         signal.value = isNaN(val) ? 0 : val;
@@ -72,7 +76,6 @@ export const color = (model) =>
       useRuntimeValues(r, (val) => storeNum(red, val));
       useRuntimeValues(g, (val) => storeNum(green, val));
       useRuntimeValues(b, (val) => storeNum(blue, val));
-      useRuntimeValues(a, (val) => storeNum(alpha, val));
 
       return h(
         "span",
@@ -87,9 +90,9 @@ export const color = (model) =>
         h(
           "div",
           {},
-          h("div", {}, "R:", h(VitrailPane, { nodes: [r] })),
-          h("div", {}, "G:", h(VitrailPane, { nodes: [g] })),
-          h("div", {}, "B:", h(VitrailPane, { nodes: [b] })),
+          h("div", {}, "R:", h(VitrailPane, { nodes: r })),
+          h("div", {}, "G:", h(VitrailPane, { nodes: g })),
+          h("div", {}, "B:", h(VitrailPane, { nodes: b })),
         ),
         h("input", {
           style: { marginLeft: "0.25rem" },

@@ -9,8 +9,6 @@ import { openPotluck } from "./potluck.ts";
 import { openIPyNotebook } from "./notebook.ts";
 import { openFileInWindow } from "./editor.ts";
 
-import "../example-files/tree-sitter-profile.ts";
-
 appendCss(`
 html {
   font-family: sans-serif;

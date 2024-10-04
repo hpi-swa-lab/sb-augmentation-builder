@@ -131,7 +131,16 @@ export const invisibleWatchRewrite = (model) => ({
   },
 });
 
-export function useRuntimeValues(node: SBNode, onValue: (value: any) => void) {
+export function useRuntimeValues(
+  node: SBNode | SBNode[],
+  onValue: (value: any) => void,
+) {
+  if (Array.isArray(node)) {
+    const nonWhiteSpace = node.filter((n) => !n.isWhitespace());
+    if (nonWhiteSpace.length !== 1) throw new Error("need a single node");
+    node = nonWhiteSpace[0];
+  }
+
   const id = useMemo(() => randomId(), []);
 
   useTagNode(node, "viWatch", id);
