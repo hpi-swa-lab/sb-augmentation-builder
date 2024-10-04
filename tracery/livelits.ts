@@ -11,10 +11,8 @@ import {
   Augmentation,
   SelectionInteraction,
   useOnSelectReplacement,
-  useValidateKeepNodes,
   useValidateKeepReplacement,
   VitrailPane,
-  VitrailPaneWithWhitespace,
 } from "../vitrail/vitrail.ts";
 import { useRuntimeValues } from "./watch.ts";
 
@@ -70,7 +68,7 @@ export const color = (model) =>
       const blue = useSignal(0);
 
       function storeNum(signal, val) {
-        signal.value = isNaN(val) ? 0 : val;
+        signal.value = isNaN(val) || val > 255 || val < 0 ? 0 : val;
       }
 
       useRuntimeValues(r, (val) => storeNum(red, val));

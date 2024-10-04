@@ -104,35 +104,36 @@ export const invisibleWatchRewrite = (model) => ({
   model,
   match: (node) => (node.hasTag("viWatch") ? { node } : null),
   view: ({ node }) => {
-    const id = node.getTagData("viWatch");
     const port = 7921;
 
-    if (
-      node.language === languageFor("javascript") ||
-      node.language === languageFor("typescript")
-    ) {
-      const url = `${window.location.origin}/sb-watch`;
-      const headers = `headers: {"Content-Type": "application/json"}`;
-      const opts = `{method: "POST", body: JSON.stringify({id: ${id}, e}), ${headers},}`;
-      node.wrapWith(
-        `["viWatch",((e) => (fetch("${url}", ${opts}), e))(`,
-        `),][1]`,
-      );
-    } else if (node.language === languageFor("python")) {
-      node.wrapWith(
-        `(lambda e: ((lambda s: (
+    for (const id of node.getAllTagDataFor("viWatch")) {
+      if (
+        node.language === languageFor("javascript") ||
+        node.language === languageFor("typescript")
+      ) {
+        const url = `${window.location.origin}/sb-watch`;
+        const headers = `headers: {"Content-Type": "application/json"}`;
+        const opts = `{method: "POST", body: JSON.stringify({id: ${id}, e}), ${headers},}`;
+        node = node.wrapWith(
+          `["viWatch",((e) => (fetch("${url}", ${opts}), e))(`,
+          `),][1]`,
+        );
+      } else if (node.language === languageFor("python")) {
+        node = node.wrapWith(
+          `(lambda e: ((lambda s: (
           s.connect(("localhost", ${port})),
           s.send(__import__("json").dumps({"id":${id},"e":e},default=str).encode()),
           s.close())
         )(__import__("socket").socket()), e))(`,
-        ")[1]",
-      );
+          ")[1]",
+        );
+      }
     }
   },
 });
 
 export function useRuntimeValues(
-  node: SBNode | SBNode[],
+  node: SBNode | SBNode[] | undefined,
   onValue: (value: any) => void,
 ) {
   if (Array.isArray(node)) {

@@ -351,8 +351,15 @@ export class SBNode {
     return this.editor.nodeTags.get(this)?.some(([t]) => t === tag) ?? false;
   }
 
-  getTagData(tag) {
-    return this.editor.nodeTags.get(this)?.find(([t]) => t === tag)?.[1];
+  getFirstTagDataFor(tag) {
+    return this.getAllTagDataFor(tag)[0];
+  }
+
+  getAllTagDataFor(tag) {
+    return this.editor.nodeTags
+      .get(this)
+      ?.filter(([t]) => t === tag)
+      .map(([t, data]) => data);
   }
 
   initOps() {

@@ -375,6 +375,10 @@ async function codeMirror6WithVitrail(
 
           v.applyChanges(changes);
         }
+
+        if (update.selectionSet) {
+          v.updateSelection();
+        }
       }),
     ];
   };

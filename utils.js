@@ -679,7 +679,9 @@ export async function evalModule(node, transformCb) {
   //   ])
   //     ?.imports?.map((i) => i.source)
   //     .join("\n") ?? "";
+  // cache busting
+  const source = node.root.sourceString + " // " + randomId();
   return await import(
-    "data:text/javascript;charset=utf-8;base64," + btoa(node.root.sourceString)
+    "data:text/javascript;charset=utf-8;base64," + btoa(source)
   );
 }

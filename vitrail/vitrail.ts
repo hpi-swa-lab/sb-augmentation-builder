@@ -110,17 +110,23 @@ export const VitrailContext = createContext(null);
 export const useVitrail = (): Vitrail<any> =>
   useContext(VitrailContext).vitrail;
 export const useVitrailProps = () => useVitrail().props.value;
-export const useTagNode = (node: SBNode, tag: string, data?: any) => {
+export const useTagNode = (
+  node: SBNode | undefined,
+  tag: string,
+  data?: any,
+) => {
   const v = useVitrail();
   const updateAugmentations = () =>
     queueMicrotask(() => {
       v._augmentationsCheckedTrees.clear();
       v.updateAugmentations(
-        new EditBuffer([new UpdateOp(node, node.text)]),
+        new EditBuffer([new UpdateOp(node, node!.text)]),
         [],
       );
     });
   useEffect(() => {
+    if (!node) return;
+
     const tuple: [string, any] = [tag, data];
     if (v.nodeTags.has(node)) v.nodeTags.get(node)!.push(tuple);
     else v.nodeTags.set(node, [tuple]);
@@ -150,6 +156,9 @@ export const useOnChange = (cb) => {
     vitrail.addEventListener("change", cb);
     return () => vitrail.removeEventListener("change", cb);
   }, [vitrail, cb]);
+};
+export const useSelectedNode = (): SBNode | null => {
+  return useVitrail()._selectedNode.value;
 };
 
 export type ReplacementProps = {
@@ -277,6 +286,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   _models: Map<Model, SBNode> = new Map();
   _validators = new Set<[Model, ValidatorFunc<T>]>();
   _props = signal({});
+  _selectedNode = signal(null);
   _nodeTags = new Map<SBNode, [string, any][]>();
 
   // Augmentations
@@ -350,8 +360,9 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     resolvedNodes: SBNode[];
     resolvedRange?: [number, number];
   } {
-    const rewrite = [...this._matchedAugmentations.entries()].filter(
-      ([_, augmentation]) => augmentation.type === "rewrite",
+    // FIXME ignores scoping to panes
+    const rewrite = [...this.getAllAugmentations()].filter(
+      (a) => a.type === "rewrite",
     );
     if (rewrite.length === 0 && !requireClone) {
       return { editor: this, resolvedNodes: resolveNodes };
@@ -373,7 +384,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     }
 
     for (const model of new Set([
-      ...rewrite.map(([_, { model }]) => model),
+      ...rewrite.map(({ model }) => model),
       ...resolveNodes.map((n) => n.language),
     ])) {
       editor.models.set(model, model.parseSync(this.sourceString, editor));
@@ -392,7 +403,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       n.findInClone(editor.models.get(n.language)),
     );
 
-    for (const [_, augmentation] of rewrite) {
+    for (const augmentation of rewrite) {
       const matches: [any, Augmentation<any>][] = [];
       for (const node of editor.models.get(augmentation.model)?.allNodes()) {
         const match = augmentation.match(node);
@@ -800,11 +811,15 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
       for (const node of allChildren(root)) {
         if (node.hasFocus?.() && node.getSelection) {
           let selection = node.getSelection();
-          return { range: selection, element: node };
+          return { range: selection.sort((a, b) => a - b), element: node };
         }
       }
     }
     return null;
+  }
+
+  updateSelection() {
+    this._selectedNode.value = this.selectedNode();
   }
 
   selectedNode(model?: Model) {
@@ -820,7 +835,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
   selectedString(rewritten = false) {
     const selection = this.getSelection();
     if (!selection) return null;
-    const range = selection.range.sort((a, b) => a - b);
+    const range = selection.range;
 
     if (rewritten) {
       const {

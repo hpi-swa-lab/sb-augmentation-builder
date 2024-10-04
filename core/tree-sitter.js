@@ -292,6 +292,7 @@ export class TreeSitterLanguage extends SBLanguage {
     if (node.isRoot)
       return new GrammarNode({ type: "SYMBOL", name: this.type }, null);
     const rule = this._grammarBodyFor(node.parent);
+    if (!rule) return null;
     let res;
     this._matchRule(rule, [...node.parent.childNodes], (n, rule) => {
       if (node === n) res = rule;
@@ -341,7 +342,7 @@ export class TreeSitterLanguage extends SBLanguage {
   isExpression(node) {
     // TODO parametrize the name of the expression type
     const rule = this._grammarNodeFor(node);
-    return rule.name === "expression";
+    return rule?.name === "expression";
   }
 
   // FIXME cb should only be called once we know that we have a full match

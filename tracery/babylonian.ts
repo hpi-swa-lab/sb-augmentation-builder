@@ -1,6 +1,6 @@
 import { languageFor } from "../core/languages.js";
 import { SBNode } from "../core/model.js";
-import { useSignal } from "../external/preact-signals.mjs";
+import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import {
   bindPlainString,
@@ -20,10 +20,12 @@ import { useDebouncedEffect } from "../view/widgets.js";
 import {
   Augmentation,
   useOnChange,
+  useSelectedNode,
   useValidateKeepNodes,
   VitrailPane,
 } from "../vitrail/vitrail.ts";
 import { Process } from "./host.js";
+import { useRuntimeValues } from "./watch.ts";
 
 appendCss(`.babylonian-param > .cm-editor, textarea.babylonian-param {
   border-radius: 0.4rem;
@@ -107,6 +109,7 @@ export const babylonian = (model) =>
       self,
       funcSelector,
       runModule,
+      selectedNode,
     }: {
       nodes: SBNode[];
       name: any;
@@ -114,9 +117,13 @@ export const babylonian = (model) =>
       args: SBNode;
       funcSelector: (n: SBNode) => boolean;
       runModule: (name: string, func: SBNode, args: SBNode) => Promise<void>;
+      selectedNode: SBNode;
     }) => {
       const counter = useSignal(0);
       useValidateKeepNodes([args, self]);
+
+      const selected = useSelectedNode()?.orParentThat((it) => it.isExpression);
+      useRuntimeValues(selected, console.log);
 
       useDebouncedEffect(
         500,
@@ -131,7 +138,7 @@ export const babylonian = (model) =>
             }
           }
         },
-        [counter.value],
+        [counter.value, selected],
       );
 
       useOnChange(() => counter.value++);
