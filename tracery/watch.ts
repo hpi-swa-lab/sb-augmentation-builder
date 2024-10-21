@@ -114,12 +114,18 @@ export const invisibleWatchRewrite = (model) => ({
         const url = `${window.location.origin}/sb-watch`;
         const headers = `headers: {"Content-Type": "application/json"}`;
         const opts = `{method: "POST", body: JSON.stringify({id: ${id}, e}), ${headers},}`;
-        node = node.wrapWith(
-          `["viWatch",((e) => (fetch("${url}", ${opts}), e))(`,
-          `),][1]`,
-        );
+        const prefix = `["viWatch",((e) => (fetch("${url}", ${opts}), e))(`;
+        const suffix = `),][1]`;
+
+        if (node.parent.type === "formal_parameter") {
+          node.parent.parent
+            .firstOfType("statement_block")
+            .insert(0, "statement", `${prefix}${node.text}${suffix}`);
+        } else {
+          node.wrapWith(prefix, suffix);
+        }
       } else if (node.language === languageFor("python")) {
-        node = node.wrapWith(
+        node.wrapWith(
           `(lambda e: ((lambda s: (
           s.connect(("localhost", ${port})),
           s.send(__import__("json").dumps({"id":${id},"e":e},default=str).encode()),

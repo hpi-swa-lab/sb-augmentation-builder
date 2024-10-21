@@ -298,6 +298,7 @@ export function TraceryEditor({
   onLoad,
   onChange,
   augmentations: extraAugmentations,
+  className,
 }) {
   const source = useSignal(null);
   const diagnostics = useSignal([]);
@@ -377,7 +378,7 @@ export function TraceryEditor({
         vitrail.value = v;
         onLoad?.(v);
       },
-      className: "tracery-browser",
+      className,
       key: path,
       value: source,
       onSave: () => formatAndSave(),

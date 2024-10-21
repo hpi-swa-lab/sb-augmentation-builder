@@ -185,6 +185,7 @@ function TraceryBrowser({ project, initialSelection, window }) {
         ),
         selectedFile.value &&
           h(TraceryEditor, {
+            className: "tracery-browser",
             onLoad: (v) => {
               vitrail.value = v;
               topLevelEntries.value = getOutline();

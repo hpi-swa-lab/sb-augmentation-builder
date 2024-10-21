@@ -8,6 +8,7 @@ import { useEffect, useMemo } from "../external/preact-hooks.mjs";
 import { openPotluck } from "./potluck.ts";
 import { openIPyNotebook } from "./notebook.ts";
 import { openFileInWindow } from "./editor.ts";
+import { openExpressEditor } from "./express.ts";
 
 appendCss(`
 html {
@@ -68,6 +69,16 @@ function Tracery() {
           initialPosition: { x: 100, y: 100 },
           initialSize: { x: 300, y: 400 },
         });
+
+      if (false)
+        openExpressEditor(
+          { project, path: "example-files/express.js" },
+          {
+            doNotStartAttached: true,
+            initialPosition: { x: 100, y: 100 },
+            initialSize: { x: 300, y: 400 },
+          },
+        );
 
       if (true)
         openBrowser(

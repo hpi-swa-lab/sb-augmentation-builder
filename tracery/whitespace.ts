@@ -110,7 +110,7 @@ function indentInNodes(nodes: SBBlock[]) {
         indent++;
       }
       j--;
-      if (indent < minIndent) {
+      if (indent < minIndent && indent > 0) {
         minIndent = indent;
       }
     }
