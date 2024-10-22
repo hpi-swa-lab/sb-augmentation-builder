@@ -21,9 +21,9 @@ export function match(makeScript) {
   };
 }
 
-export function metaexec(obj, makeScript, debugId = null) {
-  //console.log(`evalRange: ${evalRange.value}`);
-  //console.log(`debugId: ${debugId}`);
+export function metaexec(obj, makeScript, debugId = -1) {
+  console.log(`evalRange: ${evalRange.value}`);
+  console.log(`debugId: ${debugId}`);
   let _debugId = debugId;
   if (debugId && evalRange.value != []) {
     //console.log(`${obj.range} == ${evalRange.value}`);
@@ -34,6 +34,7 @@ export function metaexec(obj, makeScript, debugId = null) {
       //console.log("_debugId: null");
       _debugId = null;
     } else {
+      console.log("Creating debug history");
       debugHistory.value = new Map(debugHistory.value.set(debugId, []));
       debugHistory.value = new Map(
         debugHistory.value.set(`fin_${debugId}`, []),

@@ -44,6 +44,8 @@ async function insertItem() {
       { label: "Mark for Replace", text: `capture("nodes")` },
       { label: "Run Code", text: `(it) => ${createPlaceholder("it")}` },
       { label: "Match Code", text: `query("")` },
+      { label: "Match Type", text: `type("")` },
+      { label: "Match RegEx", text: `it => //i.exec(it)` },
       { label: "Extract", text: `(it) => it.field` },
       { label: "Flow: All", text: `all([], [])` },
       { label: "Flow: First", text: `first([], [])` },
@@ -136,7 +138,11 @@ function getPipelineStep(node) {
     first(
       [
         query("($any) => $any.$field"),
-        (it) => it.field,
+        (it) => {
+          ["(", ")", "[", "]"].every(
+            (elem) => !it.field.sourceString.includes(elem),
+          );
+        },
         bindSourceString,
         capture("field"),
         () => PipelineSteps.EXTRACT,
@@ -417,6 +423,7 @@ function PipelineStep({
   // console.log("StepType");
   // console.log(step.step.stepType);
   // console.log(step);
+  console.log("DebugId in step: " + debugId);
 
   const first = step.node.parent.childBlocks[0]?.id == step.node.id;
   const last =
@@ -686,6 +693,7 @@ function PipelineStep({
       .get(debugId)
       .map((it) => JSON.stringify(it.id))
       .includes(JSON.stringify(step.id));
+  console.log("debugObjectExists: " + debugObjectExists);
   const debugObject = history.value
     .get(debugId)
     ?.find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))?.it;
@@ -827,8 +835,7 @@ function calcIds(pipeline, start = []) {
       ) {
         calcIds(step.steps, step["id"]);
       }
-      //FIX ME: This is a workarround, because the matching of SPWAN_ARRAY is done differently.
-      //It does not contain a list of steps, but a pipeline object.
+
       if (
         [
           PipelineSteps.SPAWN_ARRAY,

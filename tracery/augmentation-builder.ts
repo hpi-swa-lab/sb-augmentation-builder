@@ -26,7 +26,11 @@ import {
   useSignalEffect,
 } from "../external/preact-signals.mjs";
 import { randomId, rangeSize, replaceRange, rangeShift } from "../utils.js";
-import { useAsyncEffect, useDebouncedEffect } from "../view/widgets.js";
+import {
+  Codicon,
+  useAsyncEffect,
+  useDebouncedEffect,
+} from "../view/widgets.js";
 import { objectToString } from "./query-builder.ts";
 import { removeCommonIndent } from "./whitespace.ts";
 
@@ -120,7 +124,8 @@ export const augmentationBuilder = (model) => ({
     ]),
   view: ({ examples, match, view, nodes: [node] }) => {
     const augmentation = useSignal(null);
-    const debugId = useMemo(() => randomId().toString(), []);
+    //const debugId = useMemo(() => randomId().toString(), []);
+    const debugId = -1;
     const debugHistoryAug = useComputed(() =>
       debugHistory.value ? debugHistory.value : new Map(),
     );
@@ -146,6 +151,7 @@ export const augmentationBuilder = (model) => ({
     );
 
     const exampleSelectionRange = useSignal([0, 0]);
+    const viewExpanded = useSignal(true);
 
     if (debugHistoryAug.value.has(`fin_${debugId}`))
       console.log(debugHistory.value.get(`fin_${debugId}`));
@@ -155,14 +161,22 @@ export const augmentationBuilder = (model) => ({
     return h(
       "div",
       {
-        style: { display: "flex", border: "1px solid #333" },
+        style: {
+          display: "flex",
+          border: "1px solid #333",
+          boxShadow: "0 8px 8px -4px gray",
+        },
         focusable: true,
       },
       h(
         "div",
         {},
         h("strong", {}, "Match"),
-        h("div", {}, h(VitrailPane, { nodes: [match], props: { debugId } })),
+        h(
+          "div",
+          { style: { overflow: "auto", maxWidth: "100%" } },
+          h(VitrailPane, { nodes: [match], props: { debugId } }),
+        ),
         //h("strong", {}, "History"),
         //h(
         //  "div",
@@ -182,95 +196,122 @@ export const augmentationBuilder = (model) => ({
       ),
       h(
         "div",
-        {},
+        { style: { boxShadow: "0 8px 8px -4px gray" } },
 
-        h("strong", {}, "View"),
         h(
           "div",
-          {},
-          h(VitrailPane, {
-            nodes: [view],
-            fetchAugmentations: (p) => [
-              ...p.fetchAugmentations(),
-              removeIndent,
-            ],
+          {
+            style: { display: "flex", flexDirection: "row" },
+            onclick: () => (viewExpanded.value = !viewExpanded.value),
+          },
+          h("strong", {}, "View"),
+          h(Codicon, {
+            name: viewExpanded.value ? "chevron-up" : "chevron-down",
+            style: { width: "1rem" },
           }),
         ),
+        viewExpanded.value
+          ? h(
+              "div",
+              {},
+              h(VitrailPane, {
+                nodes: [view],
+                fetchAugmentations: (p) => [
+                  ...p.fetchAugmentations(),
+                  removeIndent,
+                ],
+              }),
+            )
+          : null,
         h("hr"),
-
         h(
-          "table",
-          { style: { maxWidth: "550px", width: "100%", tableLayout: "fixed" } },
+          "div",
+          { style: { boxShadow: "0 8px 8px -4px gray" } },
           h(
-            "tr",
-            { style: { height: "1rem" } },
-            h("td", {}, "Examples"),
-            h("td", {}, "Preview"),
-          ),
-          h(NodeArray, {
-            insertItem: () => "['', [0, 0]]",
-            container: examples,
-            wrap: (it) => it,
-            view: (it, ref, onmousemove, onmouseleave) => {
-              const e = bindPlainString(it.childBlock(0));
-              const text = useSignal(e.text);
-              useEffect(() => {
-                if (e.text !== text.value) text.value = e.text;
-              }, [e.text]);
-              return h(
+            "div",
+            {},
+            h("strong", {}, "Examples"),
+            h(
+              "table",
+              {
+                style: {
+                  maxWidth: "550px",
+                  width: "100%",
+                  tableLayout: "fixed",
+                },
+              },
+              h(
                 "tr",
-                { ref, onmousemove, onmouseleave },
-                h(
-                  "td",
-                  {},
-                  h(TextArea, {
-                    ...e,
-                    onLocalSelectionChange: (textarea) => {
-                      exampleSelectionRange.value = [
-                        textarea.selectionStart,
-                        textarea.selectionEnd,
-                      ];
-                    },
-                    style: {
-                      width: "100%",
-                      minWidth: "250px",
-                      border: "1px solid #ccc",
-                    },
-                  }),
-                  h(
-                    "button",
-                    {
-                      style: {
-                        visibility:
-                          rangeSize(exampleSelectionRange.value) > 0
-                            ? "visible"
-                            : "hidden",
-                      },
-                      onclick: () => {
-                        evalRange.value = [
-                          exampleSelectionRange.value[0],
-                          exampleSelectionRange.value[1],
-                        ];
-                        exampleSelectionRange.value = [0, 0];
-                        augmentation.value = null;
-                      },
-                    },
-                    "Mark for Feedback",
-                  ),
-                ),
-                h(
-                  "td",
-                  {},
-                  h(CodeMirrorWithVitrail, {
-                    vitrailRef: vitrailRef,
-                    value: text,
-                    fetchAugmentations: () =>
-                      augmentation.value ? [augmentation.value] : [],
-                  }),
-                ),
-              );
-            },
-          }),
+                { style: { height: "1rem" } },
+                h("td", {}, "Code"),
+                h("td", {}, "Preview"),
+              ),
+              h(NodeArray, {
+                insertItem: () => "['', [0, 0]]",
+                container: examples,
+                wrap: (it) => it,
+                view: (it, ref, onmousemove, onmouseleave) => {
+                  const e = bindPlainString(it.childBlock(0));
+                  const text = useSignal(e.text);
+                  useEffect(() => {
+                    if (e.text !== text.value) text.value = e.text;
+                  }, [e.text]);
+                  return h(
+                    "tr",
+                    { ref, onmousemove, onmouseleave },
+                    h(
+                      "td",
+                      {},
+                      h(TextArea, {
+                        ...e,
+                        onLocalSelectionChange: (textarea) => {
+                          exampleSelectionRange.value = [
+                            textarea.selectionStart,
+                            textarea.selectionEnd,
+                          ];
+                        },
+                        style: {
+                          width: "100%",
+                          minWidth: "250px",
+                          border: "1px solid #ccc",
+                        },
+                      }),
+                      h(
+                        "button",
+                        {
+                          style: {
+                            visibility:
+                              rangeSize(exampleSelectionRange.value) > 0
+                                ? "visible"
+                                : "hidden",
+                          },
+                          onclick: () => {
+                            evalRange.value = [
+                              exampleSelectionRange.value[0],
+                              exampleSelectionRange.value[1],
+                            ];
+                            exampleSelectionRange.value = [0, 0];
+                            augmentation.value = null;
+                          },
+                        },
+                        "Mark for Feedback",
+                      ),
+                    ),
+                    h(
+                      "td",
+                      {},
+                      h(CodeMirrorWithVitrail, {
+                        vitrailRef: vitrailRef,
+                        value: text,
+                        fetchAugmentations: () =>
+                          augmentation.value ? [augmentation.value] : [],
+                      }),
+                    ),
+                  );
+                },
+              }),
+            ),
+          ),
         ),
       ),
     );
