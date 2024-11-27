@@ -14,9 +14,9 @@ import {
 } from "./sandblocks/query-builder/functionQueries.js";
 
 export const augColor = (model) => ({
-  type: "replace" as const,
+  type: "replace",
   matcherDepth: Infinity,
-  model: model,
+  model: languageFor("javascript"),
   match: (it) =>
     metaexec(it, (capture) => [
       query('"$content"'),
@@ -104,7 +104,6 @@ export const augColor = (model) => ({
   },
   rerender: () => true,
   examples: [
-    ['const color = "rgb(12,34,56)"', [0, 0]],
     ['const color = "#123456"', [0, 0]],
   ],
 });

@@ -143,18 +143,15 @@ export const augmentationBuilder = (model) => ({
         debugHistory.value = new Map(
           debugHistory.value.set(`suc_${debugId}`, false),
         );
-        execAugmentation(node, debugId)
+        execAugmentation(node, `${debugId}`)
           .then((a) => (augmentation.value = a))
           .catch((e) => console.log("Failed to eval augmentation", e));
       },
-      [node.sourceString, evalRange.value],
+      [node.sourceString, evalRange.value, augmentation],
     );
 
     const exampleSelectionRange = useSignal([0, 0]);
     const viewExpanded = useSignal(true);
-
-    if (debugHistoryAug.value.has(`fin_${debugId}`))
-      console.log(debugHistory.value.get(`fin_${debugId}`));
 
     const removeIndent = useMemo(() => removeCommonIndent([view]), [view]);
 

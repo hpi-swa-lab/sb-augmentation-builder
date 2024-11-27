@@ -79,6 +79,16 @@ export function bindPlainStringFromArray(node) {
   };
 }
 
+export function bindBoolean(node: SBBlock) {
+  if (node.type != "boolean") throw new Error("Expected boolean");
+
+  const value = node.sourceString == "true";
+  return {
+    node,
+    value,
+  };
+}
+
 export function bindPlainString(node: SBBlock) {
   if (node.type !== "string" && node.type !== "template_string")
     throw new Error("Expected string");

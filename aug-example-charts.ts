@@ -114,7 +114,6 @@ export const augChartsColor = (model) => ({
       capture("node"),
       (it) =>
         it.sourceString.replace("Utils.", "").replace("CHART_COLORS.", ""),
-      log("color"),
       capture("color"),
     ]),
   view: ({ color, node }) => {

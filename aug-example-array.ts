@@ -9,6 +9,7 @@ import {
   log,
   spawnArray,
   allMatch,
+  also,
 } from "./sandblocks/query-builder/functionQueries.js";
 
 export const augExample = {
@@ -38,6 +39,7 @@ export const augExample = {
             ],
             false,
           ),
+          also([(it) => it.name, capture("name")]),
         ],
       ),
     ]),
@@ -73,3 +75,29 @@ export const augExample = {
     ],
   ],
 };
+
+//function matchRecur(tree, captures, condition, extract) {
+//  if (condition(tree)) captures.push(extract(tree));
+//  return tree.children.forEach((it) =>
+//    matchRecur(it, captures, condition, extract),
+//  );
+//}
+//
+//matchRecur(
+//  tree,
+//  captures,
+//  (tree) =>
+//    tree.type == "array" &&
+//    tree.childBlocks.every(
+//      (child) =>
+//        child.type == "array" &&
+//        child.childBlocks.length == child.parent.childBlocks[0].length,
+//    ),
+//  (match) => {
+//    ({
+//      array: match,
+//      columns: match.childBlocks.length,
+//      rows: match.childBlocks[0].length,
+//    });
+//  },
+//);

@@ -11,7 +11,7 @@ import { languageFor, languageForPath } from "../../core/languages.js";
 import { last, randomId, takeWhile } from "../../utils.js";
 
 export const debugHistory = signal(new Map());
-export const evalRange = signal([10, 19]);
+export const evalRange = signal([14, 23]);
 
 export function orderFork() {}
 
@@ -22,8 +22,6 @@ export function match(makeScript) {
 }
 
 export function metaexec(obj, makeScript, debugId = -1) {
-  console.log(`evalRange: ${evalRange.value}`);
-  console.log(`debugId: ${debugId}`);
   let _debugId = debugId;
   if (debugId && evalRange.value != []) {
     //console.log(`${obj.range} == ${evalRange.value}`);
@@ -34,15 +32,11 @@ export function metaexec(obj, makeScript, debugId = -1) {
       //console.log("_debugId: null");
       _debugId = null;
     } else {
-      console.log("Creating debug history");
       debugHistory.value = new Map(debugHistory.value.set(debugId, []));
       debugHistory.value = new Map(
         debugHistory.value.set(`fin_${debugId}`, []),
         debugHistory.value.set(`fin_${-1}`, []),
       );
-    }
-    if (_debugId) {
-      console.log(obj.sourceString);
     }
   }
   return _metaexec(obj, makeScript, _debugId)?.captures;
@@ -176,7 +170,7 @@ function historyAddStep(debugId, index, current) {
 }
 
 function historyUpdateIt(debugId, index, current) {
-  console.log("update it");
+  //console.log("update it");
   //const newIndex = [
   //  ...debugHistory.value
   //    .get(`pos_${debugId}`)

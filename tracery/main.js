@@ -21,8 +21,11 @@ appendCss(`.codicon {
 }`);
 
 function Tracery() {
-  const projectPath = useLocalStorageSignal("project-path", null);
-  const startUpFile = useLocalStorageSignal("start-up-file", null);
+  const projectPath = useLocalStorageSignal("project-path", "./");
+  const startUpFile = useLocalStorageSignal(
+    "start-up-file",
+    "sandblocks/query-builder/examples-evaluation/3-dynamic-color-replacement.js:replacementColor",
+  );
   const project = useMemo(
     () =>
       projectPath.value ? new FileProject({ folder: projectPath.value }) : null,

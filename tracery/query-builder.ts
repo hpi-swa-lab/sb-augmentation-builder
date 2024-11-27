@@ -53,8 +53,11 @@ async function insertItem() {
         label: "Flow: Array",
         text: `spawnArray((node) => metaexec(node, (capture) => []))`,
       },
-      { label: "Flow: Optional", text: `optional([])` },
-      { label: "Flow: Also", text: `also([])` },
+      {
+        label: "Flow: Optional",
+        text: `optional([(it) => it])`,
+      },
+      { label: "Flow: Also", text: `also([(it) => it])` },
     ])
   )?.text;
 }
@@ -199,7 +202,7 @@ function getPipelineStep(node) {
       ],
       [
         query("also([$_steps])"),
-        log("also"),
+        //log("also"),
         all(
           [(it) => it.steps, getPipelineStep, capture("steps")],
           [() => PipelineSteps.ALSO, capture("stepType")],
@@ -217,7 +220,7 @@ function getPipelineStep(node) {
       ],
       [
         query(`queryDeep($query, (?"$_extract"?))`),
-        log("queryDeep"),
+        //log("queryDeep"),
         all(
           [(it) => it.query, bindPlainString, capture("query")],
           [(it) => it.extract, capture("extract")],
@@ -423,7 +426,7 @@ function PipelineStep({
   // console.log("StepType");
   // console.log(step.step.stepType);
   // console.log(step);
-  console.log("DebugId in step: " + debugId);
+  //console.log("DebugId in step: " + debugId);
 
   const first = step.node.parent.childBlocks[0]?.id == step.node.id;
   const last =
@@ -686,14 +689,12 @@ function PipelineStep({
 
     return a;
   };
-
   const debugObjectExists =
     history.value.has(debugId) &&
     history.value
       .get(debugId)
       .map((it) => JSON.stringify(it.id))
       .includes(JSON.stringify(step.id));
-  console.log("debugObjectExists: " + debugObjectExists);
   const debugObject = history.value
     .get(debugId)
     ?.find((elem) => JSON.stringify(elem.id) == JSON.stringify(step.id))?.it;
@@ -720,7 +721,7 @@ function PipelineStep({
               padding: "0.25rem",
             },
           },
-          //h("div", {}, step.id ? `id: ${step.id.toString()}` : "NO ID"),
+          h("div", {}, step.id ? `id: ${step.id.toString()}` : "NO ID"),
 
           h(
             "div",
