@@ -148,6 +148,19 @@ function ExplorerObject({
   const children: any[] = [];
   let hasChildren = false;
   if (isExpanded) {
+    if (obj.sourceString) {
+      children.push(
+        h(ExplorerObject, {
+          obj: obj.sourceString,
+          selected,
+          name: "sourceString",
+          parentPath: path,
+          expanded,
+          depth: depth + 1,
+          actionsForItem,
+        }),
+      );
+    }
     for (const key of iterateProps(obj)) {
       hasChildren = true;
       children.push(

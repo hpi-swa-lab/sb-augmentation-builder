@@ -680,12 +680,16 @@ function PipelineStep({
         });
     }
 
-    if (path.match(/\/\/[^\/]+/))
+    if (path.match(/\/\/[^\/]+/)) {
       a.push({
         label: "Extract",
         action: () =>
-          step.node.insertAfter(`(it) => it.${path.slice(2)}`, "expression"),
+          step.node.insertAfter(
+            `(it) => it.${path.slice(2).replace("/", ".")}`,
+            "expression",
+          ),
       });
+    }
 
     return a;
   };
