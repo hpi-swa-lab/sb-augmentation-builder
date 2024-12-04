@@ -539,7 +539,7 @@ export function CodeMirrorWithVitrail({
 
   useEffect(() => {
     const cm = new EditorView({
-      doc: "",
+      doc: value.value,
       root: document,
       extensions: [history(), highlightActiveLineGutter()],
       parent: parent.current,
@@ -595,15 +595,19 @@ export function CodeMirrorWithVitrail({
     const newValue = value.value || "";
     const currentValue = vitrail.value?.sourceString ?? "";
     if (view.value && newValue !== currentValue) {
-      vitrail.value.applyChanges([
-        {
-          from: 0,
-          to: currentValue.length,
-          insert: newValue,
-          inverse: { from: 0, to: newValue.length, insert: currentValue },
-          noFocus: true,
-        },
-      ]);
+      // queue since we otherwise run risk of creating this instance and
+      // new signal triggers while we are currently processing another effect
+      queueMicrotask(() => {
+        vitrail.value.applyChanges([
+          {
+            from: 0,
+            to: currentValue.length,
+            insert: newValue,
+            inverse: { from: 0, to: newValue.length, insert: currentValue },
+            noFocus: true,
+          },
+        ]);
+      });
     }
   });
 

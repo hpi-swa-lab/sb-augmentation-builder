@@ -70,7 +70,7 @@ function getAbsolutePath(node: SBBlock) {
   return replaceRange(
     node.sourceString,
     rangeShift(path.range, -node.range[0]) as [number, number],
-    path.text.replace(/^\./, "https://localhost:3000"),
+    path.text.replace(/^\./, location.protocol + "//" + location.host),
   );
 }
 

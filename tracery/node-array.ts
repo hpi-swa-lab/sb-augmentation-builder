@@ -4,7 +4,7 @@ import { useSignal, useSignalEffect } from "../external/preact-signals.mjs";
 import { h } from "../external/preact.mjs";
 import { Portal } from "../view/portal.ts";
 import { createPlaceholder } from "../vitrail/placeholder.ts";
-import { VitrailPane } from "../vitrail/vitrail.ts";
+import { useUpdateOnChange, VitrailPane } from "../vitrail/vitrail.ts";
 
 type JSX = any;
 
@@ -69,11 +69,17 @@ export function NodeArray<T extends object>({
   buttonPos,
 }: NodeArrayProps<T>) {
   buttonPos ??= ["top", "bottom"];
-  nodeFromItem ??= (it) =>
-    "node" in it
-      ? (it.node as SBNode).orParentThat((p) => p.parent === container)
-      : it;
+  nodeFromItem ??= (it) => {
+    const n =
+      "node" in it
+        ? (it.node as SBNode).orParentThat((p) => p.parent === container)
+        : (it as SBNode);
+    if (!n?.connected) throw new Error("Node is not connected");
+    return n;
+  };
   items ??= container.childBlocks as T[];
+
+  useUpdateOnChange();
 
   style = { display: "flex", flexDirection: "column", ...style };
   insertType ??= "expression";

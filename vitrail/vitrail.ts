@@ -12,6 +12,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useState,
 } from "../external/preact-hooks.mjs";
 import { computed, effect, signal } from "../external/preact-signals-core.mjs";
 import { createContext, h } from "../external/preact.mjs";
@@ -156,6 +157,10 @@ export const useOnChange = (cb) => {
     vitrail.addEventListener("change", cb);
     return () => vitrail.removeEventListener("change", cb);
   }, [vitrail, cb]);
+};
+export const useUpdateOnChange = () => {
+  const [_, set] = useState(0);
+  useOnChange(() => set((x) => x + 1));
 };
 export const useSelectedNode = (): SBNode | null => {
   return useVitrail()._selectedNode.value;
@@ -603,7 +608,7 @@ export class Vitrail<T> extends EventTarget implements ModelEditor {
     for (const { tx } of update) tx.commit();
     this._models = new Map(update.map(({ root }) => [root.language, root]));
     this._sourceString = newSource;
-    this._pendingChanges.value = [];
+    if (this._pendingChanges.value.length > 0) this._pendingChanges.value = [];
     this._revertChanges = [];
     const oldSelection = this.getSelection();
 
