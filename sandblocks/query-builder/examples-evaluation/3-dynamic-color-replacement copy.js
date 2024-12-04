@@ -25,7 +25,12 @@ export const replacementColor = (model) => ({
               (it) => /#([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})/g.exec(it),
               (it) => [...it, "FF"],
             ],
-            [/#([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})/g.exec(it)],
+            [
+              (it) =>
+                /#([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})([A-F0-9]{2})/g.exec(
+                  it,
+                ),
+            ],
           ),
           also([(it) => 16, capture("base")]),
         ],
@@ -35,7 +40,7 @@ export const replacementColor = (model) => ({
               (it) => /rgb\((\d+)\,(\d+)\,(\d+)\)/g.exec(it),
               (it) => [...it, 255],
             ],
-            [/rgb\((\d+)\,(\d+)\,(\d+)\)\,(\d+)\)/g.exec(it)],
+            [(it) => /rgb\((\d+)\,(\d+)\,(\d+)\,(\d+)\)/g.exec(it)],
           ),
           also([(it) => 10, capture("base")]),
         ],
@@ -43,7 +48,7 @@ export const replacementColor = (model) => ({
       (it) => it.slice(1),
       spawnArray([
         (it) => parseInt(it, capture.get("base")),
-        (it) => it.toString(capture.get("base")),
+        (it) => it.toString(16),
         (it) => it.toUpperCase(),
         (it) => it.padStart(2, "0"),
       ]),

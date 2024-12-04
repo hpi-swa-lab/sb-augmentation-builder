@@ -725,7 +725,7 @@ function PipelineStep({
               padding: "0.25rem",
             },
           },
-          h("div", {}, step.id ? `id: ${step.id.toString()}` : "NO ID"),
+          //h("div", {}, step.id ? `id: ${step.id.toString()}` : "NO ID"),
 
           h(
             "div",
